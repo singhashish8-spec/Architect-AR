@@ -150,12 +150,42 @@ wrapped in Capacitor). Read `Budget-Tracker`'s `README.md` and
 8. **This history file** — requested explicitly by the owner, modeled on
    Budget Tracker's `docs/PROJECT_HISTORY.md`, so any future session (human
    or AI) can pick this project up without re-deriving the above.
+9. **A third doc, `docs/ENGINEERING_GUIDE.md`** — requested by the owner so
+   that *any* future AI assistant (not specifically this one) follows the
+   same standard for every step, not just the same plan. This pinned the
+   remaining open technical decisions to concrete defaults rather than
+   leaving them open, specifically so the guide is actually literal enough
+   to follow:
+   - **TypeScript**, not JavaScript, across the whole stack — a deliberate
+     deviation from Budget Tracker's plain JS, justified by this project's
+     more complex data shapes (IFC property sets, glTF scene graphs, scale
+     enums).
+   - **Web app lives in this same repo**, in a new `web/` directory
+     alongside the existing `app/` (Android) directory — not a separate
+     repo — so the Phase 4 native shell and the web app share one history.
+   - **ESLint** (not Budget Tracker's `oxlint`) and **Vitest** (not
+     Budget Tracker's `node --test`) — both deviations justified in
+     `ENGINEERING_GUIDE.md` §1 by TypeScript-aware linting and native Vite
+     test integration respectively.
+   - **Supabase (BaaS) + Vercel (hosting)** set as the *default* picks for
+     the previously-open "BaaS/hosting provider" decision, so the Phase 0
+     build sequence has something concrete to execute — explicitly
+     flagged as overridable at Phase 0 kickoff, not a closed decision.
+   - A literal, numbered **step-by-step build sequence** for Phase 0 and
+     the start of Phase 1 (`ENGINEERING_GUIDE.md` §8), turning
+     `ROADMAP.md`'s bullet-point phases into commit-sized, executable
+     steps.
 
 **Shipped this session:**
 - `ROADMAP.md` — full architecture, phased plan (0–6), open decisions log,
   feature backlog.
 - `docs/PROJECT_HISTORY.md` — this file.
-- Both on branch `claude/app-crash-camera-access-y74pyp`, PR
+- `docs/ENGINEERING_GUIDE.md` — tech stack, folder structure, coding
+  conventions, git workflow, environment/secrets handling, CI quality
+  gates, deployment, and a step-by-step build sequence through the start
+  of Phase 1.
+- `README.md` updated to point to all three docs, in reading order.
+- All on branch `claude/app-crash-camera-access-y74pyp`, PR
   [#1](https://github.com/singhashish8-spec/Architect-AR/pull/1) (draft).
 - **No product code was written this session** — no app exists yet beyond
   the default template inherited from Android Studio.
@@ -195,9 +225,13 @@ for exactly this reason.
   Compose "Hello Android!" screen, nothing else).
 - **Plan**: fully scoped through Phase 1 (MVP), with Phases 2–6 sketched at
   a decision level. See `ROADMAP.md`.
+- **Engineering standard**: tech stack, folder structure, conventions, and
+  a literal Phase 0 / start-of-Phase-1 build sequence are all defined. See
+  `docs/ENGINEERING_GUIDE.md`. The next session can start executing
+  `ENGINEERING_GUIDE.md` §8 step 1 directly.
 - **Open PR**: [#1](https://github.com/singhashish8-spec/Architect-AR/pull/1)
-  (draft) on `claude/app-crash-camera-access-y74pyp`, containing
-  `ROADMAP.md` and this file. Not yet merged.
+  (draft) on `claude/app-crash-camera-access-y74pyp`, containing all three
+  docs. Not yet merged.
 - **Nothing has been built, deployed, or tested** — Phase 0 (stand up the
   actual Vite + React project) has not started.
 

@@ -4,8 +4,12 @@ Professional Augmented Reality toolkit for architects, designers, and constructi
 > **New to this project, or picking it back up after a break?** Read
 > [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md) first — every
 > session, every decision and why, every finding, what's shipped, and
-> what's pending. Then read [`ROADMAP.md`](ROADMAP.md) for the current plan
-> and architecture. Keep both current after every session.
+> what's pending. Then [`ROADMAP.md`](ROADMAP.md) for the current plan and
+> architecture, and [`docs/ENGINEERING_GUIDE.md`](docs/ENGINEERING_GUIDE.md)
+> for the literal tech stack, conventions, and step-by-step build sequence
+> to follow — every AI session or developer working on this repo follows
+> that guide exactly, so the codebase stays consistent regardless of who
+> (or what) is building it. Keep all three current after every session.
 
 ## Status: pre-MVP — roadmap only
 

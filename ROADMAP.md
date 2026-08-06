@@ -5,9 +5,14 @@
 > pending — read [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md)
 > first, whether you're a human coming back after a break or an AI
 > assistant starting a new session with no memory of prior conversations.
-> Keep both files current after every session — this file is *what to
-> build next*, that one is *why it's shaped this way*. Same discipline as
-> the sibling [Budget Tracker](https://github.com/singhashish8-spec/Budget-Tracker)
+> For the literal tech stack, folder structure, git workflow, and
+> step-by-step build sequence, read
+> [`docs/ENGINEERING_GUIDE.md`](docs/ENGINEERING_GUIDE.md) — that file is
+> what turns this plan into the same code regardless of who's building it.
+> Keep all three current after every session — this file is *what to build
+> next*, the history is *why it's shaped this way*, the engineering guide
+> is *how, exactly*. Same discipline as the sibling
+> [Budget Tracker](https://github.com/singhashish8-spec/Budget-Tracker)
 > repo's `docs/PROJECT_HISTORY.md`, on purpose.
 
 Last updated: **2026-08-06**. Status: **pre-MVP — roadmap only, no product
