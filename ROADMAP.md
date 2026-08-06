@@ -1,14 +1,14 @@
 # Architect AR — Product & Technical Roadmap
 
-> **Read this first if you're picking up this project** — as a human coming
-> back after a break, or an AI assistant starting a new session with no
-> memory of prior conversations. It explains what this app is meant to
-> become, why the architecture below was chosen over the alternatives, and
-> what to build in what order. Keep it updated after every milestone ships,
-> the same way `docs/PROJECT_HISTORY.md` is kept current in the
-> [Budget Tracker](https://github.com/singhashish8-spec/Budget-Tracker) repo
-> — these two projects share an owner and a working style, and this file
-> follows that project's convention on purpose.
+> **This is the plan.** For the story of how it got this way — every
+> session, every decision and why, every finding, what's shipped and what's
+> pending — read [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md)
+> first, whether you're a human coming back after a break or an AI
+> assistant starting a new session with no memory of prior conversations.
+> Keep both files current after every session — this file is *what to
+> build next*, that one is *why it's shaped this way*. Same discipline as
+> the sibling [Budget Tracker](https://github.com/singhashish8-spec/Budget-Tracker)
+> repo's `docs/PROJECT_HISTORY.md`, on purpose.
 
 Last updated: **2026-08-06**. Status: **pre-MVP — roadmap only, no product
 code written yet.**
