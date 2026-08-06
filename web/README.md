@@ -15,3 +15,4 @@ npm run build         # production build
 Copy `.env.example` to `.env.local` and fill in real values before running
 against a real Supabase project — see
 [`../docs/engineering/environment.md`](../docs/engineering/environment.md).
+
