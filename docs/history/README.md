@@ -1,0 +1,76 @@
+# History — the story of how this project got here
+
+> Part of [Architect AR docs](../README.md). If you are a human returning
+> after a break, or an AI assistant starting a brand-new chat session with
+> no memory of previous conversations, read this section before doing
+> anything else. It's the record of every session, every decision made and
+> why, every finding (including things that turned out to be broken or
+> missing), and where things stand right now.
+>
+> This mirrors the sibling repo
+> [Budget Tracker](https://github.com/singhashish8-spec/Budget-Tracker)'s
+> `docs/PROJECT_HISTORY.md` in spirit — same owner, same discipline: **keep
+> this current** — but as a folder, one file per session, rather than one
+> ever-growing file. See [`../README.md`](../README.md) for why.
+
+## What this app is, in plain English
+
+Architect AR is a **client presentation tool** for architects (and interior
+designers, contractors) who work in Revit, SketchUp, or Rhino. The
+architect exports a design; a client opens a link on their own phone or
+laptop — no install — and can rotate, walk around, view it in AR on their
+phone, and **tap any element (a wall, a door, a fixture) to see what Revit
+actually knows about it** (family/type, level, material, dimensions).
+
+Full detail — architecture, tech stack, phased build plan — lives in
+[`../roadmap/`](../roadmap/README.md). This section is the narrative of how
+that plan came to be and stays accurate as work happens; read the roadmap
+for *what* to build next, read this section for *why* it's shaped that way.
+
+## How this project is being built
+
+This project is being planned and built through conversation with an AI
+assistant (Claude, via Claude Code), the same working style as Budget
+Tracker. Each work session:
+
+- Investigates or builds something concrete.
+- Surfaces decisions that only the product owner can make (architecture
+  tradeoffs, scope calls) and asks rather than guessing.
+- Records the outcome in a new file under [`sessions/`](sessions/), and
+  updates [`../roadmap/`](../roadmap/README.md) if the plan changed.
+- Commits and pushes to the project's designated branch, opening/updating a
+  pull request rather than pushing straight to `main`.
+
+## Sessions
+
+| Session | Date | Summary |
+|---|---|---|
+| [1](sessions/2026-08-06-session-01.md) | 2026-08-06 | Investigated reported camera-crash → found an empty template repo → built the full roadmap, history, and engineering docs from scratch. |
+
+## See also
+
+- [`findings.md`](findings.md) — notable findings and how they changed the
+  plan (cross-session; a finding can matter beyond the session it happened
+  in).
+- [`status.md`](status.md) — where things stand right now, and what's still
+  pending. The one file in this folder that's expected to change every
+  session, not just gain a new entry.
+
+## Rules of the road for this section
+
+- **Add a new file to `sessions/` every session**, before moving on — don't
+  append to an old one. Name it `YYYY-MM-DD-session-NN.md`.
+- **Update [`findings.md`](findings.md)** if the session turned up
+  something that changed the plan, beyond just "did the planned work."
+- **Update [`status.md`](status.md)** at the end of every session — it
+  should always reflect *right now*, not a snapshot from whenever it was
+  last touched.
+- **Update [`../roadmap/`](../roadmap/README.md)** in the same session if a
+  decision changes scope, architecture, or phase ordering — history and
+  plan must never drift apart.
+- **Write down *why*, not just *what***, especially for any decision that
+  reverses a pattern from the sibling Budget Tracker project.
+- **Commit and push incrementally**, especially before testing anything
+  risky on-device — see [`findings.md`](findings.md) for exactly why this
+  rule exists.
+- **Ask, don't guess**, on anything only the product owner can decide.

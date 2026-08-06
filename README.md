@@ -2,18 +2,16 @@
 Professional Augmented Reality toolkit for architects, designers, and construction professionals.
 
 > **New to this project, or picking it back up after a break?** Read
-> [`docs/PROJECT_HISTORY.md`](docs/PROJECT_HISTORY.md) first — every
-> session, every decision and why, every finding, what's shipped, and
-> what's pending. Then [`ROADMAP.md`](ROADMAP.md) for the current plan and
-> architecture, and [`docs/ENGINEERING_GUIDE.md`](docs/ENGINEERING_GUIDE.md)
-> for the literal tech stack, conventions, and step-by-step build sequence
-> to follow — every AI session or developer working on this repo follows
-> that guide exactly, so the codebase stays consistent regardless of who
-> (or what) is building it. Keep all three current after every session.
+> [`docs/README.md`](docs/README.md) first — it's the index into everything:
+> the roadmap (what & why), the history (every session, every decision and
+> why, every finding), the engineering guide (the literal stack and
+> step-by-step build sequence to follow, regardless of which AI or
+> developer is doing the work), and per-feature specs. Keep it all current
+> after every session.
 
-## Status: pre-MVP — roadmap only
+## Status: pre-MVP — docs only
 
 No product code has been written yet. What's in this repo right now is the
 default Android Studio template (unrelated to the planned product) plus the
-roadmap and history docs above. See `docs/PROJECT_HISTORY.md` for the full
-story of how this project got here.
+full docs set under `docs/`. See [`docs/history/status.md`](docs/history/status.md)
+for exactly where things stand.
