@@ -1,6 +1,9 @@
 # Feature: client presentation viewer
 
-> Part of [`features/`](README.md). Phase 1. Status: **scoped, not built.**
+> Part of [`features/`](README.md). Phase 1. Status: **built
+> (`web/src/pages/`, `web/src/viewer/`), unverified end-to-end** — no live
+> Supabase project or real-device test yet, see
+> [`../history/sessions/2026-08-06-session-02.md`](../history/sessions/2026-08-06-session-02.md).
 
 ## Summary
 

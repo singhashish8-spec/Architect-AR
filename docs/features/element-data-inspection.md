@@ -1,6 +1,8 @@
 # Feature: element data inspection
 
-> Part of [`features/`](README.md). Phase 1. Status: **scoped, not built.**
+> Part of [`features/`](README.md). Phase 1. Status: **built
+> (`web/src/ifc/`), unverified end-to-end** — see the correlation caveat
+> below before assuming this actually works.
 
 ## Summary
 
@@ -60,8 +62,22 @@ summary and feature-specific detail below.
 
 ## Open questions
 
+- **The riskiest unverified assumption in this codebase**: the glTF scene
+  and the IFC file are two *separate* exports from Revit. To know which
+  IFC element a clicked glTF mesh corresponds to, `viewer/ModelViewer.tsx`
+  reads the clicked mesh's `.name` and looks it up as an IFC GlobalId in
+  `ifc/ifcPropertyLookup.ts`'s index. **This assumes the glTF exporter used
+  actually writes each element's GlobalId into the node name** — not
+  confirmed against any real Revit export yet. If the exporter doesn't do
+  this, tap-to-inspect silently returns no data for every element. Test
+  this first, before building anything further on top of it. See
+  [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - Is client-side IFC parsing fast enough on real mid-range phones? Not yet
   tested — tracked in [`../roadmap/decisions.md`](../roadmap/decisions.md).
+- The `web-ifc` calls in `ifc/loadIfcModel.ts` and `ifc/ifcPropertyLookup.ts`
+  are written against that library's documented API surface but have never
+  been run against a real IFC file — `web-ifc` is pre-1.0 (`^0.0.77`) and
+  its exact behavior could differ from what's written.
 - Should SketchUp/Rhino models eventually get an equivalent data panel
   (e.g. via SketchUp's classifications/dynamic attributes)? Not evaluated —
   Revit is the only source for this feature in Phase 1/2.

@@ -45,7 +45,8 @@ Tracker. Each work session:
 
 | Session | Date | Summary |
 |---|---|---|
-| [1](sessions/2026-08-06-session-01.md) | 2026-08-06 | Investigated reported camera-crash → found an empty template repo → built the full roadmap, history, and engineering docs from scratch. |
+| [1](sessions/2026-08-06-session-01.md) | 2026-08-06 | Investigated reported camera-crash → found an empty template repo → built the full roadmap, history, and engineering docs, then executed Phase 0 (the `web/` scaffold). Merged as PR #1. |
+| [2](sessions/2026-08-06-session-02.md) | 2026-08-06 | Built Phase 1 code (schema, upload flow, viewer, IFC parsing, AR handoff) ahead of Supabase/Vercel existing. Fixed a missed router in the stack pin and several real type-safety gaps. Flags what's still unverified end-to-end. |
 
 ## See also
 
