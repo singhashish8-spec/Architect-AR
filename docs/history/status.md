@@ -6,39 +6,47 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-06**, end of Session 1.
+Last updated: **2026-08-06**, end of Session 1 (Phase 0 execution).
 
-- **Code**: none, beyond the inherited default Android Studio template
-  (`app/src/main/java/com/singhashish/architectar/MainActivity.kt` — a
-  Compose "Hello Android!" screen, nothing else).
+- **Code**: `web/` is a real Vite + React + TypeScript scaffold with the
+  full pinned stack installed (`three`, `@react-three/fiber`,
+  `@react-three/drei`, `@google/model-viewer`, `web-ifc` +
+  `@thatopen/components`, `@supabase/supabase-js`), ESLint + Prettier +
+  Vitest configured, the `src/` folder structure in place, and one passing
+  smoke test. All four quality gates (`lint`, `typecheck`, `test`, `build`)
+  verified clean locally. The Android `app/` module is still just the
+  inherited default template — untouched, as planned (Phase 4).
 - **Plan**: fully scoped through Phase 1 (MVP), with Phases 2–6 sketched at
   a decision level. See [`../roadmap/`](../roadmap/README.md).
 - **Engineering standard**: tech stack, folder structure, conventions, and
   a literal Phase 0 / start-of-Phase-1 build sequence are all defined. See
-  [`../engineering/`](../engineering/README.md). The next session can start
-  executing `engineering/build-sequence.md` step 1 directly.
+  [`../engineering/`](../engineering/README.md).
 - **Feature specs**: written for the features already scoped — see
   [`../features/`](../features/README.md).
 - **Released version**: none yet — nothing has shipped to production. See
   [`../releases/`](../releases/README.md) and
   [`../engineering/release-process.md`](../engineering/release-process.md).
+- **CI**: `.github/workflows/ci.yml` is written and runs
+  lint/typecheck/test/build on every PR touching `web/` — not yet
+  confirmed green on GitHub itself since this hasn't been pushed/opened as
+  a PR update yet at the time of writing.
 - **Open PR**: [#1](https://github.com/singhashish8-spec/Architect-AR/pull/1)
-  (draft) on `claude/app-crash-camera-access-y74pyp`, containing all docs.
-  Not yet merged.
-- **Nothing has been built, deployed, or tested** — Phase 0 (stand up the
-  actual Vite + React project) has not started.
+  (draft) on `claude/app-crash-camera-access-y74pyp`. Not yet merged.
 
 ## What's still pending / open
 
+- **Blocking Phase 0 completion — needs the owner, not an AI**: create the
+  Supabase project (record its URL + anon key) and the Vercel project
+  (connect to this repo, root directory `web/`). Neither can be done by an
+  AI session — both require the owner's own account login. See
+  [`sessions/2026-08-06-session-01.md`](sessions/2026-08-06-session-01.md#what-still-needs-the-owner-not-an-ai).
+  Until these exist, there's no live preview/production deploy, and
+  Phase 1's Supabase-dependent build steps (schema, upload flow) are
+  blocked.
 - **Unresolved**: the second ("Other") primary use case selected alongside
   "client presentation tool" during roadmap planning — the actual text
   wasn't captured. Needs confirming with the product owner before
   prioritizing anything past Phase 1, in case it changes scope.
-- **Not yet confirmed**: BaaS/storage provider and hosting provider —
-  defaults are set (Supabase, Vercel) but not yet confirmed by the owner;
-  new-repo-vs-new-directory is decided (same repo, `web/` directory). All
-  tracked in [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - **Not yet tested**: whether client-side IFC parsing (`web-ifc`) is fast
   enough on real mid-range phones — needs profiling before Phase 1 ships;
   fallback is a server-side pre-process (IFC → lighter JSON + glTF).
-- **Not started**: Phase 0 itself (standing up the actual project).
