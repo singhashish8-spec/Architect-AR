@@ -132,6 +132,32 @@ visits) — not as the starting point.
   McNeel APIs. Direct exporters/plugins are a Phase 5 option, not a
   prerequisite.
 
+### 4.3 Hosting & storage
+- **Static hosting**: Vercel, Netlify, or Cloudflare Pages — any support
+  the Vite build output directly; pick based on which the owner already has
+  an account with.
+- **Model file storage**: object storage with a public/signed URL per
+  model (Cloudflare R2, Supabase Storage, or Firebase Storage — glTF/GLB
+  files for architectural interiors can run tens to hundreds of MB, so
+  storage cost and CDN delivery matter more than for a typical web app).
+- **Project metadata** (project name, which model file, which client, link
+  expiry): a small serverless backend or a BaaS (Supabase is a reasonable
+  default — Postgres + storage + auth in one place, generous free tier).
+  This is intentionally the *only* backend in Phase 1 — no custom server to
+  operate.
+
+### 4.4 Sharing model (needs a decision before Phase 1 ships)
+Two options, not mutually exclusive long-term:
+- **Unlisted link, no login** — fastest to build, matches "just send a
+  link"; anyone with the link can view.
+- **Per-client access** (simple passcode or magic-link) — slightly more
+  build effort, needed if designs are confidential and links might be
+  forwarded.
+
+Recommendation: ship unlisted links for Phase 1 (fastest to a working demo),
+add optional passcode-per-project in Phase 2 once real client feedback
+exists.
+
 ### 4.5 Element data pipeline (BIM metadata — decided: IFC)
 The requirement: tap an element in the viewer, see what Revit knows about
 it. Plain glTF/GLB export strips Revit's parameter data down to geometry
@@ -163,31 +189,38 @@ and materials — there's nothing left to show. Two options were weighed;
   JSON property index + glTF geometry) if client-side parsing proves too
   slow. That pre-process is a Phase 2 optimization, not a Phase 1 blocker.
 
-### 4.3 Hosting & storage
-- **Static hosting**: Vercel, Netlify, or Cloudflare Pages — any support
-  the Vite build output directly; pick based on which the owner already has
-  an account with.
-- **Model file storage**: object storage with a public/signed URL per
-  model (Cloudflare R2, Supabase Storage, or Firebase Storage — glTF/GLB
-  files for architectural interiors can run tens to hundreds of MB, so
-  storage cost and CDN delivery matter more than for a typical web app).
-- **Project metadata** (project name, which model file, which client, link
-  expiry): a small serverless backend or a BaaS (Supabase is a reasonable
-  default — Postgres + storage + auth in one place, generous free tier).
-  This is intentionally the *only* backend in Phase 1 — no custom server to
-  operate.
+### 4.6 Model scale (decided: standard architectural preset list, set at import)
+Every model gets a scale assigned **once, at import time**, by the
+architect uploading it — not a free continuous dial for the client. The
+preset list follows standard architectural/engineering drawing scale
+convention (ISO 5455 / RIBA), so the dropdown is familiar to anyone who's
+read a drawing set, not an arbitrary app-specific choice:
 
-### 4.4 Sharing model (needs a decision before Phase 1 ships)
-Two options, not mutually exclusive long-term:
-- **Unlisted link, no login** — fastest to build, matches "just send a
-  link"; anyone with the link can view.
-- **Per-client access** (simple passcode or magic-link) — slightly more
-  build effort, needed if designs are confidential and links might be
-  forwarded.
+| Preset | Typical use |
+|---|---|
+| 1:1 | Full-size / life-size walkthrough (a single room or interior fit-out) |
+| 1:5, 1:10, 1:20 | Detail views (joinery, staircases, facade details) |
+| 1:50, 1:100 | Floor plans — the common "whole building, one level" scale |
+| 1:200, 1:500 | Site plans |
+| 1:1000 | Master plan / location plan (a whole site or block) |
 
-Recommendation: ship unlisted links for Phase 1 (fastest to a working demo),
-add optional passcode-per-project in Phase 2 once real client feedback
-exists.
+How this is enforced per surface:
+- **`<model-viewer>` AR handoff (Phase 1)**: set `ar-scale="fixed"` so the
+  model appears — and stays — at the chosen preset's real-world size in
+  Scene Viewer/Quick Look; the client doesn't get a pinch-to-scale override
+  that would contradict the architect's chosen scale. This works today with
+  no custom AR code, matching the Phase 1 plan.
+- **R3F desktop/browser viewer (Phase 1)**: the preset sets the initial
+  camera framing/zoom, consistent with the same real-world scale.
+- **Custom native AR walk-through (Phase 4, not Phase 1)**: physically
+  walking around an anchored model — e.g. pacing around a 1:1000 master
+  plan placed on your living-room floor like a giant tabletop model, using
+  the phone's motion sensors fused with the camera (ARCore/ARKit
+  visual-inertial tracking) for real 6DOF tracking — needs our own AR
+  camera view instead of the OS handoff, which is exactly why it's
+  deferred to Phase 4's native shell rather than pulled into Phase 1.
+  Until then, "View in AR" still works (per the point above), it's just the
+  OS's own AR view and gestures, not a custom walk-through.
 
 ---
 
@@ -213,10 +246,14 @@ exists.
   evaluation.
 - "View in AR" button on supported phones (Scene Viewer / Quick Look via
   `<model-viewer>`).
+- **Scale preset chosen at import** (§4.6 — 1:1 through 1:1000, standard
+  architectural drawing scales), applied to both the R3F viewer's initial
+  framing and locked into the AR handoff (`ar-scale="fixed"`).
 - One model per link — no project/multi-model management yet.
-- **Definition of done**: an architect can export a real Revit design, get
-  a link, and a client can see it in AR on their own phone *and* tap a wall
-  to see what it actually is — without any help.
+- **Definition of done**: an architect can export a real Revit design, set
+  its scale on import, get a link, and a client can see it in AR at the
+  correct scale on their own phone *and* tap a wall to see what it actually
+  is — without any help.
 
 ### Phase 2 — Presentation polish
 - Multiple models per project (e.g. different rooms, or design options A/B).
@@ -251,6 +288,13 @@ exists.
   at real scale — meaningfully different from the Phase 1 "view a link"
   experience, and the reason a native app becomes worth the extra
   maintenance.
+- **Custom AR camera view** (our own ARCore/ARKit integration, not the
+  Scene Viewer/Quick Look handoff) to support true physical walk-through:
+  the phone's motion sensors fused with the camera track your real
+  movement and translate it into movement through the anchored model, at
+  whatever scale preset (§4.6) that model was imported with — walk around
+  a 1:1000 master plan placed on the floor like a tabletop model, or walk
+  through a 1:1 room-scale interior as if it were built.
 - This finally gives the existing bare Android project (§2) a real purpose.
 
 ### Phase 5 — Deeper CAD integration
@@ -278,6 +322,8 @@ question gets raised, don't let it go stale.
 |---|---|
 | What was the second ("Other") primary use case selected alongside "client presentation tool"? | **Unresolved** — confirm with product owner |
 | How should element data survive Revit export (IFC vs glTF `extras`)? | **Decided: IFC**, parsed client-side with `web-ifc` — see §4.5 |
+| How fine-grained should per-model scale control be? | **Decided: preset dropdown**, standard architectural scales (1:1–1:1000), set once at import — see §4.6 |
+| Should motion-sensor walk-through ship in Phase 1 or Phase 4? | **Decided: Phase 4**, alongside the custom native AR build — see §4.6 and Phase 4 |
 | BaaS/storage provider (Supabase vs Firebase vs custom) | Not yet decided — Phase 0 |
 | Hosting provider (Vercel vs Netlify vs Cloudflare Pages) | Not yet decided — Phase 0 |
 | Unlisted-link vs passcode sharing for Phase 1 | Recommended: unlisted for Phase 1, passcode in Phase 2 |
