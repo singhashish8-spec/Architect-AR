@@ -34,3 +34,5 @@ Last updated: **2026-08-06**.
    Phase 0 and the start of Phase 1.
 9. [`definition-of-done.md`](definition-of-done.md) — per-phase done
    criteria.
+10. [`release-process.md`](release-process.md) — versioning scheme, when to
+    cut a release, what goes in `../releases/`.

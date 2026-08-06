@@ -19,6 +19,9 @@ Last updated: **2026-08-06**, end of Session 1.
   executing `engineering/build-sequence.md` step 1 directly.
 - **Feature specs**: written for the features already scoped — see
   [`../features/`](../features/README.md).
+- **Released version**: none yet — nothing has shipped to production. See
+  [`../releases/`](../releases/README.md) and
+  [`../engineering/release-process.md`](../engineering/release-process.md).
 - **Open PR**: [#1](https://github.com/singhashish8-spec/Architect-AR/pull/1)
   (draft) on `claude/app-crash-camera-access-y74pyp`, containing all docs.
   Not yet merged.

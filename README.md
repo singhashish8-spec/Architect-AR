@@ -15,3 +15,7 @@ No product code has been written yet. What's in this repo right now is the
 default Android Studio template (unrelated to the planned product) plus the
 full docs set under `docs/`. See [`docs/history/status.md`](docs/history/status.md)
 for exactly where things stand.
+
+## License
+
+Proprietary — all rights reserved. See [`LICENSE`](LICENSE).

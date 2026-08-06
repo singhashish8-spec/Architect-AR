@@ -17,7 +17,9 @@ handful of ever-growing single files.
    AI assistant or developer is doing the work.
 4. **[`features/`](features/README.md)** — one spec per major feature,
    written once that feature is scoped enough to build.
-5. **[`glossary.md`](glossary.md)** — every domain term (IFC, glTF,
+5. **[`releases/`](releases/README.md)** — one file per shipped version:
+   what changed, why, how it works.
+6. **[`glossary.md`](glossary.md)** — every domain term (IFC, glTF,
    web-ifc, ARCore, etc.) in one place.
 
 ## Folder map
@@ -28,6 +30,7 @@ handful of ever-growing single files.
 | `history/` | What happened, when, and why? Where do things stand right now? | Every session, before moving on. |
 | `engineering/` | How, exactly, do we build it — stack, conventions, workflow? | The standard changes, or a build step turns out wrong. |
 | `features/` | What does this one feature actually do, in detail? | A feature gets scoped, or its behavior changes. |
+| `releases/` | What shipped in version X, and why? | Any merge to `main` deploys a user-facing change to production (see `engineering/release-process.md`). |
 
 ## How to keep these docs current
 
@@ -40,6 +43,11 @@ handful of ever-growing single files.
   [Budget Tracker](https://github.com/singhashish8-spec/Budget-Tracker)
   repo's single-file `docs/PROJECT_HISTORY.md` — 858+ lines and growing,
   from one project alone.)
+- **Every deployed version release gets its own new file** in
+  `releases/`, the same one-file-per-entry pattern — see
+  `engineering/release-process.md`. A *session* is a unit of work; a
+  *release* is a unit of shipped, versioned product — related, not the
+  same thing, and not every session produces one.
 - **Cross-link, don't duplicate.** If two docs need the same fact, one
   states it and the other links to it. Content living in two places drifts
   out of sync.
