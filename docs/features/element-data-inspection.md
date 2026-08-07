@@ -75,9 +75,14 @@ summary and feature-specific detail below.
 - Is client-side IFC parsing fast enough on real mid-range phones? Not yet
   tested — tracked in [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - The `web-ifc` calls in `ifc/loadIfcModel.ts` and `ifc/ifcPropertyLookup.ts`
-  are written against that library's documented API surface but have never
-  been run against a real IFC file — `web-ifc` is pre-1.0 (`^0.0.77`) and
-  its exact behavior could differ from what's written.
+  have never been *run* against a real IFC file, but the method signatures
+  and data shapes they rely on were verified directly against the
+  installed package's `.d.ts` files and IFC schema (not just memory of the
+  API) — see
+  [`../history/sessions/2026-08-06-session-02.md`](../history/sessions/2026-08-06-session-02.md#addendum-verified-the-web-ifc-api-calls-against-the-installed-packages-own-source),
+  which also caught and fixed a real WASM-path bug this way. Meaningfully
+  lower risk than the correlation assumption above, but "never actually
+  executed" still stands until a real file is tested.
 - Should SketchUp/Rhino models eventually get an equivalent data panel
   (e.g. via SketchUp's classifications/dynamic attributes)? Not evaluated —
   Revit is the only source for this feature in Phase 1/2.

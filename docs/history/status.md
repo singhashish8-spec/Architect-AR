@@ -12,13 +12,16 @@ Last updated: **2026-08-06**, end of Session 2 (Phase 1 code, unverified end-to-
   flow, Supabase schema, R3F viewer with scale-aware model transform,
   `<model-viewer>` AR handoff, IFC parsing + property lookup, routing.
   All four quality gates (`lint`, `typecheck`, `test`, `build`) verified
-  clean locally. **Important**: large parts of this (the `web-ifc` calls,
-  the glTF-node-to-IFC-GlobalId correlation, the visual scale assumption)
-  have never run against real data — see
-  [`sessions/2026-08-06-session-02.md`](sessions/2026-08-06-session-02.md#whats-built-but-not-verified--read-before-trusting-this-code-end-to-end)
-  before assuming this works end-to-end. The Android `app/` module is
-  still just the inherited default template — untouched, as planned
-  (Phase 4).
+  clean locally. The `web-ifc` API calls were additionally checked against
+  the installed package's own `.d.ts`/schema/source (not just memory),
+  which caught and fixed a real WASM-path bug — see
+  [`sessions/2026-08-06-session-02.md`](sessions/2026-08-06-session-02.md#addendum-verified-the-web-ifc-api-calls-against-the-installed-packages-own-source).
+  **What's still genuinely unverified**: the glTF-node-to-IFC-GlobalId
+  correlation and the 1:1-authoring scale assumption — neither can be
+  checked without a real Revit export, see
+  [`sessions/2026-08-06-session-02.md`](sessions/2026-08-06-session-02.md#whats-built-but-not-verified--read-before-trusting-this-code-end-to-end).
+  The Android `app/` module is still just the inherited default template —
+  untouched, as planned (Phase 4).
 - **Plan**: fully scoped through Phase 1 (MVP), with Phases 2–6 sketched at
   a decision level. See [`../roadmap/`](../roadmap/README.md).
 - **Engineering standard**: tech stack (now including `react-router-dom`,

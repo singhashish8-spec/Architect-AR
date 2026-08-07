@@ -24,8 +24,18 @@ export async function loadIfcModel(ifcUrl: string): Promise<IfcModel> {
   const buffer = new Uint8Array(await response.arrayBuffer())
 
   const api = new WebIFC.IfcAPI()
-  api.SetWasmPath(WASM_PATH)
-  await api.Init()
+  // The `true` here is load-bearing: SetWasmPath's second argument means
+  // "this path is absolute (site-root relative)", not "relative to the
+  // executing script's own directory". Without it, web-ifc prepends the
+  // JS bundle's own directory to WASM_PATH, breaking the URL. Verified
+  // against the installed package's source (SetWasmPath's JSDoc and the
+  // locateFileHandler in web-ifc-api.js), not just assumed.
+  api.SetWasmPath(WASM_PATH, true)
+  // forceSingleThread matches the single-threaded .wasm binary actually
+  // checked into public/wasm/ -- see the comment on WASM_PATH above.
+  // Without COOP/COEP headers Init() would fall back to single-threaded
+  // anyway, but this makes the choice explicit rather than incidental.
+  await api.Init(undefined, true)
 
   const modelId = api.OpenModel(buffer)
   return { api, modelId }
