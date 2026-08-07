@@ -1,9 +1,17 @@
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { UploadProject } from './pages/UploadProject'
+import { ProjectView } from './pages/ProjectView'
+import { LocalPreview } from './pages/LocalPreview'
+
 function App() {
   return (
-    <main>
-      <h1>Architect AR</h1>
-      <p>Phase 0 scaffold — no product features yet.</p>
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<UploadProject />} />
+        <Route path="/p/:projectId" element={<ProjectView />} />
+        <Route path="/local" element={<LocalPreview />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

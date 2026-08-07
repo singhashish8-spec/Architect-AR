@@ -20,6 +20,7 @@
     "@thatopen/components": "^3.4.8",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
     "three": "^0.183.2",
     "web-ifc": "^0.0.77"
   },

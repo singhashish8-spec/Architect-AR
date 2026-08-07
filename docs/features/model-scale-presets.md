@@ -1,6 +1,10 @@
 # Feature: model scale presets
 
-> Part of [`features/`](README.md). Phase 1. Status: **scoped, not built.**
+> Part of [`features/`](README.md). Phase 1. Status: **built
+> (`web/src/types/ScalePreset.ts`, applied in both viewer surfaces),
+> unverified end-to-end** — the `visualScale()` transform assumes exported
+> glTF/GLB files are always authored at true 1:1 real-world units, not yet
+> confirmed against a real export.
 
 ## Summary
 
@@ -40,12 +44,23 @@ would present it — not an arbitrary size a client could accidentally distort.
 
 ## Technical approach
 
-- **`<model-viewer>` AR handoff (Phase 1)**: set `ar-scale="fixed"` so the
-  model appears — and stays — at the chosen preset's real-world size in
-  Scene Viewer/Quick Look; no pinch-to-scale override that would contradict
-  the architect's chosen scale. Works today with no custom AR code.
-- **R3F desktop/browser viewer (Phase 1)**: the preset sets the initial
-  camera framing/zoom, consistent with the same real-world scale.
+Exported glTF/GLB files are assumed to always be authored at true
+real-world 1:1 units (1 model-meter = 1 real meter). `types/ScalePreset.ts`'s
+`visualScale(preset)` (`1 / ratio`) is the uniform scale factor applied on
+top of that raw geometry, identically in both viewer surfaces — an earlier
+draft only adjusted camera distance and left the model itself unscaled,
+which would have rendered a 1:1000 master plan at literal full building
+size; caught during Session 2's build, not left in.
+
+- **`<model-viewer>` AR handoff (Phase 1)**: `viewer/ARHandoff.tsx` sets
+  both `scale="{visualScale} {visualScale} {visualScale}"` (the actual
+  size) and `ar-scale="fixed"` (no pinch-to-scale override, so the client
+  can't contradict the architect's chosen scale). Works today with no
+  custom AR code.
+- **R3F desktop/browser viewer (Phase 1)**: `viewer/ModelViewer.tsx`
+  applies the same `visualScale()` as the `<primitive>`'s `scale` prop,
+  with a fixed camera distance — since the model itself is now correctly
+  sized, one default framing works across every preset.
 - **Custom native AR walk-through (Phase 4, not Phase 1)**: physically
   walking around an anchored model — e.g. pacing around a 1:1000 master
   plan placed on the living-room floor like a giant tabletop model, using
@@ -57,7 +72,15 @@ would present it — not an arbitrary size a client could accidentally distort.
 
 ## Open questions
 
-None outstanding — this feature's scope was confirmed directly with the
-product owner (preset dropdown, standard architectural scales, walk-through
-deferred to Phase 4). See
+- **The 1:1-authoring assumption above is unverified.** If an architect's
+  actual glTF export isn't at true real-world scale, every model will
+  render at the wrong size regardless of the chosen preset. Test against a
+  real Revit export before trusting this — see
+  [`../roadmap/decisions.md`](../roadmap/decisions.md).
+
+This feature's *scope* (preset dropdown, standard architectural scales,
+walk-through deferred to Phase 4) was confirmed directly with the product
+owner in Session 1 — see
 [`../history/sessions/2026-08-06-session-01.md`](../history/sessions/2026-08-06-session-01.md).
+The implementation detail above is Session 2's, and is what still needs
+validating.

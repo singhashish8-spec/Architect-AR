@@ -32,30 +32,38 @@
     to Phase 1.
 
 ## Phase 1 (start)
-12. Define the Supabase schema: a `projects` table (id, name, model file
-    URL, IFC file URL, scale preset, created_at) — no migrations framework
-    needed yet at this size, just the SQL run once via Supabase's editor,
-    committed to `web/supabase/schema.sql` for the record.
-13. Build `services/projectService.ts` — CRUD functions wrapping Supabase
-    calls, per the "only `services/` talks to Supabase" rule (see
-    [`folder-structure.md`](folder-structure.md)).
-14. Build the upload flow: a simple page where a glTF/GLB (+ IFC, if
-    present) gets uploaded to Supabase Storage and a `projects` row is
-    created, with the scale preset chosen from the dropdown (see
-    [`../features/model-scale-presets.md`](../features/model-scale-presets.md)).
-15. Build `viewer/ModelViewer.tsx` (R3F scene: load the glTF, apply the
-    scale preset to initial camera framing).
-16. Build `ifc/useIfcElementData.ts` (load + parse the IFC file with
-    `web-ifc`, expose a lookup-by-express-ID function — see
-    [`../features/element-data-inspection.md`](../features/element-data-inspection.md)).
-17. Wire click/tap picking in the R3F scene to that lookup, rendering a
-    data panel component.
-18. Add the `<model-viewer>` AR handoff alongside the R3F viewer, with
-    `ar-scale="fixed"` set from the same scale preset.
-19. Build the shareable link page (`pages/ProjectView.tsx`, route
-    `/p/:projectId`) that ties all of the above together for a client.
-20. Manually test on a real Android phone: upload a real Revit-exported
-    model, open the link, confirm AR handoff and tap-to-inspect both work.
+
+Steps 12–19 were built in
+[Session 2](../history/sessions/2026-08-06-session-02.md), **ahead of**
+Supabase/Vercel existing (writing the code doesn't need live credentials,
+only running it does) — flagged `✅ written` rather than `✅ done`, since
+none of it has run against real data yet. Step 20 is the actual
+verification and is still fully open.
+
+12. ✅ written — Supabase schema (`projects` table + RLS +
+    `get_project()` RPC) at `web/supabase/schema.sql`. Not yet run against
+    a real Supabase project.
+13. ✅ written — `services/projectService.ts`.
+14. ✅ written — `pages/UploadProject.tsx`.
+15. ✅ written — `viewer/ModelViewer.tsx`. Note: applies the scale preset
+    as an actual model transform (`visualScale()`), not just camera
+    framing — see
+    [`../features/model-scale-presets.md`](../features/model-scale-presets.md)
+    for why that distinction matters.
+16. ✅ written — `ifc/useIfcElementData.ts` (+ `ifc/loadIfcModel.ts`,
+    `ifc/ifcPropertyLookup.ts`). Unverified against a real IFC file — see
+    [`../features/element-data-inspection.md`](../features/element-data-inspection.md).
+17. ✅ written — picking wired in `viewer/ModelViewer.tsx`, rendering
+    `components/ElementDataPanel.tsx`.
+18. ✅ written — `viewer/ARHandoff.tsx`.
+19. ✅ written — `pages/ProjectView.tsx`.
+20. **Not done — the actual verification step.** Requires the Supabase
+    project + a real Android phone, neither of which exist yet (see
+    [`../history/status.md`](../history/status.md)). This is where the
+    biggest unverified assumption — whether the glTF exporter used
+    preserves each element's IFC GlobalId in its node name — actually gets
+    tested. Do this before building anything further on top of steps
+    12–19.
 21. **Add a new `history/sessions/` entry** — this is Phase 1's "definition
     of done" moment (see [`definition-of-done.md`](definition-of-done.md)),
-    worth its own entry.
+    once step 20 actually passes.
