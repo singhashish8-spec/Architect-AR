@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { UploadProject } from './pages/UploadProject'
 import { ProjectView } from './pages/ProjectView'
+import { LocalPreview } from './pages/LocalPreview'
 
 function App() {
   return (
@@ -8,6 +9,7 @@ function App() {
       <Routes>
         <Route path="/" element={<UploadProject />} />
         <Route path="/p/:projectId" element={<ProjectView />} />
+        <Route path="/local" element={<LocalPreview />} />
       </Routes>
     </BrowserRouter>
   )

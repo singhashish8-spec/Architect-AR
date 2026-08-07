@@ -23,3 +23,12 @@
 - **Model versioning**: re-upload a revised export and let clients see
   what changed since the last version, instead of only ever seeing the
   latest.
+- **Route-based code-splitting**: adding `pages/LocalPreview.tsx` pushed
+  the production JS bundle to ~858 KB gzipped (Vite's own build warning
+  flagged it) — every route currently ships in one bundle, including
+  Three.js/model-viewer/web-ifc even for the plain upload form that never
+  touches them. `React.lazy()` per route would fix this. Not blocking a
+  first look at the app, but worth doing before real client-facing traffic
+  — a heavy bundle is exactly the "slow to load on a client's phone"
+  problem flagged earlier in
+  [`../history/sessions/2026-08-06-session-02.md`](../history/sessions/2026-08-06-session-02.md).

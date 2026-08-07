@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient'
+import { getSupabase } from './supabaseClient'
 import type { NewProject, Project } from '../types/Project'
 import { isScalePreset } from '../types/ScalePreset'
 
@@ -31,6 +31,7 @@ function fromRow(row: ProjectRow): Project {
 }
 
 async function uploadFile(assetId: string, file: File): Promise<string> {
+  const supabase = getSupabase()
   const path = `${assetId}/${file.name}`
   const { error } = await supabase.storage.from(MODEL_BUCKET).upload(path, file)
   if (error) throw error
@@ -58,7 +59,7 @@ export async function createProject(project: NewProject): Promise<Project> {
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
-  const { error } = await supabase.from('projects').insert({
+  const { error } = await getSupabase().from('projects').insert({
     id,
     name: project.name,
     model_url: project.modelUrl,
@@ -75,7 +76,7 @@ export async function getProject(id: string): Promise<Project | null> {
   // Cast the whole response in one place rather than destructuring an
   // `any`-typed result -- without a generated Database type passed to
   // createClient(), supabase-js's rpc() return type isn't inferred.
-  const result = (await supabase.rpc('get_project', { p_id: id })) as {
+  const result = (await getSupabase().rpc('get_project', { p_id: id })) as {
     data: ProjectRow[] | null
     error: Error | null
   }

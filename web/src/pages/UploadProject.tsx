@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { createProject, uploadIfcFile, uploadModelFile } from '../services/projectService'
 import type { ScalePreset } from '../types/ScalePreset'
@@ -34,6 +34,9 @@ export function UploadProject() {
   return (
     <main>
       <h1>New project</h1>
+      <p>
+        <Link to="/local">Just want to preview a file from your device, no upload? →</Link>
+      </p>
       <form onSubmit={(event) => void handleSubmit(event)}>
         <div>
           <label htmlFor="name">Project name</label>
