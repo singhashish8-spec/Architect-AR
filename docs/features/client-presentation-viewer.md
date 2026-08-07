@@ -35,6 +35,14 @@ without needing CAD software or a site visit.
   [`model-scale-presets.md`](model-scale-presets.md).
 - One model per link in Phase 1 — no project/multi-model switcher yet
   (Phase 2, per [`../roadmap/phases.md`](../roadmap/phases.md#phase-2--presentation-polish)).
+- **Printable QR code** (`components/ProjectQRCode.tsx`): from the project
+  page, generate and download an SVG QR code of that project's shareable
+  link, for printing on a physical drawing sheet — scanning it opens the
+  same link a client would otherwise be sent. This is also the foundation
+  for Phase 4's print-anchored AR (see
+  [`ar-walkthrough.md`](ar-walkthrough.md)): the same QR code both opens
+  the project *and*, once the native app exists, becomes the trigger to
+  start image-tracking against the printed sheet itself.
 
 ## Technical approach
 
@@ -42,7 +50,10 @@ See [`../roadmap/architecture.md`](../roadmap/architecture.md#frontend-and-viewe
 for the two-surface viewer design (React Three Fiber for the in-page
 viewer, `<model-viewer>` for the AR handoff) and
 [`../roadmap/architecture.md#model-export-pipeline`](../roadmap/architecture.md#model-export-pipeline)
-for the glTF/GLB + USDZ export requirements.
+for the glTF/GLB + USDZ export requirements. QR generation is
+`qrcode.react`'s `QRCodeSVG`, encoding `window.location.href` (the
+project page's own URL) — see
+[`../engineering/tech-stack.md`](../engineering/tech-stack.md).
 
 ## Open questions
 

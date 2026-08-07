@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { ModelViewer } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
+import { ProjectQRCode } from '../components/ProjectQRCode'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject } from '../services/projectService'
 import type { Project } from '../types/Project'
@@ -18,6 +19,7 @@ export function ProjectView() {
   // whole-file background parse). Using the whole-file flag here would
   // show the data panel automatically on page load, before any tap.
   const [selecting, setSelecting] = useState(false)
+  const [showQr, setShowQr] = useState(false)
 
   const { getElementDataByGlobalId } = useIfcElementData(project?.ifcUrl ?? null)
 
@@ -66,6 +68,16 @@ export function ProjectView() {
       />
       <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', width: 96, height: 96 }}>
         <ARHandoff modelUrl={project.modelUrl} scalePreset={project.scalePreset} alt={project.name} />
+      </div>
+      <div style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
+        <button type="button" onClick={() => setShowQr((current) => !current)}>
+          {showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}
+        </button>
+        {showQr && (
+          <div style={{ background: '#fff', padding: '1rem', marginTop: '0.5rem' }}>
+            <ProjectQRCode url={window.location.href} projectName={project.name} />
+          </div>
+        )}
       </div>
       <ElementDataPanel
         data={selectedElement}
