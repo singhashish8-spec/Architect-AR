@@ -13,10 +13,13 @@ export function ProjectView() {
   const [project, setProject] = useState<Project | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
+  // Tracks "the user tapped something and we're resolving it" --
+  // deliberately separate from useIfcElementData's `loading` (the
+  // whole-file background parse). Using the whole-file flag here would
+  // show the data panel automatically on page load, before any tap.
+  const [selecting, setSelecting] = useState(false)
 
-  const { loading: ifcLoading, getElementDataByGlobalId } = useIfcElementData(
-    project?.ifcUrl ?? null,
-  )
+  const { getElementDataByGlobalId } = useIfcElementData(project?.ifcUrl ?? null)
 
   useEffect(() => {
     if (!projectId) return
@@ -42,8 +45,13 @@ export function ProjectView() {
   }, [projectId])
 
   async function handleElementSelect(globalId: string) {
-    const data = await getElementDataByGlobalId(globalId)
-    setSelectedElement(data)
+    setSelecting(true)
+    try {
+      const data = await getElementDataByGlobalId(globalId)
+      setSelectedElement(data)
+    } finally {
+      setSelecting(false)
+    }
   }
 
   if (loadError) return <p role="alert">{loadError}</p>
@@ -61,7 +69,7 @@ export function ProjectView() {
       </div>
       <ElementDataPanel
         data={selectedElement}
-        loading={ifcLoading}
+        loading={selecting}
         onClose={() => setSelectedElement(null)}
       />
     </div>

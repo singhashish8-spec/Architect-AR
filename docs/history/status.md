@@ -11,11 +11,17 @@ Last updated: **2026-08-06**, end of Session 2 (Phase 1 code, unverified end-to-
 - **Code**: `web/` now has real Phase 1 functionality written — upload
   flow, Supabase schema, R3F viewer with scale-aware model transform,
   `<model-viewer>` AR handoff, IFC parsing + property lookup, routing.
-  All four quality gates (`lint`, `typecheck`, `test`, `build`) verified
-  clean locally. The `web-ifc` API calls were additionally checked against
-  the installed package's own `.d.ts`/schema/source (not just memory),
-  which caught and fixed a real WASM-path bug — see
-  [`sessions/2026-08-06-session-02.md`](sessions/2026-08-06-session-02.md#addendum-verified-the-web-ifc-api-calls-against-the-installed-packages-own-source).
+  All four quality gates (`lint`, `typecheck`, `test` — 12 tests now, up
+  from 1, `build`) verified clean locally.
+  **Found and fixed four real bugs this session**, none of which would
+  have been visible until someone actually tried using the app: a WASM
+  path bug that would've broken IFC loading entirely, a Supabase RLS
+  interaction that would've made *every* project upload fail, a missing
+  Storage bucket that would've made every file upload fail, and a data
+  panel that popped up automatically on page load instead of waiting for
+  a tap. See
+  [`sessions/2026-08-06-session-02.md`](sessions/2026-08-06-session-02.md)
+  for the full detail on each.
   **What's still genuinely unverified**: the glTF-node-to-IFC-GlobalId
   correlation and the 1:1-authoring scale assumption — neither can be
   checked without a real Revit export, see

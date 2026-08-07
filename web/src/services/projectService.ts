@@ -47,19 +47,28 @@ export async function uploadIfcFile(file: File): Promise<string> {
 }
 
 export async function createProject(project: NewProject): Promise<Project> {
-  const { data, error } = await supabase
-    .from('projects')
-    .insert({
-      name: project.name,
-      model_url: project.modelUrl,
-      ifc_url: project.ifcUrl,
-      scale_preset: project.scalePreset,
-    })
-    .select()
-    .single<ProjectRow>()
+  // Generate the id client-side and skip .select() after the insert.
+  // Postgres RLS applies SELECT policies to a RETURNING clause too (which
+  // is what .select() triggers) -- since there's deliberately no SELECT
+  // policy for anon on `projects` (see schema.sql), .select() would
+  // always come back with zero rows and .single() would throw, even
+  // though the insert itself succeeded. Supplying the id ourselves means
+  // we already have everything needed to build the Project without
+  // reading anything back.
+  const id = crypto.randomUUID()
+  const createdAt = new Date().toISOString()
+
+  const { error } = await supabase.from('projects').insert({
+    id,
+    name: project.name,
+    model_url: project.modelUrl,
+    ifc_url: project.ifcUrl,
+    scale_preset: project.scalePreset,
+    created_at: createdAt,
+  })
 
   if (error) throw error
-  return fromRow(data)
+  return { id, createdAt, ...project }
 }
 
 export async function getProject(id: string): Promise<Project | null> {

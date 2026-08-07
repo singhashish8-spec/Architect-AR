@@ -50,3 +50,23 @@ as $$
 $$;
 
 grant execute on function get_project(uuid) to anon;
+
+-- Storage bucket for uploaded model/IFC files (services/projectService.ts's
+-- MODEL_BUCKET constant -- keep these in sync if either changes).
+-- `public = true` makes uploaded files readable via their public URL
+-- (getPublicUrl()) without needing a separate SELECT policy -- Supabase's
+-- public-bucket flag governs the public URL route directly. It does NOT
+-- grant listing a bucket's contents, so this doesn't reintroduce the
+-- enumeration problem the `projects` table SELECT policy avoids above.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('project-files', 'project-files', true, 524288000) -- 500 MB
+on conflict (id) do nothing;
+
+-- Uploading still needs its own RLS policy regardless of the public flag
+-- (that flag only affects reads). Same known Phase 1 gap as the anon
+-- INSERT policy on `projects` above: open to anyone with the anon key
+-- until real auth exists.
+create policy "anon can upload to project-files"
+  on storage.objects for insert
+  to anon
+  with check (bucket_id = 'project-files');

@@ -2,8 +2,11 @@ import type { IfcAPI } from 'web-ifc'
 import type { IfcElementData, IfcProperty } from '../types/IfcElementData'
 
 // IFC "value" objects come back from web-ifc wrapped as { value, type },
-// e.g. an IfcLabel -- unwrap to a plain string for display.
-function unwrap(value: unknown): string {
+// e.g. an IfcLabel -- unwrap to a plain string for display. Exported for
+// direct testing (see ifcPropertyLookup.test.ts) -- this shape was
+// verified against web-ifc's actual ifc-schema.d.ts, not just assumed,
+// so it's worth locking in with a test.
+export function unwrap(value: unknown): string {
   if (value !== null && typeof value === 'object' && 'value' in value) {
     return String(value.value)
   }
