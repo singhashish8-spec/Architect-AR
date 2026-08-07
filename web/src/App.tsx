@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { useState } from 'react';
-import './App.css';
 
 function App() {
   const [modelUrl, setModelUrl] = useState('');
