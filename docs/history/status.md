@@ -6,9 +6,23 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-06**, end of Session 2 (Phase 1 code, unverified end-to-end).
+Last updated: **2026-08-07**, end of Session 3 (`main`/PR #2 diverged, not reconciled).
 
-- **Code**: `web/` now has real Phase 1 functionality written — upload
+- **`main` and PR #2 now run two different apps — read this first.**
+  Gemini pushed 6 commits directly to `main` (no PR) building a simpler
+  single-page paste-a-`.glb`-URL viewer on Cloudflare R2 storage, with
+  `@ts-nocheck` disabling type-checking and no BIM/scale/persistence
+  features. PR #2 (this project's own work) is untouched and still has
+  the fuller Phase 1 build. **Not yet reconciled** — see
+  [`sessions/2026-08-07-session-03.md`](sessions/2026-08-07-session-03.md)
+  for the full assessment and
+  [`../roadmap/decisions.md`](../roadmap/decisions.md) for the open
+  decision. Do not assume `main` reflects this project's intended
+  direction until that's resolved.
+- **Live deployment exists**: `architect-ar.vercel.app`, connected to
+  `main` — but running Gemini's simpler version, not PR #2.
+- **Code (PR #2, not yet on `main`)**: `web/` has real Phase 1
+  functionality written — upload
   flow, Supabase schema, R3F viewer with scale-aware model transform,
   `<model-viewer>` AR handoff, IFC parsing + property lookup, routing.
   All four quality gates (`lint`, `typecheck`, `test` — 12 tests now, up
@@ -48,15 +62,26 @@ Last updated: **2026-08-06**, end of Session 2 (Phase 1 code, unverified end-to-
 
 ## What's still pending / open
 
-- **Blocking a real deploy — needs the owner, not an AI**:
+- **Owner decision needed first**: reconcile `main` (Gemini's simpler
+  live version) with PR #2 (this project's fuller build) — bring PR #2's
+  BIM data/scale/shareable-links/tests back and adopt Cloudflare R2 in
+  place of Supabase Storage, or consciously keep the simpler version as
+  the real product direction. See
+  [`sessions/2026-08-07-session-03.md`](sessions/2026-08-07-session-03.md)
+  and [`../roadmap/decisions.md`](../roadmap/decisions.md). Nothing else
+  below should be built until this is settled, to avoid building further
+  on a branch that might get discarded.
+- **If PR #2's direction is kept — needs the owner, not an AI**:
   1. Create the Supabase project (record its URL + anon key), then run
-     `web/supabase/schema.sql` against it.
-  2. Create the Vercel project (connect to this repo, root directory
-     `web/`), with the Supabase env vars set.
+     `web/supabase/schema.sql` against it — or skip this entirely if R2 +
+     a lighter database ends up replacing it per the decision above.
+  2. Vercel already exists and is live (via the Gemini session) — would
+     need reconnecting to PR #2's branch/build settings if that direction
+     is chosen.
 
-  Neither can be done by an AI session — both require the owner's own
-  account access. See
-  [`sessions/2026-08-06-session-01.md`](sessions/2026-08-06-session-01.md#what-still-needs-the-owner-not-an-ai).
+  See
+  [`sessions/2026-08-06-session-01.md`](sessions/2026-08-06-session-01.md#what-still-needs-the-owner-not-an-ai)
+  for why these specifically need the owner.
 - **First real test once Supabase/Vercel exist**: upload one real
   Revit-exported glTF/GLB + IFC pair and confirm the tap-to-inspect flow
   actually works — this validates (or disproves) the two biggest
