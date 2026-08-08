@@ -6,7 +6,7 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-08**, end of Session 4 (real bug found & fixed in BIM correlation logic).
+Last updated: **2026-08-08**, end of Session 4 (real bug found & fixed in BIM correlation logic; a second real bug found & fixed in Vercel routing).
 
 - **`main` and PR #2 still run two different apps.** Gemini's simpler
   paste-a-URL version is live on `main`/`architect-ar.vercel.app`. This
@@ -55,8 +55,24 @@ Last updated: **2026-08-08**, end of Session 4 (real bug found & fixed in BIM co
 - **CI**: confirmed genuinely working — passed on PR #2's latest pushes,
   including a live Vercel preview deployment.
 
+- **A second real bug was found and fixed, this time in deployment
+  config**: the owner tried to test the BIM correlation fix by navigating
+  straight to PR #2's `/local` page on the live Vercel preview and got a
+  `404`. Cause: `web/` had no `vercel.json` SPA-fallback rewrite, so any
+  client-side route besides the bare `/` 404'd when hit directly (in-app
+  navigation worked fine — only direct/bookmarked links to `/local` or
+  `/p/:projectId` were affected). Fixed, all four quality gates re-verified
+  clean, pushed as `e1abda1`. See
+  [`findings.md`](findings.md#finding-pr-2s-vercel-preview-404s-on-any-route-but--session-4).
+  **Not yet re-tested by the owner** — the actual BIM tap-to-inspect test
+  (upload `Duplex.glb` + `Duplex.ifc` on `/local`) is still unconfirmed.
+
 ## What's still pending / open
 
+- **Confirm the BIM tap-to-inspect test now that `/local` loads**: the
+  owner still needs to actually tap an element on `/local` with the
+  `Duplex.glb`/`Duplex.ifc` pair and confirm real IFC data appears — this
+  is the first live confirmation of this session's correlation fix.
 - **First real end-to-end test, once Supabase exists**: upload one real
   Revit-exported glTF/GLB + IFC pair (the owner's own export, not a public
   sample) through PR #2's actual upload flow, and confirm tap-to-inspect

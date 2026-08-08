@@ -28,3 +28,33 @@ with it. Nothing in the current plan depends on Android Studio-only local
 state — everything from Phase 0 onward should be built and pushed
 incrementally for exactly this reason. See
 [`engineering/git-workflow.md`](../engineering/git-workflow.md).
+
+## Finding: PR #2's Vercel preview 404s on any route but `/` (Session 4)
+
+**What was found:** the owner navigated straight to `/local` on the live
+PR #2 preview URL to test the BIM correlation fix and got a Vercel
+`404: NOT_FOUND`. `web/` had no `vercel.json`. `react-router-dom` handles
+`/`, `/p/:projectId`, and `/local` entirely client-side (in the browser,
+after `index.html` loads) — but Vercel's static file server doesn't know
+that. It only serves `index.html` automatically for the bare root; any
+other path is looked up as a literal file/folder, doesn't exist, and 404s
+before React Router ever gets a chance to run.
+
+**Why it wasn't caught earlier:** all prior testing on this preview URL
+either stayed on `/` or arrived at `/p/:projectId` indirectly through the
+app's own in-page navigation (a link click, not a typed/bookmarked URL) —
+which works fine, since the redirect happens client-side after `/` has
+already loaded correctly. Typing or bookmarking a deep link directly is
+what exposes the gap, and that's exactly what the owner did.
+
+**Fix:** added `web/vercel.json` with a catch-all rewrite
+(`"/(.*)" → "/index.html"`), the standard fix for any client-side-routed
+single-page app on Vercel. Every path now serves `index.html`, and React
+Router takes over from there correctly.
+
+**Standing lesson:** any new client-side route added later needs no
+special Vercel config — this rewrite already covers all of them — but if
+this project ever moves off Vercel (Netlify, Cloudflare Pages, etc.), the
+equivalent SPA-fallback rule needs to be re-added for that host too. See
+[`engineering/`](../engineering/README.md) if a hosting migration ever
+happens.
