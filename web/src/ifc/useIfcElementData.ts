@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadIfcModel, type IfcModel } from './loadIfcModel'
-import { buildGlobalIdIndex, getElementData } from './ifcPropertyLookup'
+import { buildGlobalIdIndex, getElementData, resolveNodeNameToExpressId } from './ifcPropertyLookup'
 import type { IfcElementData } from '../types/IfcElementData'
 
 interface UseIfcElementDataResult {
@@ -13,13 +13,14 @@ interface UseIfcElementDataResult {
   // anything.
   loading: boolean
   error: Error | null
-  // Looks up an element by its IFC GlobalId -- the value expected to be
-  // embedded in the matching glTF node's name, correlating the two
-  // separately-exported files. See
+  // Looks up an element from a glTF node's name, correlating the two
+  // separately-exported files -- handles both the compressed GlobalId
+  // form and the expanded-UUID form some exporters use (see
+  // ifcPropertyLookup.ts's resolveNodeNameToExpressId). See
   // docs/features/element-data-inspection.md. Waits for the background
   // parse to finish if it's still running, rather than returning null for
   // a tap that happened to land before parsing completed.
-  getElementDataByGlobalId: (globalId: string) => Promise<IfcElementData | null>
+  getElementDataByGlobalId: (nodeName: string) => Promise<IfcElementData | null>
 }
 
 export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResult {
@@ -66,12 +67,12 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
     }
   }, [ifcUrl])
 
-  async function getElementDataByGlobalId(globalId: string): Promise<IfcElementData | null> {
+  async function getElementDataByGlobalId(nodeName: string): Promise<IfcElementData | null> {
     if (readyRef.current) await readyRef.current
     const model = modelRef.current
     const index = indexRef.current
     if (!model || !index) return null
-    const expressId = index.get(globalId)
+    const expressId = resolveNodeNameToExpressId(nodeName, index)
     if (expressId === undefined) return null
     return getElementData(model.api, model.modelId, expressId)
   }

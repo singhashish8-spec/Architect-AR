@@ -47,7 +47,8 @@ Tracker. Each work session:
 |---|---|---|
 | [1](sessions/2026-08-06-session-01.md) | 2026-08-06 | Investigated reported camera-crash → found an empty template repo → built the full roadmap, history, and engineering docs, then executed Phase 0 (the `web/` scaffold). Merged as PR #1. |
 | [2](sessions/2026-08-06-session-02.md) | 2026-08-06 | Built Phase 1 code (schema, upload flow, viewer, IFC parsing, AR handoff) ahead of Supabase/Vercel existing. Fixed a missed router in the stack pin and several real type-safety gaps. Flags what's still unverified end-to-end. |
-| [3](sessions/2026-08-07-session-03.md) | 2026-08-07 | Not a Claude session — Gemini pushed 6 commits directly to `main` (no PR), building a simpler single-page paste-a-URL viewer with `@ts-nocheck` and no BIM/scale/persistence features, but a real live Vercel deployment on Cloudflare R2 storage. `main` and PR #2 have diverged; not yet reconciled. |
+| [3](sessions/2026-08-07-session-03.md) | 2026-08-07 | Not a Claude session — Gemini pushed 6 commits directly to `main` (no PR), building a simpler single-page paste-a-URL viewer with `@ts-nocheck` and no BIM/scale/persistence features, but a real live Vercel deployment on Cloudflare R2 storage. `main` and PR #2 have diverged; not yet reconciled. Also: shipped a printable QR code export and captured the Phase 4 print-anchored AR vision. |
+| [4](sessions/2026-08-08-session-04.md) | 2026-08-08 | Found and verified a real Revit-exported IFC sample, converted it to glTF with an independent open-source tool, and used it to find + fix a real bug in the BIM tap-to-inspect correlation logic (wrong node-naming assumption) — with tests proving it against real data. Meaningfully de-risks the project's single biggest open question. |
 
 ## See also
 

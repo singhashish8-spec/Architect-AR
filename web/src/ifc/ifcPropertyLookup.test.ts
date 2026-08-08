@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { unwrap } from './ifcPropertyLookup'
+import { resolveNodeNameToExpressId, unwrap } from './ifcPropertyLookup'
+import { expandIfcGuid, hyphenateUuid } from './ifcGuid'
 
 describe('unwrap', () => {
   it('reads .value off web-ifc value objects (e.g. IfcLabel, IfcGloballyUniqueId)', () => {
@@ -17,5 +18,38 @@ describe('unwrap', () => {
 
   it('does not crash on null', () => {
     expect(unwrap(null)).toBe('null')
+  })
+})
+
+describe('resolveNodeNameToExpressId', () => {
+  // Real element from the Duplex Apartment sample IFC file (a genuine
+  // Revit export) -- see ifcGuid.test.ts and docs/history/sessions/.
+  const compressedGuid = '2O2Fr$t4X7Zf8NOew3FKau'
+  const expandedGuid = expandIfcGuid(compressedGuid)
+  const expressId = 42
+
+  function buildIndex(): Map<string, number> {
+    const index = new Map<string, number>()
+    index.set(compressedGuid, expressId)
+    index.set(expandedGuid, expressId)
+    index.set(hyphenateUuid(expandedGuid), expressId)
+    return index
+  }
+
+  it('matches when the node is named directly after the compressed GlobalId', () => {
+    expect(resolveNodeNameToExpressId(compressedGuid, buildIndex())).toBe(expressId)
+  })
+
+  it('matches IfcOpenShell\'s real glTF naming convention, "product-<uuid>-body"', () => {
+    const nodeName = `product-${hyphenateUuid(expandedGuid)}-body`
+    expect(resolveNodeNameToExpressId(nodeName, buildIndex())).toBe(expressId)
+  })
+
+  it('matches a bare hyphenated UUID with no wrapping', () => {
+    expect(resolveNodeNameToExpressId(hyphenateUuid(expandedGuid), buildIndex())).toBe(expressId)
+  })
+
+  it('returns undefined for a node name that matches nothing in the model', () => {
+    expect(resolveNodeNameToExpressId('some-unrelated-mesh-name', buildIndex())).toBeUndefined()
   })
 })

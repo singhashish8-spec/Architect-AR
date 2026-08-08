@@ -62,15 +62,25 @@ summary and feature-specific detail below.
 
 ## Open questions
 
-- **The riskiest unverified assumption in this codebase**: the glTF scene
-  and the IFC file are two *separate* exports from Revit. To know which
-  IFC element a clicked glTF mesh corresponds to, `viewer/ModelViewer.tsx`
-  reads the clicked mesh's `.name` and looks it up as an IFC GlobalId in
-  `ifc/ifcPropertyLookup.ts`'s index. **This assumes the glTF exporter used
-  actually writes each element's GlobalId into the node name** — not
-  confirmed against any real Revit export yet. If the exporter doesn't do
-  this, tap-to-inspect silently returns no data for every element. Test
-  this first, before building anything further on top of it. See
+- **Correlation between the glTF scene and the IFC file — partially
+  de-risked, not fully proven.** The glTF scene and the IFC file are two
+  *separate* exports from Revit. To know which IFC element a clicked glTF
+  mesh corresponds to, `viewer/ModelViewer.tsx` reads the clicked mesh's
+  `.name` and resolves it against the IFC data via
+  `ifc/ifcPropertyLookup.ts`'s `resolveNodeNameToExpressId()`. Tested this
+  concretely (not just assumed) using a real Revit-exported IFC sample
+  (buildingSMART's "Duplex Apartment" file) converted with IfcOpenShell's
+  own open-source glTF exporter — and found IfcOpenShell names nodes using
+  the **expanded UUID form** (`product-<uuid>-body`), not the compressed
+  IFC GlobalId form `web-ifc` reads directly. Ported the exact
+  compress/expand algorithm from IfcOpenShell's own reference
+  implementation (`ifc/ifcGuid.ts`, verified against real data) and the
+  resolver now handles both forms. See
+  [`../history/sessions/2026-08-08-session-04.md`](../history/sessions/2026-08-08-session-04.md)
+  for the full story. **Still open**: whether whatever exporter the owner
+  actually ends up using (Revit's own built-in IFC/glTF export, or a
+  plugin) follows either of these two conventions, or a third one — that
+  needs a real test with the owner's real export pipeline. Tracked in
   [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - Is client-side IFC parsing fast enough on real mid-range phones? Not yet
   tested — tracked in [`../roadmap/decisions.md`](../roadmap/decisions.md).
