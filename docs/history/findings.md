@@ -58,3 +58,29 @@ this project ever moves off Vercel (Netlify, Cloudflare Pages, etc.), the
 equivalent SPA-fallback rule needs to be re-added for that host too. See
 [`engineering/`](../engineering/README.md) if a hosting migration ever
 happens.
+
+## Finding: Revit's own IFC export fills unset fields with the field's own name (Session 4)
+
+**What was found:** testing the fixed `/local` page against the real
+Duplex sample, the owner saw data-panel rows like `SerialNumber:
+SerialNumber` and `BarCode: BarCode` — the value looked like a bug (data
+missing, something echoing the label). Checked the raw IFC file directly
+with `ifcopenshell` rather than guessing: confirmed this is genuinely what
+Revit's own IFC exporter writes for a text parameter nobody filled in —
+`NominalValue = IfcLabel('SerialNumber')`, i.e. the field's own name used
+as a placeholder, not an empty value. A smaller number of fields (like
+"Assembly Code") are genuinely blank (`IfcLabel('')`) instead.
+
+**Fix:** `ifc/ifcPropertyLookup.ts` now has `hasMeaningfulValue(name,
+value)`, applied when building each element's property list — drops a
+property if its value is blank/whitespace-only, or if it exactly equals
+the property's own name. Verified with tests against the real observed
+pattern (`SerialNumber`/`SerialNumber` → dropped, `Level`/`Level 1` →
+kept). Pushed as `53961aa`.
+
+**Standing lesson:** Revit-exported IFC data needs to be treated as
+"real-world messy" by default, not schema-clean — this is the second
+concrete, evidence-based (not hypothetical) quirk found in the same
+sample file this session, after the node-naming convention. Any future
+work reading IFC property values should expect placeholder/junk patterns
+like this rather than assuming every populated field is meaningful.

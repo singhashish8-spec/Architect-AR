@@ -1,8 +1,10 @@
 # Feature: element data inspection
 
 > Part of [`features/`](README.md). Phase 1. Status: **built
-> (`web/src/ifc/`), unverified end-to-end** — see the correlation caveat
-> below before assuming this actually works.
+> (`web/src/ifc/`), confirmed working end-to-end** against a real
+> Revit-exported IFC sample — see the correlation section below for what's
+> still open (the owner's own real export pipeline hasn't been tested
+> yet).
 
 ## Summary
 
@@ -62,11 +64,11 @@ summary and feature-specific detail below.
 
 ## Open questions
 
-- **Correlation between the glTF scene and the IFC file — partially
-  de-risked, not fully proven.** The glTF scene and the IFC file are two
-  *separate* exports from Revit. To know which IFC element a clicked glTF
-  mesh corresponds to, `viewer/ModelViewer.tsx` reads the clicked mesh's
-  `.name` and resolves it against the IFC data via
+- **Correlation between the glTF scene and the IFC file — confirmed
+  working end-to-end, with real data.** The glTF scene and the IFC file
+  are two *separate* exports from Revit. To know which IFC element a
+  clicked glTF mesh corresponds to, `viewer/ModelViewer.tsx` reads the
+  clicked mesh's `.name` and resolves it against the IFC data via
   `ifc/ifcPropertyLookup.ts`'s `resolveNodeNameToExpressId()`. Tested this
   concretely (not just assumed) using a real Revit-exported IFC sample
   (buildingSMART's "Duplex Apartment" file) converted with IfcOpenShell's
@@ -75,13 +77,21 @@ summary and feature-specific detail below.
   IFC GlobalId form `web-ifc` reads directly. Ported the exact
   compress/expand algorithm from IfcOpenShell's own reference
   implementation (`ifc/ifcGuid.ts`, verified against real data) and the
-  resolver now handles both forms. See
+  resolver now handles both forms. **Then live-tested**: the owner
+  uploaded this real glTF+IFC pair through PR #2's `/local` page, tapped a
+  real element, and got a genuine data panel back — the first real,
+  human-confirmed proof this works, not just a unit test. Along the way,
+  also found and fixed a real IFC data-quality issue (Revit writes an
+  unfilled field's own name as its placeholder value, e.g. `SerialNumber:
+  SerialNumber`) — see
+  [`../history/findings.md`](../history/findings.md#finding-revits-own-ifc-export-fills-unset-fields-with-the-fields-own-name-session-4).
+  See
   [`../history/sessions/2026-08-08-session-04.md`](../history/sessions/2026-08-08-session-04.md)
   for the full story. **Still open**: whether whatever exporter the owner
   actually ends up using (Revit's own built-in IFC/glTF export, or a
-  plugin) follows either of these two conventions, or a third one — that
-  needs a real test with the owner's real export pipeline. Tracked in
-  [`../roadmap/decisions.md`](../roadmap/decisions.md).
+  plugin) follows either of these two node-naming conventions, or a third
+  one — that needs a real test with the owner's real export pipeline.
+  Tracked in [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - Is client-side IFC parsing fast enough on real mid-range phones? Not yet
   tested — tracked in [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - The `web-ifc` calls in `ifc/loadIfcModel.ts` and `ifc/ifcPropertyLookup.ts`
