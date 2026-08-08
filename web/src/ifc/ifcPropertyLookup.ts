@@ -87,6 +87,18 @@ export function resolveNodeNameToExpressId(
   return index.get(match[0].toLowerCase())
 }
 
+// Revit's own IFC exporter writes an *unfilled* text parameter as an
+// IfcLabel whose value is literally the parameter's own name (e.g.
+// NominalValue = IfcLabel('SerialNumber') for a SerialNumber field nobody
+// filled in) rather than omitting the property or leaving it blank --
+// confirmed directly against the real Duplex Apartment sample file, not
+// assumed. Filtering both that placeholder pattern and genuinely blank
+// values keeps the data panel from listing dozens of "field: field" rows
+// that carry no real information.
+export function hasMeaningfulValue(name: string, value: string): boolean {
+  return value.trim() !== '' && value !== name
+}
+
 export async function getElementData(
   api: IfcAPI,
   modelId: number,
@@ -104,10 +116,10 @@ export async function getElementData(
     for (const prop of pset.HasProperties ?? []) {
       const p = prop as { Name?: unknown; NominalValue?: unknown }
       if (p.Name === undefined) continue
-      properties.push({
-        name: unwrap(p.Name),
-        value: p.NominalValue !== undefined ? unwrap(p.NominalValue) : '',
-      })
+      const name = unwrap(p.Name)
+      const value = p.NominalValue !== undefined ? unwrap(p.NominalValue) : ''
+      if (!hasMeaningfulValue(name, value)) continue
+      properties.push({ name, value })
     }
   }
 

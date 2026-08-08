@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveNodeNameToExpressId, unwrap } from './ifcPropertyLookup'
+import { hasMeaningfulValue, resolveNodeNameToExpressId, unwrap } from './ifcPropertyLookup'
 import { expandIfcGuid, hyphenateUuid } from './ifcGuid'
 
 describe('unwrap', () => {
@@ -51,5 +51,27 @@ describe('resolveNodeNameToExpressId', () => {
 
   it('returns undefined for a node name that matches nothing in the model', () => {
     expect(resolveNodeNameToExpressId('some-unrelated-mesh-name', buildIndex())).toBeUndefined()
+  })
+})
+
+describe('hasMeaningfulValue', () => {
+  it('rejects Revit\'s own placeholder for an unfilled field, value === name', () => {
+    // Real example from the Duplex Apartment sample file: an unfilled
+    // "SerialNumber" field exports as NominalValue = IfcLabel('SerialNumber').
+    expect(hasMeaningfulValue('SerialNumber', 'SerialNumber')).toBe(false)
+  })
+
+  it('rejects an empty or whitespace-only value', () => {
+    expect(hasMeaningfulValue('Assembly Code', '')).toBe(false)
+    expect(hasMeaningfulValue('Assembly Code', '   ')).toBe(false)
+  })
+
+  it('accepts a real, filled-in value', () => {
+    expect(hasMeaningfulValue('Level', 'Level 1')).toBe(true)
+    expect(hasMeaningfulValue('Elevation', '1.399999999999999')).toBe(true)
+  })
+
+  it('accepts a value that happens to equal a different property\'s name', () => {
+    expect(hasMeaningfulValue('Phase Created', 'New Construction')).toBe(true)
   })
 })
