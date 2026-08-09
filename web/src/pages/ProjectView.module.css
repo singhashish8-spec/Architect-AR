@@ -32,6 +32,12 @@
   bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
 
+.categoryCorner {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
 .modelSwitcher {
   position: absolute;
   top: 1rem;

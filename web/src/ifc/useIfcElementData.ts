@@ -7,6 +7,7 @@ import {
   resolveNodeNameToExpressId,
 } from './ifcPropertyLookup'
 import { getLevelsAndRooms, type Level } from './ifcSpatialTree'
+import { getElementCategories, type ElementCategory } from './ifcCategories'
 import type { IfcElementData } from '../types/IfcElementData'
 
 interface UseIfcElementDataResult {
@@ -30,12 +31,15 @@ interface UseIfcElementDataResult {
   // Empty until the background parse finishes (or if there's no IFC file
   // at all) -- see docs/features/levels-and-rooms-navigation.md.
   levels: Level[]
+  // Same timing as `levels` -- see docs/features/category-and-discipline-visibility.md.
+  categories: ElementCategory[]
 }
 
 export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResult {
   const [loading, setLoading] = useState(Boolean(ifcUrl))
   const [error, setError] = useState<Error | null>(null)
   const [levels, setLevels] = useState<Level[]>([])
+  const [categories, setCategories] = useState<ElementCategory[]>([])
   const modelRef = useRef<IfcModel | null>(null)
   const indexRef = useRef<Map<string, number> | null>(null)
   const readyRef = useRef<Promise<void> | null>(null)
@@ -53,6 +57,7 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
       ;(() => {
         setLoading(false)
         setLevels([])
+        setCategories([])
       })()
       return
     }
@@ -71,6 +76,10 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
         const levelList = await getLevelsAndRooms(model.api, model.modelId, expressIdToGlobalId)
         if (cancelled) return
         setLevels(levelList)
+
+        const categoryList = getElementCategories(model.api, model.modelId, expressIdToGlobalId)
+        if (cancelled) return
+        setCategories(categoryList)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)))
       } finally {
@@ -95,5 +104,5 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
     return getElementData(model.api, model.modelId, expressId)
   }
 
-  return { loading, error, getElementDataByGlobalId, levels }
+  return { loading, error, getElementDataByGlobalId, levels, categories }
 }

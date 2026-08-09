@@ -24,6 +24,12 @@ interface ModelViewerProps {
   // node's name) -- null if the exporter didn't preserve one for that
   // node. See docs/features/element-data-inspection.md.
   onElementSelect?: (globalId: string) => void
+  // Meshes resolving to one of these GlobalIds are hidden; everything
+  // else stays visible. Recomputed in full on every change (rather than
+  // diffed against the previous set) -- simpler, and cheap enough at the
+  // element counts this app deals with. See
+  // docs/features/category-and-discipline-visibility.md.
+  hiddenGlobalIds?: Set<string>
 }
 
 function Model({
@@ -31,17 +37,31 @@ function Model({
   scalePreset,
   onElementSelect,
   onSceneReady,
+  hiddenGlobalIds,
 }: {
   modelUrl: string
   scalePreset: ScalePreset
   onElementSelect?: (globalId: string) => void
   onSceneReady: (scene: THREE.Object3D) => void
+  hiddenGlobalIds?: Set<string>
 }) {
   const { scene } = useGLTF(modelUrl)
 
   useEffect(() => {
     onSceneReady(scene)
   }, [scene, onSceneReady])
+
+  useEffect(() => {
+    const targetIndex = new Map(Array.from(hiddenGlobalIds ?? []).map((id, index) => [id, index]))
+    scene.traverse((object) => {
+      // Reuses the same node-name resolution tap-to-inspect and the
+      // camera-focus feature rely on -- an object with no resolvable IFC
+      // identity at all (a group node, an unnamed mesh) always comes back
+      // "not matched" here and stays visible, which is what we want: only
+      // elements explicitly in the hidden set get hidden, nothing else.
+      object.visible = resolveNodeNameToExpressId(object.name, targetIndex) === undefined
+    })
+  }, [scene, hiddenGlobalIds])
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation()
@@ -126,7 +146,7 @@ function CameraRig({
 }
 
 export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(function ModelViewer(
-  { modelUrl, scalePreset, onElementSelect },
+  { modelUrl, scalePreset, onElementSelect, hiddenGlobalIds },
   ref,
 ) {
   const sceneRef = useRef<THREE.Object3D | null>(null)
@@ -151,6 +171,7 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
           modelUrl={modelUrl}
           scalePreset={scalePreset}
           onElementSelect={onElementSelect}
+          hiddenGlobalIds={hiddenGlobalIds}
           onSceneReady={(scene) => {
             sceneRef.current = scene
           }}

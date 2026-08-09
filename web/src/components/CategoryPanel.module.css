@@ -1,0 +1,56 @@
+.toggle {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  max-width: min(260px, calc(100vw - 2rem));
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(20, 20, 24, 0.92);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.disciplineHeading {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.disciplineHeading:first-child {
+  margin-top: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.25rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.checkboxRow:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}

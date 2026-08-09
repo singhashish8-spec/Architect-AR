@@ -4,6 +4,7 @@ import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { LevelsPanel } from '../components/LevelsPanel'
+import { CategoryPanel } from '../components/CategoryPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
@@ -23,8 +24,9 @@ export function LocalPreview() {
   const [ifcUrl, setIfcUrl] = useState<string | null>(null)
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   const [selecting, setSelecting] = useState(false)
+  const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
 
-  const { getElementDataByGlobalId, levels } = useIfcElementData(ifcUrl)
+  const { getElementDataByGlobalId, levels, categories } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Blob URLs must be revoked when no longer needed, or the browser keeps
@@ -123,9 +125,13 @@ export function LocalPreview() {
             modelUrl={modelUrl}
             scalePreset={scalePreset}
             onElementSelect={ifcUrl ? (id) => void handleElementSelect(id) : undefined}
+            hiddenGlobalIds={hiddenGlobalIds}
           />
           <div className={styles.viewerLevelsCorner}>
             <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
+          </div>
+          <div className={styles.viewerCategoryCorner}>
+            <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
           </div>
           <ElementDataPanel
             data={selectedElement}

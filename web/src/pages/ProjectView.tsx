@@ -6,6 +6,7 @@ import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ProjectQRCode } from '../components/ProjectQRCode'
 import { PasscodeGate } from '../components/PasscodeGate'
 import { LevelsPanel } from '../components/LevelsPanel'
+import { CategoryPanel } from '../components/CategoryPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
@@ -29,9 +30,10 @@ export function ProjectView() {
   // show the data panel automatically on page load, before any tap.
   const [selecting, setSelecting] = useState(false)
   const [showQr, setShowQr] = useState(false)
+  const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
 
   const activeModel = project?.models[selectedModelIndex] ?? null
-  const { getElementDataByGlobalId, levels } = useIfcElementData(activeModel?.ifcUrl ?? null)
+  const { getElementDataByGlobalId, levels, categories } = useIfcElementData(activeModel?.ifcUrl ?? null)
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export function ProjectView() {
   function selectModel(index: number) {
     setSelectedModelIndex(index)
     setSelectedElement(null)
+    setHiddenGlobalIds(new Set())
   }
 
   async function handleElementSelect(globalId: string) {
@@ -106,6 +109,7 @@ export function ProjectView() {
         modelUrl={activeModel.modelUrl}
         scalePreset={activeModel.scalePreset}
         onElementSelect={activeModel.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
+        hiddenGlobalIds={hiddenGlobalIds}
       />
       {project.models.length > 1 && (
         <div className={styles.modelSwitcher}>
@@ -126,6 +130,9 @@ export function ProjectView() {
       </div>
       <div className={styles.levelsCorner}>
         <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
+      </div>
+      <div className={styles.categoryCorner}>
+        <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
       </div>
       <div className={styles.qrCorner}>
         <button type="button" className={styles.qrToggle} onClick={() => setShowQr((current) => !current)}>
