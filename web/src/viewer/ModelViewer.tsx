@@ -100,7 +100,18 @@ function CameraRig({
 
       const center = box.getCenter(new THREE.Vector3())
       const size = box.getSize(new THREE.Vector3())
-      const radius = Math.max(size.x, size.y, size.z, 0.5)
+      // The floor here only exists to avoid a zero/degenerate radius (a
+      // single flat-thickness mesh) -- it must NOT be a fixed real-world
+      // size like "0.5 units". visualScale() (see types/ScalePreset.ts)
+      // shrinks the whole model's geometry by the scale preset's ratio,
+      // so a real room's actual bounding box in scene units is already
+      // proportionally tiny at anything other than 1:1 -- a fixed 0.5
+      // floor silently dominated every room's real size at 1:100 or
+      // smaller, making every "jump to" land at roughly the same
+      // distance regardless of which room was clicked (this is exactly
+      // what the owner hit testing live: the list worked, the jump
+      // didn't visibly move).
+      const radius = Math.max(size.x, size.y, size.z, 1e-6)
 
       const viewDirection = camera.position.clone().sub(controls.target)
       viewDirection.normalize().multiplyScalar(radius * 2.2)
