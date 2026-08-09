@@ -23,10 +23,10 @@ logo file (deliberately still text-only branding, waiting on the owner).
   1. [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)
      — the optional project description used by the share card.
   2. [`007_analytics_and_admin_dashboard.sql`](../../web/supabase/migrations/007_analytics_and_admin_dashboard.sql)
-     — view analytics + the `/admin` dashboard. **Edit this file and
-     replace `'change-me'` with a real passcode before running it** —
-     that's what unlocks `/admin`; the file ships with a placeholder, not
-     a real credential.
+     — view analytics + the `/admin` dashboard. Admin passcode is set to
+     `1234` (owner's choice, 2026-08-09) — that's what unlocks `/admin`;
+     change it any time by re-running the file's `insert into
+     admin_settings` statement with a different value.
   Same one-time-upgrade pattern as the earlier migrations this
   session — run each once in the Supabase SQL editor.
 - **The old "QR code" panel is now a fuller share card** — QR code,
@@ -220,9 +220,8 @@ logo file (deliberately still text-only branding, waiting on the owner).
   admin dashboard's actual stats specifically haven't been tested
   through a real live Supabase round-trip at all (no live credentials in
   this dev environment).
-- **Run `007_analytics_and_admin_dashboard.sql`** (after editing in a
-  real admin passcode, replacing the `'change-me'` placeholder) to turn
-  on view analytics and unlock `/admin`.
+- **Run `007_analytics_and_admin_dashboard.sql`** to turn on view
+  analytics and unlock `/admin` (passcode `1234`, owner's choice).
 - **Provide a real logo file** (PNG/SVG, not a chat screenshot) to
   replace the current text-only branding — see
   [`../roadmap/decisions.md`](../roadmap/decisions.md).

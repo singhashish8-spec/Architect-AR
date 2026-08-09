@@ -63,9 +63,9 @@ Phase 1 gap — see [`../roadmap/decisions.md`](../roadmap/decisions.md)).
 Rather than build real auth just for this one dashboard, `admin_settings`
 is a single-row table (enforced via a boolean primary key that must be
 `true`) holding one bcrypt-hashed passcode, same hashing approach project
-passcodes already use. **The owner must set their own passcode** by
-editing the migration SQL before running it (replace `'change-me'`) — the
-default is a placeholder, not a real credential.
+passcodes already use. Passcode is set to `1234` (owner's choice,
+2026-08-09) — change it any time by re-running the `insert into
+admin_settings` statement in the migration with a different value.
 
 **`PasscodeGate.tsx` reused, not duplicated**: it already took an
 `onSubmit` callback and handled the wrong-passcode UI; gained optional

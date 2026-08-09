@@ -223,8 +223,9 @@ create policy "anon can upload to project-files"
 -- View analytics + a passcode-gated admin dashboard (Phase 2) -- see
 -- docs/features/analytics-and-admin-dashboard.md.
 --
--- IMPORTANT: change 'change-me' below to your own admin passcode before
--- running this on a fresh install -- that's what unlocks /admin.
+-- Admin passcode is set to '1234' below (owner's choice, 2026-08-09) --
+-- change it any time by re-running the insert/update statement below
+-- with a different value.
 
 -- One row per real page view. Duration is filled in afterwards by a
 -- periodic "heartbeat" call while the tab stays open and visible (see
@@ -276,7 +277,7 @@ alter table admin_settings enable row level security;
 -- directly readable by anyone holding just the anon key.
 
 insert into admin_settings (id, passcode_hash)
-values (true, crypt('change-me', gen_salt('bf')))
+values (true, crypt('1234', gen_salt('bf')))
 on conflict (id) do nothing;
 
 create or replace function verify_admin_passcode(p_passcode text)

@@ -5,10 +5,9 @@
 -- either uses IF NOT EXISTS/OR REPLACE, or explicitly drops before
 -- recreating.
 --
--- IMPORTANT: change 'change-me' below to your own admin passcode before
--- running this -- that's what unlocks /admin. If you run this file
--- as-is and forget to change it, anyone who finds it could guess it;
--- change it here in the SQL editor, not by editing app code.
+-- Admin passcode is set to '1234' below (owner's choice, 2026-08-09) --
+-- change it any time by re-running just the final insert/update
+-- statement with a different value, then re-running this whole file.
 
 create extension if not exists "pgcrypto" with schema extensions;
 
@@ -64,7 +63,7 @@ alter table admin_settings enable row level security;
 -- directly readable by anyone holding just the anon key.
 
 insert into admin_settings (id, passcode_hash)
-values (true, crypt('change-me', gen_salt('bf')))
+values (true, crypt('1234', gen_salt('bf')))
 on conflict (id) do update set passcode_hash = excluded.passcode_hash;
 
 create or replace function verify_admin_passcode(p_passcode text)
