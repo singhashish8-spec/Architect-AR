@@ -4,16 +4,20 @@ import { getElementCategories } from './ifcCategories'
 
 interface FakeLine {
   expressID: number
-  constructor: { name: string }
+  typeName: string
   RelatingGroup?: { value: number }
   RelatedObjects?: { value: number }[]
   PredefinedType?: { value: string }
 }
 
-// A minimal fake of the two web-ifc calls this module uses --
-// GetAllLines()/GetLine() -- shaped like the real return values
-// (verified directly against the installed package on the real Duplex
-// sample, see this module's own comments), not guessed.
+// A minimal fake of the web-ifc calls this module uses --
+// GetAllLines()/GetLine()/GetLineType()/GetNameFromTypeCode() -- shaped
+// like the real return values (verified directly against the installed
+// package on the real Duplex sample, see this module's own comments),
+// not guessed. GetLineType()/GetNameFromTypeCode() are faked as a no-op
+// round trip (the "code" is just the type name itself) -- this test only
+// needs the two calls composed together to yield the right name, not the
+// real numeric encoding in between.
 function fakeApi(lines: FakeLine[]): IfcAPI {
   const byId = new Map(lines.map((line) => [line.expressID, line]))
   return {
@@ -26,11 +30,17 @@ function fakeApi(lines: FakeLine[]): IfcAPI {
       if (!line) throw new Error('not found')
       return line
     },
+    GetLineType: (_modelId: number, expressId: number) => {
+      const line = byId.get(expressId)
+      if (!line) throw new Error('not found')
+      return line.typeName
+    },
+    GetNameFromTypeCode: (typeCode: unknown) => typeCode,
   } as unknown as IfcAPI
 }
 
 function line(expressID: number, typeName: string, extra: Partial<FakeLine> = {}): FakeLine {
-  return { expressID, constructor: { name: typeName }, ...extra }
+  return { expressID, typeName, ...extra }
 }
 
 describe('getElementCategories', () => {

@@ -108,6 +108,24 @@ export function resolveNodeNameToExpressId(
   return index.get(match[0].toLowerCase())
 }
 
+// Real IFC entity type name for a line (e.g. "IfcWallStandardCase") --
+// via web-ifc's own WASM-backed GetLineType()/GetNameFromTypeCode() pair,
+// NOT `line.constructor.name`. The two look interchangeable in
+// development, but aren't: production minifiers rename JS class
+// identifiers (confirmed directly in this project's own built bundle --
+// web-ifc's dynamically-generated IFC entity classes came out as `class
+// AS extends ...`, `class Aa extends ...`), so `.constructor.name`
+// returns a meaningless mangled string like "AS" once built, silently
+// breaking anything that string-matches against it (this is exactly what
+// broke ifcCategories.ts's classification in production while working
+// fine in `npm run dev`). GetNameFromTypeCode() is driven by the WASM
+// module's own internal lookup, not a JS identifier, so it survives
+// minification untouched -- same mechanism ifcSpatialTree.ts's
+// getSpatialStructure() already relies on for the same reason.
+export function getLineTypeName(api: IfcAPI, modelId: number, expressId: number): string {
+  return api.GetNameFromTypeCode(api.GetLineType(modelId, expressId) as number)
+}
+
 // Revit's own IFC exporter writes an *unfilled* text parameter as an
 // IfcLabel whose value is literally the parameter's own name (e.g.
 // NominalValue = IfcLabel('SerialNumber') for a SerialNumber field nobody
@@ -144,11 +162,9 @@ export async function getElementData(
     }
   }
 
-  const line = api.GetLine(modelId, expressId) as { constructor: { name: string } }
-
   return {
     expressId,
-    type: line.constructor.name,
+    type: getLineTypeName(api, modelId, expressId),
     name: itemProps.Name !== undefined ? unwrap(itemProps.Name) : null,
     properties,
   }

@@ -1,5 +1,5 @@
 import type { IfcAPI } from 'web-ifc'
-import { unwrap } from './ifcPropertyLookup'
+import { getLineTypeName, unwrap } from './ifcPropertyLookup'
 
 export type Discipline = 'Architecture' | 'Structure' | 'MEP'
 
@@ -201,27 +201,28 @@ function buildSystemDisciplineIndex(api: IfcAPI, modelId: number): Map<number, s
 
   for (let i = 0; i < count; i++) {
     const expressId = allLines.get(i)
-    let line: { constructor: { name: string } }
+    if (getLineTypeName(api, modelId, expressId) !== 'IfcRelAssignsToGroup') continue
+
+    let line: unknown
     try {
-      line = api.GetLine(modelId, expressId) as typeof line
+      line = api.GetLine(modelId, expressId)
     } catch {
       continue
     }
-    if (line.constructor.name !== 'IfcRelAssignsToGroup') continue
-
-    const rel = line as unknown as {
+    const rel = line as {
       RelatingGroup?: { value: number }
       RelatedObjects?: { value: number }[]
     }
     if (rel.RelatingGroup === undefined || rel.RelatedObjects === undefined) continue
 
-    let group: { constructor: { name: string }; PredefinedType?: unknown }
+    if (!getLineTypeName(api, modelId, rel.RelatingGroup.value).includes('System')) continue
+
+    let group: { PredefinedType?: unknown }
     try {
       group = api.GetLine(modelId, rel.RelatingGroup.value) as typeof group
     } catch {
       continue
     }
-    if (!group.constructor.name.includes('System')) continue
 
     const predefinedType = group.PredefinedType !== undefined ? unwrap(group.PredefinedType) : ''
     const disciplineLabel = SYSTEM_TYPE_LABELS[predefinedType]
@@ -247,13 +248,12 @@ export function getElementCategories(
   const results: ElementCategory[] = []
 
   for (const [expressId, globalId] of expressIdToGlobalId) {
-    let line: { constructor: { name: string } }
+    let type: string
     try {
-      line = api.GetLine(modelId, expressId) as typeof line
+      type = getLineTypeName(api, modelId, expressId)
     } catch {
       continue
     }
-    const type = line.constructor.name
     const classified = classify(type)
     if (!classified) continue
     const { discipline, category } = classified
