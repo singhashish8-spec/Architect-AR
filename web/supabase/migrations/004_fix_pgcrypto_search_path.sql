@@ -1,17 +1,10 @@
--- One-time upgrade adding optional passcode-protected links (Phase 2).
--- Run this ONCE in the SQL editor, after 002_multiple_models_per_project.sql
--- has already been run. Safe to run again if needed -- every statement
--- either uses IF NOT EXISTS/OR REPLACE, or explicitly drops before
--- recreating.
-
-create extension if not exists "pgcrypto" with schema extensions;
-
-alter table projects add column if not exists passcode_hash text;
-
--- No direct anon INSERT policy on `projects` any more -- create_project()
--- below is now the only creation path, so a passcode (if set) always gets
--- hashed server-side and the plain text never gets stored or read back.
-drop policy if exists "anon can insert projects" on projects;
+-- Fixes "function gen_salt(unknown) does not exist" from
+-- 003_optional_passcode.sql. Cause: Supabase installs the pgcrypto
+-- extension into its `extensions` schema, not `public` -- the two
+-- functions below explicitly set search_path = public (a normal
+-- SECURITY DEFINER precaution) which left gen_salt()/crypt()
+-- unreachable. Re-creates both with `extensions` added to that
+-- search_path. Safe to run again if needed.
 
 create or replace function create_project(p_id uuid, p_name text, p_passcode text default null)
 returns void
@@ -34,21 +27,6 @@ end;
 $$;
 
 grant execute on function create_project(uuid, text, text) to anon;
-
-create or replace function project_requires_passcode(p_id uuid)
-returns boolean
-language sql
-security definer
-set search_path = public
-as $$
-  select passcode_hash is not null from projects where id = p_id limit 1;
-$$;
-
-grant execute on function project_requires_passcode(uuid) to anon;
-
--- Signature changed from get_project(uuid) to add p_passcode -- drop the
--- old one explicitly first (see schema.sql's comment on why).
-drop function if exists get_project(uuid);
 
 create or replace function get_project(p_id uuid, p_passcode text default null)
 returns table (

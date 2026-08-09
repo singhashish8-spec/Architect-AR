@@ -20,7 +20,10 @@
 -- the only way to create one, so a passcode (if set) is always hashed
 -- server-side and never stored or transmitted in plain text.
 
-create extension if not exists "pgcrypto";
+-- Supabase's own convention: extensions live in the `extensions` schema,
+-- not `public` -- see the search_path comment on create_project() below
+-- for why that matters.
+create extension if not exists "pgcrypto" with schema extensions;
 
 create table if not exists projects (
   id uuid primary key default gen_random_uuid(),
@@ -66,11 +69,18 @@ create policy "anon can insert project_models"
 -- the plain-text passcode passes through this one call and is never
 -- stored anywhere. p_passcode null or blank means no passcode (matches
 -- Phase 1's open-by-default behavior).
+--
+-- search_path includes `extensions`, not just `public` -- Supabase
+-- installs pgcrypto into the `extensions` schema by default, not
+-- `public`, so gen_salt()/crypt() below aren't found without it. Still
+-- explicitly scoped (not the default search_path) for the usual
+-- SECURITY DEFINER reason: prevents a same-named function in some other
+-- schema from being called instead by search-path trickery.
 create or replace function create_project(p_id uuid, p_name text, p_passcode text default null)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   insert into projects (id, name, passcode_hash)
@@ -128,7 +138,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_passcode_hash text;
