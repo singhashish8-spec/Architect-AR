@@ -15,14 +15,23 @@ import type { AdminProjectPageContext } from './AdminProjectPage'
 import formStyles from '../../styles/form.module.css'
 import styles from './AdminProjectModels.module.css'
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' })
+}
+
 // Add/replace/rename/delete/reorder/note a project's models -- moved
 // here from the old single-page AdminProjectEditor.tsx once the
-// dashboard became multi-page. See docs/features/full-admin-dashboard.md.
+// dashboard became multi-page. Rows are collapsed summaries by default
+// (name, scale, created date, view count), not always-open edit forms --
+// with several models ("versions") per project becoming normal, always
+// showing every field for every one turned into a long scroll (owner's
+// own report, 2026-08-09). See docs/features/full-admin-dashboard.md.
 export function AdminProjectModels() {
   const { project, passcode, refresh } = useOutletContext<AdminProjectPageContext>()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function withBusy(action: () => Promise<void>) {
     setBusy(true)
@@ -62,20 +71,25 @@ export function AdminProjectModels() {
           {error}
         </p>
       )}
-      {project.models.map((model, index) => (
-        <ModelRow
-          key={model.id}
-          passcode={passcode}
-          model={model}
-          busy={busy}
-          isFirst={index === 0}
-          isLast={index === project.models.length - 1}
-          onMoveUp={() => void handleMove(index, -1)}
-          onMoveDown={() => void handleMove(index, 1)}
-          onDelete={() => void handleDelete(model)}
-          onChanged={() => void refresh()}
-        />
-      ))}
+      <div className={styles.modelList}>
+        {project.models.map((model, index) => (
+          <ModelRow
+            key={model.id}
+            projectId={project.id}
+            passcode={passcode}
+            model={model}
+            busy={busy}
+            expanded={expandedId === model.id}
+            onToggleExpanded={() => setExpandedId((current) => (current === model.id ? null : model.id))}
+            isFirst={index === 0}
+            isLast={index === project.models.length - 1}
+            onMoveUp={() => void handleMove(index, -1)}
+            onMoveDown={() => void handleMove(index, 1)}
+            onDelete={() => void handleDelete(model)}
+            onChanged={() => void refresh()}
+          />
+        ))}
+      </div>
 
       {showAddForm ? (
         <AddModelForm
@@ -97,8 +111,80 @@ export function AdminProjectModels() {
 }
 
 interface ModelRowProps {
+  projectId: string
   passcode: string
   model: AdminProjectModel
+  busy: boolean
+  expanded: boolean
+  onToggleExpanded: () => void
+  isFirst: boolean
+  isLast: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
+  onDelete: () => void
+  onChanged: () => void
+}
+
+function ModelRow({
+  projectId,
+  passcode,
+  model,
+  busy,
+  expanded,
+  onToggleExpanded,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
+  onDelete,
+  onChanged,
+}: ModelRowProps) {
+  return (
+    <div className={styles.modelRow}>
+      <div className={styles.modelSummary}>
+        <div className={styles.modelSummaryMain}>
+          <span className={styles.modelName}>{model.name}</span>
+          <span className={styles.modelBadge}>{model.scalePreset}</span>
+          {model.note && <span className={styles.modelNoteBadge}>{model.note}</span>}
+        </div>
+        <div className={styles.modelSummaryMeta}>
+          <span>Created {formatDate(model.createdAt)}</span>
+          <span>{model.viewCount} views</span>
+        </div>
+        <div className={styles.modelSummaryActions}>
+          <a
+            href={`/p/${projectId}?model=${model.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.smallButton}
+          >
+            Preview
+          </a>
+          <button type="button" className={styles.smallButton} onClick={onToggleExpanded}>
+            {expanded ? 'Close' : 'Edit'}
+          </button>
+        </div>
+      </div>
+      {expanded && (
+        <ModelEditForm
+          model={model}
+          passcode={passcode}
+          busy={busy}
+          isFirst={isFirst}
+          isLast={isLast}
+          onMoveUp={onMoveUp}
+          onMoveDown={onMoveDown}
+          onDelete={onDelete}
+          onChanged={onChanged}
+        />
+      )}
+    </div>
+  )
+}
+
+interface ModelEditFormProps {
+  model: AdminProjectModel
+  passcode: string
   busy: boolean
   isFirst: boolean
   isLast: boolean
@@ -108,7 +194,7 @@ interface ModelRowProps {
   onChanged: () => void
 }
 
-function ModelRow({ passcode, model, busy, isFirst, isLast, onMoveUp, onMoveDown, onDelete, onChanged }: ModelRowProps) {
+function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMoveDown, onDelete, onChanged }: ModelEditFormProps) {
   const [name, setName] = useState(model.name)
   const [note, setNote] = useState(model.note ?? '')
   const [scalePreset, setScalePreset] = useState<ScalePreset>(model.scalePreset)
@@ -142,7 +228,7 @@ function ModelRow({ passcode, model, busy, isFirst, isLast, onMoveUp, onMoveDown
   }
 
   return (
-    <div className={styles.modelRow}>
+    <div className={styles.editForm}>
       <div className={styles.modelRowFields}>
         <input
           type="text"

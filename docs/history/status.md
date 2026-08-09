@@ -49,6 +49,28 @@ logo file (deliberately still text-only branding, waiting on the owner).
   correctly when rebuilt against a mocked backend, so a "Saved ✓"
   confirmation was added to the Settings tab regardless.
 
+- **A second round of admin polish, same day, after the owner tried the
+  new multi-page dashboard for real**: a Preview link per model, each
+  model's own created date and view count (a new nullable `model_id` on
+  `project_views`, migration 009), Models tab rows collapsed to
+  one-line summaries instead of always-open forms, the admin containers
+  actually centered (they had a `max-width` but no `margin: 0 auto` —
+  the "eating space on both sides" report turned out to be a real CSS
+  bug, not just "too narrow") and widened, and the Share tab's card now
+  follows light/dark theme and centers its content instead of always
+  being dark (a new `variant="embedded"` on `ProjectShareCard`, the
+  viewer's own popup usage untouched). Also answered two questions
+  outside the code: **why the admin dashboard's share links show
+  "vercel.app"/a branch name** (a Vercel/DNS setup task — the app now
+  supports `VITE_PUBLIC_SITE_URL` to use a clean domain once one
+  exists, but getting that domain is the owner's next step) and
+  **whether AR rotation can pivot around the camera like Twinmotion/
+  Lumion** (confirmed the same hard Scene Viewer/Quick Look limitation
+  already on record for AR-plane-locking — real fix needs Phase 4's
+  custom AR camera). See
+  [`../features/full-admin-dashboard.md`](../features/full-admin-dashboard.md)
+  and [`../roadmap/decisions.md`](../roadmap/decisions.md).
+
 - **Three new SQL migrations need running on the live Supabase project**,
   in order:
   1. [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)

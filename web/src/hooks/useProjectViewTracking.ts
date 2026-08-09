@@ -13,7 +13,15 @@ const HEARTBEAT_INTERVAL_MS = 20_000
 // Best-effort throughout: a failure here should never be visible to
 // whoever's actually looking at the model, so every call swallows its
 // own errors rather than surfacing them.
-export function useProjectViewTracking(projectId: string | null): void {
+//
+// modelId is included in the dependency array on purpose (Phase 3, see
+// docs/features/full-admin-dashboard.md) -- switching to a different
+// model within the same project is a new, real view of that model, so
+// it records a fresh row rather than only ever recording once per
+// project per page load. This does mean a project's own total view
+// count now also reflects in-session model switches, not just distinct
+// page loads -- an accepted, documented tradeoff for per-model stats.
+export function useProjectViewTracking(projectId: string | null, modelId: string | null): void {
   useEffect(() => {
     if (!projectId) return
 
@@ -21,7 +29,7 @@ export function useProjectViewTracking(projectId: string | null): void {
     let viewId: string | null = null
     const startedAt = Date.now()
 
-    void recordProjectView(projectId)
+    void recordProjectView(projectId, modelId)
       .then((id) => {
         if (!cancelled) viewId = id
       })
@@ -40,5 +48,5 @@ export function useProjectViewTracking(projectId: string | null): void {
       cancelled = true
       clearInterval(interval)
     }
-  }, [projectId])
+  }, [projectId, modelId])
 }

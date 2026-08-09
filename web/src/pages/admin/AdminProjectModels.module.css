@@ -1,3 +1,72 @@
+.modelList {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+}
+
+.modelRow {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modelRow:first-child {
+  border-top: 1px solid var(--color-border);
+}
+
+.modelSummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  padding: 0.75rem 0.25rem;
+}
+
+.modelSummaryMain {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.modelName {
+  font-weight: 600;
+}
+
+.modelBadge {
+  flex: none;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.modelNoteBadge {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-style: italic;
+}
+
+.modelSummaryMeta {
+  display: flex;
+  gap: 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.modelSummaryActions {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.editForm {
+  padding: 0 0.25rem 1rem;
+}
+
 .saveButton {
   padding: 0.5rem 0.9rem;
   border: none;
@@ -28,13 +97,15 @@
 }
 
 .smallButton {
-  padding: 0.5rem 0.9rem;
+  padding: 0.4rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-2);
   color: var(--color-text);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
 }
 
 .smallButton:hover:not(:disabled) {
@@ -46,13 +117,6 @@
 .removeButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.modelRow {
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
 }
 
 .modelRowFields {

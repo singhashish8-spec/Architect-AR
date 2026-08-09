@@ -23,9 +23,14 @@ export interface NewProjectModel {
 
 // A model as managed from /admin (Phase 3) -- same shape as ProjectModel
 // plus the short free-text note field admin_add_model()/
-// admin_update_model() support. Kept separate from ProjectModel rather
-// than adding `note` there, since the public viewer (ProjectView.tsx,
-// LocalPreview.tsx) never needs or reads it.
+// admin_update_model() support, and its own created date + view count
+// (added once several models per project -- "versions" -- became
+// normal and the owner wanted to see each one's own activity, not just
+// the project-wide total). Kept separate from ProjectModel rather than
+// adding these there, since the public viewer (ProjectView.tsx,
+// LocalPreview.tsx) never needs or reads them.
 export interface AdminProjectModel extends ProjectModel {
   note: string | null
+  createdAt: string
+  viewCount: number
 }

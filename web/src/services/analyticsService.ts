@@ -11,9 +11,17 @@ import { getSupabase } from './supabaseClient'
 // pattern services/adminService.ts's write functions use -- project_views
 // has no SELECT policy (see docs/features/analytics-and-admin-dashboard.md),
 // so there's nothing to read back after inserting anyway.
-export async function recordProjectView(projectId: string): Promise<string> {
+//
+// modelId is whichever model was active at the moment the view was
+// recorded -- powers the admin Models tab's per-model view count (Phase
+// 3). Optional/nullable since a view is still meaningful even without
+// one (e.g. a project between models momentarily, or an older row from
+// before this existed).
+export async function recordProjectView(projectId: string, modelId: string | null = null): Promise<string> {
   const id = crypto.randomUUID()
-  const { error } = await getSupabase().from('project_views').insert({ id, project_id: projectId })
+  const { error } = await getSupabase()
+    .from('project_views')
+    .insert({ id, project_id: projectId, model_id: modelId })
   if (error) throw error
   return id
 }

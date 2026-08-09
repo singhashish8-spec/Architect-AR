@@ -29,6 +29,8 @@ function project(overrides: Partial<AdminProject> = {}): AdminProject {
         ifcUrl: null,
         scalePreset: '1:1',
         note: null,
+        createdAt: '2026-08-09T10:00:00Z',
+        viewCount: 3,
       },
     ],
     viewCount: 12,

@@ -1,6 +1,10 @@
 .card {
   width: 100%;
-  max-width: 900px;
+  max-width: 1280px;
+  /* See AdminProjectList.module.css's matching comment -- without this,
+     a width-capped block flows to the left edge by default rather than
+     splitting the leftover space evenly. */
+  margin: 0 auto;
   padding: 1.5rem;
   border-radius: var(--radius);
   background: var(--color-surface);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
@@ -17,18 +17,24 @@ import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { LightingPreset } from '../types/LightingPreset'
 import { getErrorMessage } from '../utils/errorMessage'
+import { getPublicOrigin } from '../utils/publicUrl'
 import styles from './ProjectView.module.css'
 import labelStyles from '../styles/responsiveLabel.module.css'
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
+  // ?model=<id> deep-links a specific model within the project -- the
+  // admin Models tab's "Preview" link for a specific model relies on
+  // this (Phase 3, see docs/features/full-admin-dashboard.md). Absent
+  // or unrecognized just falls through to the first model, same as
+  // before this existed.
+  const [searchParams, setSearchParams] = useSearchParams()
   const [project, setProject] = useState<Project | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   // null = still checking whether this project needs a passcode at all --
   // kept distinct from `false` so a passcode-free project renders exactly
   // as before, with no gate flashing on screen even briefly.
   const [passcodeRequired, setPasscodeRequired] = useState<boolean | null>(null)
-  const [selectedModelIndex, setSelectedModelIndex] = useState(0)
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   // Tracks "the user tapped something and we're resolving it" --
   // deliberately separate from useIfcElementData's `loading` (the
@@ -43,6 +49,20 @@ export function ProjectView() {
   // is available by the time anything tries to render into it.
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
 
+  // Derived from the URL on every render rather than its own state --
+  // the ?model= param (if present and valid) picks the index directly;
+  // no param, or one that doesn't match any of this project's models,
+  // falls back to the first one. This is what lets selectModel() below
+  // just update the URL and let the new index fall out of this
+  // computation, instead of keeping two things (state + URL) in sync by
+  // hand.
+  const requestedModelId = searchParams.get('model')
+  const selectedModelIndex = project
+    ? Math.max(
+        0,
+        project.models.findIndex((model) => model.id === requestedModelId),
+      )
+    : 0
   const activeModel = project?.models[selectedModelIndex] ?? null
   const { getElementDataByGlobalId, levels, categories, loading: ifcLoading } = useIfcElementData(
     activeModel?.ifcUrl ?? null,
@@ -53,7 +73,7 @@ export function ProjectView() {
   // still checking for a passcode gate or waiting on one to be entered,
   // so a view only ever gets recorded for someone who actually saw the
   // model. See docs/features/analytics-and-admin-dashboard.md.
-  useProjectViewTracking(project?.id ?? null)
+  useProjectViewTracking(project?.id ?? null, activeModel?.id ?? null)
 
   useEffect(() => {
     if (!projectId) return
@@ -94,11 +114,24 @@ export function ProjectView() {
 
   // Switching models should drop any data panel left over from the
   // previous one -- otherwise a tap on model A's wall would stay on
-  // screen describing model A after switching to model B.
+  // screen describing model A after switching to model B. Updates the
+  // URL (replace, not push -- switching models isn't its own
+  // browser-history stop); selectedModelIndex above then falls out of
+  // that on the next render, rather than being set here directly.
   function selectModel(index: number) {
-    setSelectedModelIndex(index)
     setSelectedElement(null)
     setHiddenGlobalIds(new Set())
+    const model = project?.models[index]
+    if (model) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.set('model', model.id)
+          return next
+        },
+        { replace: true },
+      )
+    }
   }
 
   async function handleElementSelect(globalId: string) {
@@ -217,7 +250,11 @@ export function ProjectView() {
         </button>
         {showQr && (
           <div className={styles.qrCode}>
-            <ProjectShareCard url={window.location.href} projectName={project.name} description={project.description} />
+            <ProjectShareCard
+              url={`${getPublicOrigin()}${window.location.pathname}${window.location.search}`}
+              projectName={project.name}
+              description={project.description}
+            />
           </div>
         )}
       </div>

@@ -1,0 +1,22 @@
+/* form.module.css's shared .card is deliberately narrow (480px) for
+   compact login-style forms (PasscodeGate, etc.) -- this page needs
+   real room for name/description/multiple model sections, so it gets
+   its own wider, explicitly centered card instead of borrowing that
+   one. See AdminProjectList.module.css's matching comment on why
+   centering needs to be explicit. */
+.card {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: 2rem;
+  }
+}

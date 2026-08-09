@@ -8,6 +8,14 @@ interface ProjectShareCardProps {
   url: string
   projectName: string
   description: string | null
+  // 'popup' (default): the small floating corner card on ProjectView's
+  // own page -- always dark, left-aligned, over a live 3D viewport
+  // regardless of the visitor's system theme. 'embedded': sitting inside
+  // a normal page instead (the admin Share tab) -- follows the
+  // surrounding light/dark theme and centers its contents, since the
+  // "always dark, floating over 3D" reasoning doesn't apply there. See
+  // docs/features/full-admin-dashboard.md.
+  variant?: 'popup' | 'embedded'
 }
 
 type CopyState = 'idle' | 'copied' | 'error'
@@ -18,7 +26,7 @@ type CopyState = 'idle' | 'copied' | 'error'
 // Gmail/Outlook keeps it tappable, and a share button for handing off to
 // WhatsApp or whatever else is installed. See
 // docs/features/project-share-card.md.
-export function ProjectShareCard({ url, projectName, description }: ProjectShareCardProps) {
+export function ProjectShareCard({ url, projectName, description, variant = 'popup' }: ProjectShareCardProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [linkCopyState, setLinkCopyState] = useState<CopyState>('idle')
   const [emailCopyState, setEmailCopyState] = useState<CopyState>('idle')
@@ -95,7 +103,7 @@ export function ProjectShareCard({ url, projectName, description }: ProjectShare
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(buildShareText(projectName, description, url))}`
 
   return (
-    <div className={styles.card}>
+    <div className={variant === 'embedded' ? `${styles.card} ${styles.embedded}` : styles.card}>
       <BrandMark />
       <QRCodeSVG ref={svgRef} value={url} size={160} level="M" />
 

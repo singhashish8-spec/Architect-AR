@@ -83,6 +83,30 @@ product (GitHub's repo list → repo page → tabs), not one long page.
   simpler, no new dependency, same result for a handful of models per
   project), delete it. A project always keeps at least one model — the
   UI blocks deleting the last one.
+- **Rows are collapsed summaries, not always-open edit forms** — name,
+  scale, note, created date, and its own view count on one line, with
+  "Preview" (opens that specific model via `/p/:id?model=<modelId>`, see
+  below) and "Edit" (expands the full form) alongside. Added after the
+  owner reported that with several models ("versions") per project
+  becoming normal, always showing every field for every one turned into
+  a long scroll.
+- **Each model has its own view count and created date now**, not just
+  the project-wide aggregate — `project_views` gained a nullable
+  `model_id` column (set null, not cascade-deleted, if that model is
+  later removed, so the project's own total stays accurate).
+  `hooks/useProjectViewTracking.ts` now records a fresh view whenever the
+  *active* model changes within a session, not just once per page load —
+  switching between two design options is a real view of each, in this
+  model. Documented tradeoff: a project's total view count can now be
+  higher than its number of distinct page loads, since switching models
+  in one visit adds more rows.
+- **A per-model "Preview" link**: `pages/ProjectView.tsx` now reads an
+  optional `?model=<modelId>` query param (falls back to the first model
+  if absent or unrecognized) and keeps it in sync (via `replace`, not
+  `push`) when someone manually switches models with the in-viewer tab
+  switcher — so the current view is always the one that's actually
+  shareable/reloadable, and the Models tab can link straight to one
+  specific model.
 
 ## What's still open (not built)
 
@@ -163,6 +187,36 @@ through. The current `AdminProjectList.module.css` is a plain
 `<div>`-per-row flex list with one divider each, closer to a table's
 information density without a table's mobile reflow problem.
 
+**The admin containers were never actually centered** — found from the
+owner's "we're still eating space on both sides" report. Checking the
+CSS as written: `.card` had a `max-width` but no `margin: 0 auto`, so on
+a wide screen it flowed to the *left* edge with all the leftover space
+on the right only, not split evenly — a real bug, not just "too
+narrow." Fixed by adding explicit centering everywhere it was missing,
+and widened the list/project-page containers from 900px to 1280px at
+the same time (the old 900px value was itself a leftover from the
+single-page version's narrower needs).
+
+**The Share tab now has its own `variant="embedded"` on
+`ProjectShareCard`** — the default `variant="popup"` (used unchanged by
+`ProjectView.tsx`'s own floating corner card) is deliberately always
+dark and left-aligned, because it floats over a live 3D viewport
+regardless of the visitor's system theme. Sitting inside a normal admin
+page instead, that reasoning doesn't apply — the owner reported it
+looking dark in light mode with off-center content. `embedded` follows
+the surrounding page's own light/dark tokens and centers everything;
+the popup usage is untouched.
+
+**An optional `VITE_PUBLIC_SITE_URL`** (`utils/publicUrl.ts`) lets every
+share link (the admin Share tab, the viewer's own share popup) use a
+clean configured domain instead of `window.location.origin` — whatever
+host the app happens to be running on right now, which on a Vercel
+preview deployment embeds the branch name and isn't something worth a
+client seeing. This is a code-side enabler only; actually getting a
+clean URL still needs the owner to point a real domain (or Vercel's own
+production alias) at the deployment in Vercel's own settings, and set
+this variable to it — see Open questions.
+
 ## A real regression, found by testing on an actual phone before this shipped
 
 Building the multi-page version, the button row on the *public viewer*
@@ -207,3 +261,10 @@ outside the gate.
   Added a visible "Saved ✓" confirmation next to the Settings tab's save
   buttons regardless, in case the original issue was just "did that
   actually work?" uncertainty rather than a real failure to save.
+- **A clean, non-branded share URL** — the app itself can now be
+  configured to use one (`VITE_PUBLIC_SITE_URL`, see Technical
+  approach), but getting an actual clean domain is a Vercel/DNS task,
+  not code: either point a real custom domain at the production
+  deployment, or use Vercel's own production URL (no branch name in it)
+  instead of a branch-preview URL. Not done yet — owner's next step,
+  outside this codebase.

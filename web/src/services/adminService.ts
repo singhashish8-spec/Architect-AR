@@ -32,6 +32,8 @@ interface AdminModelJson {
   ifcUrl: string | null
   scalePreset: string
   note: string | null
+  createdAt: string
+  viewCount: number
 }
 
 interface AdminProjectRow {
@@ -58,6 +60,8 @@ function fromModelJson(projectId: string, model: AdminModelJson): AdminProjectMo
     ifcUrl: model.ifcUrl,
     scalePreset: model.scalePreset,
     note: model.note,
+    createdAt: model.createdAt,
+    viewCount: model.viewCount,
   }
 }
 
@@ -205,7 +209,14 @@ export async function addAdminModel(
   if (error) throw error
 }
 
-export async function updateAdminModel(passcode: string, model: AdminProjectModel): Promise<void> {
+// createdAt/viewCount are server-derived and never sent to
+// admin_update_model() (there's nothing for it to do with them) -- Omit
+// rather than requiring callers to pass through values they aren't
+// actually editing.
+export async function updateAdminModel(
+  passcode: string,
+  model: Omit<AdminProjectModel, 'createdAt' | 'viewCount'>,
+): Promise<void> {
   const { error } = await getSupabase().rpc('admin_update_model', {
     p_admin_passcode: passcode,
     p_model_id: model.id,

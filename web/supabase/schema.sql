@@ -479,6 +479,12 @@ create policy "anon can upload to project-files"
 create table if not exists project_views (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references projects(id) on delete cascade,
+  -- Which model was active when this view was recorded -- nullable, and
+  -- set null (not cascade-deleted) if that model is later removed, so a
+  -- project's total view count stays accurate even after one of its
+  -- models is gone. Powers the Models tab's per-model view count (Phase
+  -- 3 -- see docs/features/full-admin-dashboard.md).
+  model_id uuid references project_models(id) on delete set null,
   viewed_at timestamptz not null default now(),
   duration_seconds integer not null default 0
 );
@@ -599,11 +605,21 @@ begin
           'modelUrl', pm.model_url,
           'ifcUrl', pm.ifc_url,
           'scalePreset', pm.scale_preset,
-          'note', pm.note
+          'note', pm.note,
+          'createdAt', pm.created_at,
+          'viewCount', coalesce(mv.view_count, 0)
         )
         order by pm.sort_order, pm.created_at
       ) as models
       from project_models pm
+      -- A second, nested lateral -- per-model view counts, same
+      -- "aggregate its own relation separately, don't flat-join"
+      -- reasoning as the outer vs. lateral below.
+      left join lateral (
+        select count(*) as view_count
+        from project_views v
+        where v.model_id = pm.id
+      ) mv on true
       where pm.project_id = p.id
     ) m on true
     left join lateral (

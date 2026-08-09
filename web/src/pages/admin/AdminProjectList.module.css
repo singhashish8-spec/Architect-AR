@@ -1,6 +1,13 @@
 .card {
   width: 100%;
-  max-width: 900px;
+  max-width: 1280px;
+  /* Explicit centering -- without this, a width-capped block element
+     just flows to the left edge of its container by default, leaving
+     all the leftover space on the right only instead of split evenly
+     (the "eating space on both sides" complaint turned out to really be
+     "not actually centered at all" once checked against the CSS as
+     written, not just "too narrow"). */
+  margin: 0 auto;
   padding: 1.5rem;
   border-radius: var(--radius);
   background: var(--color-surface);

@@ -1,5 +1,6 @@
 import { useOutletContext } from 'react-router-dom'
 import { ProjectShareCard } from '../../components/ProjectShareCard'
+import { getPublicOrigin } from '../../utils/publicUrl'
 import type { AdminProjectPageContext } from './AdminProjectPage'
 import styles from './AdminProjectShare.module.css'
 import formStyles from '../../styles/form.module.css'
@@ -10,7 +11,7 @@ import formStyles from '../../styles/form.module.css'
 // QR code or copy the link. See docs/features/full-admin-dashboard.md.
 export function AdminProjectShare() {
   const { project } = useOutletContext<AdminProjectPageContext>()
-  const url = `${window.location.origin}/p/${project.id}`
+  const url = `${getPublicOrigin()}/p/${project.id}`
 
   return (
     <div>
@@ -21,7 +22,7 @@ export function AdminProjectShare() {
         </p>
       )}
       <div className={styles.cardWrap}>
-        <ProjectShareCard url={url} projectName={project.name} description={project.description} />
+        <ProjectShareCard url={url} projectName={project.name} description={project.description} variant="embedded" />
       </div>
     </div>
   )

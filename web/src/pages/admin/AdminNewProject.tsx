@@ -2,6 +2,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { ProjectCreateForm } from '../../components/ProjectCreateForm'
 import type { AdminContext } from './AdminLayout'
+import styles from './AdminNewProject.module.css'
 import formStyles from '../../styles/form.module.css'
 
 // Its own page, not a panel squeezed into the list -- room to actually
@@ -13,7 +14,7 @@ export function AdminNewProject() {
 
   return (
     <main className={formStyles.stack}>
-      <div className={formStyles.card}>
+      <div className={styles.card}>
         <p className={formStyles.subtitle}>
           <Link to="/admin" className={formStyles.link}>
             ← Back to dashboard
