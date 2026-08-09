@@ -1,13 +1,15 @@
 # Feature: IFC-only upload (auto-converted to a viewable/AR-ready model)
 
-> Part of [`features/`](README.md). Phase 2. Status: **built, verified
-> against real data both in the standalone `/local` preview and via a
-> real production build** (`ifc/ifcToGlb.ts`, `pages/UploadProject.tsx`,
-> `pages/LocalPreview.tsx`, `components/ConversionProgressBar.tsx`) —
-> not yet exercised through a real live Supabase upload (no live
-> credentials in this environment); functionally identical to the
-> existing GLB upload path once the GLB exists, so the same live-tested
-> upload/storage code path applies unchanged.
+> Part of [`features/`](README.md). Phase 2. Status: **built, and now
+> verified with real interactions** (a real click, a real jump-to-room, a
+> real category hide) against the real Duplex sample in `/local`, after a
+> real bug in the first version was caught by the owner testing the live
+> build — see "A second real bug" below — not just the earlier structural
+> check (the exported file's node names existing and looking plausible),
+> which had missed it. Still not yet exercised through a real live
+> Supabase upload (no live credentials in this environment); functionally
+> identical to the existing GLB upload path once the GLB exists, so the
+> same live-tested upload/storage code path applies unchanged.
 
 ## Summary
 
@@ -70,15 +72,14 @@ script before writing any app code:
   placeholder.
 
 **Naming nodes so the rest of the app "just works"**: each generated
-`THREE.Group` is named with the element's own raw (compressed) IFC
-GlobalId, straight from `GetLine()`. Since `ifcPropertyLookup.ts`'s
-`resolveNodeNameToExpressId()` already looks up that exact compressed
-form first (`buildGlobalIdIndex` indexes it directly), there was no need
-to invent or reverse-engineer a naming convention the way the two forms
-in `ifcGuid.ts` were needed for *external* exporters — verified by
-capturing the actual generated GLB's node names in a real browser test
-and confirming they're real GlobalIds (e.g. `2O2Fr$t4X7Zf8NOew3FK4F`) in
-exactly the form the existing lookup expects.
+element gets a `THREE.Group` (for its geometry) whose *children* are the
+actual `THREE.Mesh` instances (one per placed geometry) — both the group
+and every mesh child are named with the element's IFC GlobalId, in the
+**hyphenated-UUID form** (e.g. `9808fd7f-dc48-478e-9217-628e833d410f`),
+via `ifcGuid.ts`'s `expandIfcGuid()`/`hyphenateUuid()`. See "A second
+real bug" below for why it's this form and not the raw compressed one,
+and why both the group *and* its mesh children need the name, not just
+the group.
 
 **Export**: the resulting `THREE.Group` scene is handed to
 `three-stdlib`'s `GLTFExporter` (`parseAsync(..., { binary: true })`),
@@ -110,6 +111,56 @@ calling it — `IfcGeometry.delete()` (a different type, from `GetGeometry()`)
 is still called, since that one is real. Caught by testing against the real
 Duplex file before ever shipping this, not assumed from the type
 declarations.
+
+## A second real bug, found by the owner testing the live build
+
+Shipped with a real defect: tap-to-inspect, levels/rooms jump-to, and
+category hide/show all silently did nothing on an IFC-only-uploaded
+model, while the same features worked fine on a manually-supplied GLB.
+Confirmed and diagnosed with temporary debug logging against the real
+Duplex sample rather than guessing from the code, since the earlier
+verification this session (capturing the generated GLB's node names and
+confirming they were real GlobalIds) had checked *that a name existed*,
+not *which form it was in* or *which object it was attached to* — both
+turned out to be wrong:
+
+1. **Wrong GlobalId form.** The original code named each group with the
+   raw *compressed* IFC GlobalId (e.g. `2O2Fr$t4X7Zf8NOew3FK4F`, straight
+   off `GetLine()`). But `ifcSpatialTree.ts`'s levels/rooms feature and
+   `ifcCategories.ts`'s category feature both hand out identifiers via
+   `ifcPropertyLookup.ts`'s `invertToHyphenatedGlobalIds()` — which
+   deliberately only stores the **hyphenated-UUID** form (chosen
+   originally to match IfcOpenShell's own glTF node-naming convention,
+   see `ifcGuid.ts`). A compressed-form node name never matches a
+   hyphenated-form target set, so `resolveNodeNameToExpressId()` came
+   back "no match" for every element, every time — jump-to-room silently
+   found nothing to frame, and hide-by-category silently hid nothing.
+2. **Wrong object.** Only the wrapping `THREE.Group` was named, not its
+   mesh children. A raycast click always hits the actual `THREE.Mesh`
+   (`event.object` in `ModelViewer.tsx`'s `handleClick`), never its
+   parent group — confirmed directly: a real click's `event.object.name`
+   came back as GLTFLoader's own auto-generated `"mesh_18"`, while
+   `event.object.parent?.name` had the correct GlobalId one level up.
+   Tap-to-inspect read the wrong object's (empty) name and silently did
+   nothing.
+
+Fixed by converting to the hyphenated form in `ifcToGlb.ts` (reusing
+`expandIfcGuid()`/`hyphenateUuid()`, with a fallback to the compressed
+form for the rare malformed GlobalId that fails to expand — the same
+defensive pattern `buildGlobalIdIndex()` already has), and setting that
+same name on every mesh, not just its wrapping group. Re-verified against
+the real Duplex sample after the fix: a real click now opens a real BIM
+data panel (confirmed real property data, e.g. "Basic Wall:Exterior -
+Brick on Block", `IfcWallStandardCase`, `LoadBearing: false`, etc.), a
+real jump-to-room visibly reframes the camera, and unchecking "Walls"
+visibly removes the walls from view.
+
+**Standing lesson**: capturing a generated file's node *names* and
+confirming they look like real identifiers isn't enough — also confirm
+they're in the *specific form* and attached to the *specific object* the
+consuming code actually expects, ideally by exercising the real
+interaction (a real click, a real jump, a real hide) rather than just
+inspecting the exported data structure.
 
 ## What was NOT changed
 

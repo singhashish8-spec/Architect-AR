@@ -37,10 +37,17 @@ real bugs along the way.
   Real textures still can't come from IFC (a Revit/IFC limitation, not
   something this works around — the free path for real textures is noted
   in the decisions log below), and this hasn't been tested through a real
-  live Supabase upload yet (no live credentials in this dev environment),
-  but every downstream feature (AR, tap-to-inspect, category hide/show,
-  levels/rooms) was verified working unchanged against the auto-generated
-  model.
+  live Supabase upload yet (no live credentials in this dev environment).
+  **Shipped with a real bug the owner caught testing the live build**:
+  tap-to-inspect, jump-to-room, and category hide/show all silently did
+  nothing on an IFC-only-uploaded model (they worked fine on a
+  manually-supplied GLB) — the auto-generated model's parts were named
+  with the wrong form of each element's IFC GlobalId, and only on the
+  wrapping group, not the actual clickable mesh. Fixed and re-verified
+  with real interactions (a real click opening real BIM data, a real
+  jump reframing the camera, a real category hide removing walls from
+  view) — see the feature doc for the full story and the standing lesson
+  it left.
 
 - **`main` and PR #2 still run two different apps.** Gemini's simpler
   paste-a-URL version is live on `main`/`architect-ar.vercel.app`. This

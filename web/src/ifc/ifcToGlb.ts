@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { GLTFExporter } from 'three-stdlib'
 import { openIfcModel } from './loadIfcModel'
 import { unwrap } from './ifcPropertyLookup'
+import { expandIfcGuid, hyphenateUuid } from './ifcGuid'
 
 export interface ConversionProgress {
   phase: 'parsing' | 'geometry' | 'exporting'
@@ -37,20 +38,28 @@ export async function convertIfcToGlb(
     for (let i = 0; i < total; i++) {
       const flatMesh = flatMeshes.get(i)
       const group = new THREE.Group()
-      // Name the group with the element's own raw IFC GlobalId -- exactly
-      // the form ifcPropertyLookup.ts's resolveNodeNameToExpressId looks
-      // up first (buildGlobalIdIndex indexes the compressed GlobalId
-      // directly). Since we control this export ourselves, there's no
-      // exporter-specific naming convention to reverse-engineer the way
-      // the two forms ifcGuid.ts handles were needed for external
-      // exporters -- tap-to-inspect, category hide/show, and jump-to-room
-      // all keep working unchanged against a model built this way.
-      const globalId = getGlobalId(api, modelId, flatMesh.expressID)
-      if (globalId) group.name = globalId
+      // Named with the *hyphenated-UUID* form (e.g.
+      // "9808fd7f-1a92-...") of the element's GlobalId, not the raw
+      // compressed IFC form (e.g. "2O2Fr$t4X7Zf8NOew3FK4F") -- a real bug
+      // caught by testing against real data: the levels/rooms and
+      // category features hand focusOnGlobalIds()/hiddenGlobalIds
+      // identifiers already converted to the hyphenated form
+      // (ifcPropertyLookup.ts's invertToHyphenatedGlobalIds(), chosen to
+      // match IfcOpenShell's own glTF node-naming convention -- see
+      // ifcGuid.ts), so a node named with the compressed form instead
+      // never matched and both features silently did nothing. Named on
+      // every mesh too, not just this wrapping group -- a raycast click
+      // hits the mesh directly (see buildMesh() below and
+      // ModelViewer.tsx's handleClick), never its parent group, so
+      // tap-to-inspect needs the name there as well.
+      const nodeName = getNodeName(api, modelId, flatMesh.expressID)
+      if (nodeName) group.name = nodeName
 
       const placedGeometries = flatMesh.geometries
       for (let j = 0; j < placedGeometries.size(); j++) {
-        group.add(buildMesh(api, modelId, placedGeometries.get(j)))
+        const mesh = buildMesh(api, modelId, placedGeometries.get(j))
+        if (nodeName) mesh.name = nodeName
+        group.add(mesh)
       }
       root.add(group)
       // No flatMesh.delete() here -- despite web-ifc's own .d.ts declaring
@@ -77,14 +86,26 @@ export async function convertIfcToGlb(
   }
 }
 
-function getGlobalId(api: IfcAPI, modelId: number, expressId: number): string | undefined {
+function getNodeName(api: IfcAPI, modelId: number, expressId: number): string | undefined {
   try {
     const line = api.GetLine(modelId, expressId) as unknown as { GlobalId?: unknown }
     // unwrap() is the same helper resolveNodeNameToExpressId's own index
     // relies on for reading a GlobalId off a web-ifc line -- reused here
     // rather than re-implementing the same { value, type } unwrapping.
     if (line.GlobalId === undefined) return undefined
-    return unwrap(line.GlobalId)
+    const compressed = unwrap(line.GlobalId)
+    try {
+      return hyphenateUuid(expandIfcGuid(compressed))
+    } catch {
+      // A malformed or non-standard GlobalId (rare) -- fall back to the
+      // compressed form. Tap-to-inspect and category hide/show still
+      // resolve it fine (buildGlobalIdIndex indexes the compressed form
+      // too), but jump-to-room/level won't, since that feature only ever
+      // hands out the hyphenated form -- same limitation
+      // buildGlobalIdIndex's own identical fallback already has for
+      // externally-exported models with a GlobalId in this shape.
+      return compressed
+    }
   } catch {
     // Not every flatMesh's underlying line necessarily has a GlobalId --
     // the mesh still renders, it just won't resolve to any BIM data.
