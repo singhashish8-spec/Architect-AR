@@ -18,12 +18,25 @@ interface LevelsPanelProps {
 // it. See docs/features/levels-and-rooms-navigation.md.
 export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
   const [open, setOpen] = useState(false)
+  // Each level's room list starts collapsed -- a real building's levels
+  // can each hold a dozen-plus rooms, and showing all of them for every
+  // level at once defeats the point of this being a compact panel.
+  const [expandedLevels, setExpandedLevels] = useState<Set<number>>(new Set())
 
   if (levels.length === 0) return null
 
   function jumpTo(globalIds: string[]) {
     onJumpTo(globalIds)
     setOpen(false)
+  }
+
+  function toggleExpanded(expressId: number) {
+    setExpandedLevels((current) => {
+      const next = new Set(current)
+      if (next.has(expressId)) next.delete(expressId)
+      else next.add(expressId)
+      return next
+    })
   }
 
   return (
@@ -54,27 +67,57 @@ export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
       </button>
       {open && (
         <div className={styles.panel}>
-          {levels.map((level) => (
-            <div key={level.expressId}>
-              <button type="button" className={styles.levelButton} onClick={() => jumpTo(level.elementGlobalIds)}>
-                {level.name}
-              </button>
-              {level.rooms.length > 0 && (
-                <div className={styles.roomList}>
-                  {level.rooms.map((room) => (
+          {levels.map((level) => {
+            const expanded = expandedLevels.has(level.expressId)
+            return (
+              <div key={level.expressId}>
+                <div className={styles.levelRow}>
+                  {level.rooms.length > 0 ? (
                     <button
-                      key={room.expressId}
                       type="button"
-                      className={styles.roomButton}
-                      onClick={() => jumpTo(room.elementGlobalIds)}
+                      className={styles.disclosure}
+                      onClick={() => toggleExpanded(level.expressId)}
+                      aria-label={expanded ? `Collapse ${level.name}` : `Expand ${level.name}`}
                     >
-                      {room.name}
+                      <svg
+                        className={expanded ? styles.chevronOpen : styles.chevron}
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
                     </button>
-                  ))}
+                  ) : (
+                    <span className={styles.disclosureSpacer} />
+                  )}
+                  <button type="button" className={styles.levelButton} onClick={() => jumpTo(level.elementGlobalIds)}>
+                    {level.name}
+                  </button>
                 </div>
-              )}
-            </div>
-          ))}
+                {expanded && level.rooms.length > 0 && (
+                  <div className={styles.roomList}>
+                    {level.rooms.map((room) => (
+                      <button
+                        key={room.expressId}
+                        type="button"
+                        className={styles.roomButton}
+                        onClick={() => jumpTo(room.elementGlobalIds)}
+                      >
+                        {room.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -44,6 +44,11 @@ function groupByDiscipline(categories: ElementCategory[]): CategoryGroup[] {
 export function CategoryPanel({ categories, onHiddenGlobalIdsChange }: CategoryPanelProps) {
   const [open, setOpen] = useState(false)
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set())
+  // Each discipline's category list starts collapsed -- same reasoning
+  // as LevelsPanel's per-level collapse: a real building can have a
+  // couple dozen categories once MEP is involved, and showing every
+  // discipline's full list at once defeats the point of a compact panel.
+  const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set())
 
   const groups = useMemo(() => groupByDiscipline(categories), [categories])
 
@@ -65,6 +70,15 @@ export function CategoryPanel({ categories, onHiddenGlobalIdsChange }: CategoryP
       const next = new Set(current)
       if (next.has(key)) next.delete(key)
       else next.add(key)
+      return next
+    })
+  }
+
+  function toggleDiscipline(discipline: string) {
+    setExpandedDisciplines((current) => {
+      const next = new Set(current)
+      if (next.has(discipline)) next.delete(discipline)
+      else next.add(discipline)
       return next
     })
   }
@@ -96,28 +110,54 @@ export function CategoryPanel({ categories, onHiddenGlobalIdsChange }: CategoryP
       </button>
       {open && (
         <div className={styles.panel}>
-          {groups.map((group) => (
-            <div key={group.discipline}>
-              <h3 className={styles.disciplineHeading}>{group.discipline}</h3>
-              <ul className={styles.list}>
-                {group.categories.map((category) => {
-                  const key = `${group.discipline}::${category.name}`
-                  return (
-                    <li key={key}>
-                      <label className={styles.checkboxRow}>
-                        <input
-                          type="checkbox"
-                          checked={!hiddenKeys.has(key)}
-                          onChange={() => toggleCategory(key)}
-                        />
-                        {category.name}
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
-          ))}
+          {groups.map((group) => {
+            const expanded = expandedDisciplines.has(group.discipline)
+            return (
+              <div key={group.discipline}>
+                <button
+                  type="button"
+                  className={styles.disciplineHeading}
+                  onClick={() => toggleDiscipline(group.discipline)}
+                  aria-label={expanded ? `Collapse ${group.discipline}` : `Expand ${group.discipline}`}
+                >
+                  <svg
+                    className={expanded ? styles.chevronOpen : styles.chevron}
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                  {group.discipline}
+                </button>
+                {expanded && (
+                  <ul className={styles.list}>
+                    {group.categories.map((category) => {
+                      const key = `${group.discipline}::${category.name}`
+                      return (
+                        <li key={key}>
+                          <label className={styles.checkboxRow}>
+                            <input
+                              type="checkbox"
+                              checked={!hiddenKeys.has(key)}
+                              onChange={() => toggleCategory(key)}
+                            />
+                            {category.name}
+                          </label>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

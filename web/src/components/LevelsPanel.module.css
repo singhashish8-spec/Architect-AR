@@ -26,11 +26,50 @@
 }
 
 .panel > div:not(:first-child) {
-  margin-top: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.disclosure:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.disclosureSpacer {
+  flex-shrink: 0;
+  width: 22px;
+}
+
+.chevron {
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transition: transform 0.15s ease;
+  transform: rotate(-180deg);
 }
 
 .roomList {
-  padding-left: 0.75rem;
+  padding-left: 1.7rem;
 }
 
 .levelButton,
