@@ -18,6 +18,13 @@ the way. Every item from the original Phase 2 scope in
 [`../roadmap/phases.md`](../roadmap/phases.md) is done except a real
 logo file (deliberately still text-only branding, waiting on the owner).
 
+- **Phase 3 now has its first scoped item**: a **full admin dashboard**
+  (project/model management from `/admin`, richer analytics with CSV
+  export, a storage-usage progress bar) — scoped in detail across
+  conversation once the read-only Phase 2 `/admin` shipped, deliberately
+  **not built yet**, owner said to wait. See
+  [`../features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
+
 - **Two new SQL migrations need running on the live Supabase project**,
   in order:
   1. [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)

@@ -63,6 +63,11 @@
   natural fit once element picking + R3F control exist).
 - Snapshot/short video export of a view, for sharing outside the link
   (email, WhatsApp).
+- **Full admin dashboard** — turns Phase 2's read-only `/admin` stats page
+  into a real project management console: create/edit/delete projects and
+  manage their models directly from admin, richer analytics (per-visit
+  history, CSV export), and a storage-usage tracker. Scoped in detail (not
+  yet built) in [`features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
 
 ## Phase 4 — Native shell for on-site AR
 - Wrap the same web codebase with **Capacitor**, matching the Budget
