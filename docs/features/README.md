@@ -16,6 +16,7 @@
 | [Element data inspection](element-data-inspection.md) | 1 | Built, confirmed working end-to-end with real data (2026-08-08) — see the feature doc for what's still open |
 | [Model scale presets](model-scale-presets.md) | 1 | Built, unverified end-to-end |
 | [Multiple models per project](multiple-models-per-project.md) | 2 | Built, unverified end-to-end (no live 2+ model upload test yet) |
+| [Passcode-protected links](passcode-protected-links.md) | 2 | Built, unverified end-to-end |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

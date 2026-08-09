@@ -16,4 +16,10 @@ export interface Project {
 export interface NewProject {
   name: string
   models: NewProjectModel[]
+  // Optional passcode gating the shareable link (Phase 2). Hashed
+  // server-side by create_project() in web/supabase/schema.sql -- the
+  // plain text never gets stored, and this value never comes back out of
+  // getProject(). Undefined/blank means no passcode (Phase 1's original
+  // open-by-default behavior).
+  passcode?: string
 }

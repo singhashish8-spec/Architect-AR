@@ -4,8 +4,9 @@ import { ModelViewer } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ProjectQRCode } from '../components/ProjectQRCode'
+import { PasscodeGate } from '../components/PasscodeGate'
 import { useIfcElementData } from '../ifc/useIfcElementData'
-import { getProject } from '../services/projectService'
+import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
 import styles from './ProjectView.module.css'
@@ -14,6 +15,10 @@ export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
   const [project, setProject] = useState<Project | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // null = still checking whether this project needs a passcode at all --
+  // kept distinct from `false` so a passcode-free project renders exactly
+  // as before, with no gate flashing on screen even briefly.
+  const [passcodeRequired, setPasscodeRequired] = useState<boolean | null>(null)
   const [selectedModelIndex, setSelectedModelIndex] = useState(0)
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   // Tracks "the user tapped something and we're resolving it" --
@@ -32,6 +37,11 @@ export function ProjectView() {
 
     void (async () => {
       try {
+        const required = await projectRequiresPasscode(projectId)
+        if (cancelled) return
+        setPasscodeRequired(required)
+        if (required) return // wait for PasscodeGate instead of loading yet
+
         const result = await getProject(projectId)
         if (!cancelled) {
           setProject(result)
@@ -48,6 +58,15 @@ export function ProjectView() {
       cancelled = true
     }
   }, [projectId])
+
+  // Returns whether the passcode was accepted -- PasscodeGate shows its
+  // own "incorrect" message on false, nothing else to do here in that case.
+  async function handlePasscodeSubmit(passcode: string): Promise<boolean> {
+    if (!projectId) return false
+    const result = await getProject(projectId, passcode)
+    if (result) setProject(result)
+    return result !== null
+  }
 
   // Switching models should drop any data panel left over from the
   // previous one -- otherwise a tap on model A's wall would stay on
@@ -73,6 +92,8 @@ export function ProjectView() {
         {loadError}
       </p>
     )
+  if (passcodeRequired === null) return <p className={styles.status}>Loading…</p>
+  if (passcodeRequired && !project) return <PasscodeGate onSubmit={handlePasscodeSubmit} />
   if (!project || !activeModel) return <p className={styles.status}>Loading…</p>
 
   return (

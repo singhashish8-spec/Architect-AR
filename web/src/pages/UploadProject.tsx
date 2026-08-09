@@ -24,6 +24,7 @@ export function UploadProject() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [models, setModels] = useState<ModelDraft[]>([emptyModel()])
+  const [passcode, setPasscode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,7 +62,7 @@ export function UploadProject() {
           scalePreset: draft.scalePreset,
         })
       }
-      const project = await createProject({ name, models: uploadedModels })
+      const project = await createProject({ name, models: uploadedModels, passcode })
       await navigate(`/p/${project.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
@@ -162,6 +163,20 @@ export function UploadProject() {
           <button type="button" className={styles.addButton} onClick={addModel}>
             + Add another model
           </button>
+
+          <div className={styles.field}>
+            <label htmlFor="passcode" className={styles.label}>
+              Passcode (optional — leave blank for an open link)
+            </label>
+            <input
+              id="passcode"
+              type="text"
+              className={styles.input}
+              value={passcode}
+              onChange={(event) => setPasscode(event.target.value)}
+              placeholder="Anyone with this link and the passcode can view it"
+            />
+          </div>
 
           {error && (
             <p role="alert" className={styles.error}>

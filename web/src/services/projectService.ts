@@ -63,20 +63,24 @@ export async function uploadIfcFile(file: File): Promise<string> {
 }
 
 export async function createProject(project: NewProject): Promise<Project> {
-  // Generate every id client-side and skip .select() after each insert.
-  // Postgres RLS applies SELECT policies to a RETURNING clause too (which
-  // is what .select() triggers) -- since there's deliberately no SELECT
-  // policy for anon on either table (see schema.sql), .select() would
-  // always come back with zero rows and .single() would throw, even
-  // though the insert itself succeeded. Supplying ids ourselves means we
-  // already have everything needed to build the Project without reading
-  // anything back.
+  // Generate every id client-side and skip reading anything back after
+  // creation. Postgres RLS applies SELECT policies to a RETURNING clause
+  // too -- since there's deliberately no SELECT policy for anon on either
+  // table (see schema.sql), a direct .insert().select() would always come
+  // back with zero rows. Supplying ids ourselves means we already have
+  // everything needed to build the Project without reading anything back.
+  //
+  // The project row itself is created via the create_project() RPC, not a
+  // direct .insert() -- that's what lets a passcode (if provided) get
+  // hashed server-side and never stored or transmitted in plain text.
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
-  const { error: projectError } = await getSupabase()
-    .from('projects')
-    .insert({ id, name: project.name, created_at: createdAt })
+  const { error: projectError } = await getSupabase().rpc('create_project', {
+    p_id: id,
+    p_name: project.name,
+    p_passcode: project.passcode || null,
+  })
   if (projectError) throw projectError
 
   const models: ProjectModel[] = project.models.map((model) => ({
@@ -105,11 +109,23 @@ export async function createProject(project: NewProject): Promise<Project> {
   return { id, createdAt, name: project.name, models }
 }
 
-export async function getProject(id: string): Promise<Project | null> {
+// Checked before ever calling getProject(), so a project with no passcode
+// set loads exactly as before -- no gate, no extra round trip's worth of
+// UI delay beyond this one cheap boolean lookup.
+export async function projectRequiresPasscode(id: string): Promise<boolean> {
+  const result = (await getSupabase().rpc('project_requires_passcode', { p_id: id })) as {
+    data: boolean | null
+    error: Error | null
+  }
+  if (result.error) throw result.error
+  return result.data === true
+}
+
+export async function getProject(id: string, passcode?: string | null): Promise<Project | null> {
   // Cast the whole response in one place rather than destructuring an
   // `any`-typed result -- without a generated Database type passed to
   // createClient(), supabase-js's rpc() return type isn't inferred.
-  const result = (await getSupabase().rpc('get_project', { p_id: id })) as {
+  const result = (await getSupabase().rpc('get_project', { p_id: id, p_passcode: passcode ?? null })) as {
     data: ProjectRow[] | null
     error: Error | null
   }
