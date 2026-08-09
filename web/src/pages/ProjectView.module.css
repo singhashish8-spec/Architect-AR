@@ -26,16 +26,15 @@
   left: 1rem;
 }
 
-.levelsCorner {
-  position: absolute;
-  left: 1rem;
-  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-}
-
-.categoryCorner {
+.topRightCorner {
   position: absolute;
   top: 1rem;
   right: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  max-width: calc(100vw - 2rem);
 }
 
 .modelSwitcher {

@@ -127,10 +127,8 @@ export function LocalPreview() {
             onElementSelect={ifcUrl ? (id) => void handleElementSelect(id) : undefined}
             hiddenGlobalIds={hiddenGlobalIds}
           />
-          <div className={styles.viewerLevelsCorner}>
+          <div className={styles.viewerTopRightCorner}>
             <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
-          </div>
-          <div className={styles.viewerCategoryCorner}>
             <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
           </div>
           <ElementDataPanel

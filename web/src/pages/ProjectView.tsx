@@ -128,10 +128,8 @@ export function ProjectView() {
       <div className={styles.arButton}>
         <ARHandoff modelUrl={activeModel.modelUrl} scalePreset={activeModel.scalePreset} alt={activeModel.name} />
       </div>
-      <div className={styles.levelsCorner}>
+      <div className={styles.topRightCorner}>
         <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
-      </div>
-      <div className={styles.categoryCorner}>
         <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
       </div>
       <div className={styles.qrCorner}>
