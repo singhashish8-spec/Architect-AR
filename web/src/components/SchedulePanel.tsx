@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ElementCategory } from '../ifc/ifcCategories'
 import { buildSchedule } from '../utils/scheduleData'
 import styles from './SchedulePanel.module.css'
@@ -8,6 +9,19 @@ interface SchedulePanelProps {
   categories: ElementCategory[]
   onIsolate: (hiddenGlobalIds: Set<string>) => void
   onJumpTo: (globalIds: string[]) => void
+  // The actual panel (not its toggle button) needs to render as a direct
+  // child of the full-size viewer box -- not wherever this component
+  // sits in the corner button row -- via a portal, so its height:100%
+  // has the right box to measure against. A real bug caught by the owner
+  // testing on an actual phone: nesting the whole component inside the
+  // small flex-wrap button row (a `position: absolute` box sized to its
+  // own content, not the viewer) made the panel's "full height" resolve
+  // against that tiny row's own height instead, collapsing it to almost
+  // nothing -- it looked empty because it basically was, height-wise,
+  // not because of the top-edge overlap that was the first, more
+  // visible symptom fixed alongside this. See
+  // docs/features/search-and-schedule.md.
+  portalContainer: HTMLElement | null
 }
 
 // A simple quantity takeoff -- "how many of each thing" as a list, not
@@ -16,7 +30,7 @@ interface SchedulePanelProps {
 // don't collide) rather than one of the small anchored corner panels,
 // since a real schedule needs more room than those give. See
 // docs/features/search-and-schedule.md.
-export function SchedulePanel({ categories, onIsolate, onJumpTo }: SchedulePanelProps) {
+export function SchedulePanel({ categories, onIsolate, onJumpTo, portalContainer }: SchedulePanelProps) {
   const [open, setOpen] = useState(false)
   const schedule = useMemo(() => buildSchedule(categories), [categories])
   const allGlobalIds = useMemo(() => {
@@ -67,36 +81,39 @@ export function SchedulePanel({ categories, onIsolate, onJumpTo }: SchedulePanel
         </svg>
         <span className={labelStyles.label}>{open ? 'Hide schedule' : 'Schedule'}</span>
       </button>
-      {open && (
-        <aside className={styles.panel}>
-          <button type="button" className={styles.closeButton} onClick={() => setOpen(false)} aria-label="Close">
-            ×
-          </button>
-          <h2 className={styles.title}>Schedule</h2>
-          <p className={styles.subtitle}>{grandTotal} elements total. Click a row to isolate it.</p>
-          {schedule.map((group) => (
-            <div key={group.discipline} className={styles.group}>
-              <p className={styles.disciplineHeading}>
-                {group.discipline} <span className={styles.disciplineTotal}>{group.total}</span>
-              </p>
-              <table className={styles.table}>
-                <tbody>
-                  {group.rows.map((row) => (
-                    <tr key={row.category}>
-                      <td>
-                        <button type="button" className={styles.rowButton} onClick={() => selectRow(row.globalIds)}>
-                          {row.category}
-                        </button>
-                      </td>
-                      <td className={styles.countCell}>{row.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </aside>
-      )}
+      {open &&
+        portalContainer &&
+        createPortal(
+          <aside className={styles.panel}>
+            <button type="button" className={styles.closeButton} onClick={() => setOpen(false)} aria-label="Close">
+              ×
+            </button>
+            <h2 className={styles.title}>Schedule</h2>
+            <p className={styles.subtitle}>{grandTotal} elements total. Click a row to isolate it.</p>
+            {schedule.map((group) => (
+              <div key={group.discipline} className={styles.group}>
+                <p className={styles.disciplineHeading}>
+                  {group.discipline} <span className={styles.disciplineTotal}>{group.total}</span>
+                </p>
+                <table className={styles.table}>
+                  <tbody>
+                    {group.rows.map((row) => (
+                      <tr key={row.category}>
+                        <td>
+                          <button type="button" className={styles.rowButton} onClick={() => selectRow(row.globalIds)}>
+                            {row.category}
+                          </button>
+                        </td>
+                        <td className={styles.countCell}>{row.count}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </aside>,
+          portalContainer,
+        )}
     </>
   )
 }

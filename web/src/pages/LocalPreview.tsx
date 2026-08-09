@@ -35,6 +35,9 @@ export function LocalPreview() {
   const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null)
   const [conversionError, setConversionError] = useState<string | null>(null)
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
+  // SchedulePanel portals its actual panel content here -- see its own
+  // comment for why (the containing-block bug this fixes).
+  const [viewerEl, setViewerEl] = useState<HTMLDivElement | null>(null)
 
   const { getElementDataByGlobalId, levels, categories } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
@@ -186,7 +189,7 @@ export function LocalPreview() {
       </div>
 
       {modelUrl && scalePreset && (
-        <div className={styles.viewer}>
+        <div className={styles.viewer} ref={setViewerEl}>
           <ModelViewer
             ref={viewerRef}
             modelUrl={modelUrl}
@@ -209,6 +212,7 @@ export function LocalPreview() {
               categories={categories}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+              portalContainer={viewerEl}
             />
           </div>
           <ElementDataPanel

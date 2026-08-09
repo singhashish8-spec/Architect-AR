@@ -14,12 +14,23 @@
 }
 
 .panel {
+  /* Starts below the top button row, not at the very top edge -- this
+     panel (unlike the small anchored dropdowns Levels/Categories/
+     Lighting/Search use) is a full-height side panel that shares the
+     same top edge as .topRightCorner's button row. A real bug caught by
+     the owner testing on an actual phone: at mobile widths the button
+     row visually sat directly on top of this panel's own title, making
+     it look empty even though it was rendering correctly underneath.
+     4rem safely clears one row of icon-only buttons (confirmed the
+     button row never wraps past one row at realistic phone widths,
+     since collapsing to icon-only below 640px is exactly what keeps it
+     that compact) plus its own top margin. */
   position: absolute;
-  top: 0;
+  top: 4rem;
   left: 0;
   width: 320px;
   max-width: 100%;
-  height: 100%;
+  height: calc(100% - 4rem);
   overflow-y: auto;
   padding: 1.5rem;
   background: rgba(20, 20, 24, 0.92);

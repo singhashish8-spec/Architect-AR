@@ -38,6 +38,10 @@ export function ProjectView() {
   const [showQr, setShowQr] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
+  // SchedulePanel portals its actual panel content here (see its own
+  // comment for why) -- a state, not a plain ref, so the portal target
+  // is available by the time anything tries to render into it.
+  const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
 
   const activeModel = project?.models[selectedModelIndex] ?? null
   const { getElementDataByGlobalId, levels, categories } = useIfcElementData(activeModel?.ifcUrl ?? null)
@@ -116,7 +120,7 @@ export function ProjectView() {
   if (!project || !activeModel) return <p className={styles.status}>Loading…</p>
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} ref={setRootEl}>
       <ModelViewer
         ref={viewerRef}
         modelUrl={activeModel.modelUrl}
@@ -156,6 +160,7 @@ export function ProjectView() {
           categories={categories}
           onIsolate={setHiddenGlobalIds}
           onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+          portalContainer={rootEl}
         />
       </div>
       <div className={styles.qrCorner}>

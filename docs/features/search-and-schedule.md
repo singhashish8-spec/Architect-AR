@@ -77,6 +77,50 @@ same isolate mechanism (`utils/scheduleData.ts`'s `buildSchedule()` is
 the schedule-shaped equivalent of `searchResults.ts`'s per-category
 grouping).
 
+### A real bug, found by the owner testing on an actual phone
+
+The schedule panel shipped effectively invisible on mobile — the owner
+reported "it says hide schedule but I don't see any schedule". Two
+separate bugs stacked, only the first of which was obvious from a
+screenshot:
+
+1. **Visual overlap.** `SchedulePanel`'s toggle button lives in the same
+   top-right button row as Levels/Categories/Lighting/Search, but its
+   actual panel is a full-height side panel starting at the very top
+   edge (`top: 0`) — on a phone-width screen the button row visually sat
+   directly on top of the panel's own title.
+2. **The real cause, only found by actually measuring the rendered
+   panel's height, not just eyeballing a screenshot**: fixing the overlap
+   with a `top` offset revealed the panel's content was still barely
+   showing anything below its own title. The `<aside>` was rendered
+   *inside* `.topRightCorner`/`.viewerTopRightCorner` (a `position:
+   absolute` box sized to its own content — the button row — not to the
+   viewer), so its `height: 100%` resolved against that tiny box's own
+   height, not the full-size viewer it visually needed to fill. This
+   wasn't about the panel being hidden behind something; it was
+   genuinely collapsed to almost no height, on every screen size, not
+   only mobile — mobile just made the resulting overlap-with-nothing-
+   underneath obvious enough to notice.
+
+Fixed by portaling the actual `<aside>` (not its toggle button, which
+stays in the corner row for the consistent grouping) directly into the
+same full-size container `ElementDataPanel` already renders into
+(`ProjectView.tsx`'s `.root` / `LocalPreview.tsx`'s `.viewer`, tracked
+via a `useState` ref rather than a plain `useRef` so the portal target
+is available by the time anything needs it) — `React.createPortal`, so
+the component still owns its own open/closed state and the toggle button
+stays visually grouped with the others, but the panel itself renders
+with the correct containing block. `ElementDataPanel` itself never had
+this specific bug (it was already a direct child of the right container
+from the start), but got the same `top` offset fix for the overlap,
+since it shares the same corner with the same button row.
+
+**Standing lesson**: for any `position: absolute` panel meant to fill a
+large container, verify it's actually *nested inside* that container in
+the DOM, not just visually near it — a screenshot showing "the title is
+overlapped" can hide a second, more fundamental "the box it's in is
+tiny" bug directly underneath the first, more visible one.
+
 ## Open questions
 
 - **Search and schedule share one `hiddenGlobalIds` slot with the

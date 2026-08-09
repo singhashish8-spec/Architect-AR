@@ -79,6 +79,14 @@ logo file (deliberately still text-only branding, waiting on the owner).
     the 3D view on selection ("show me every door" works exactly as the
     original Phase 2 scope described it). See
     [`../features/search-and-schedule.md`](../features/search-and-schedule.md).
+    **Shipped with a real bug, caught by the owner testing on an actual
+    phone**: the schedule panel was effectively invisible on mobile — not
+    just a visual overlap with the top button row (the obvious part),
+    but the panel itself was rendered inside the wrong container and its
+    `height: 100%` was collapsing to almost nothing on *every* screen
+    size, mobile just made it obvious. Fixed by portaling the panel into
+    the same full-size container `ElementDataPanel` already uses — see
+    the feature doc for the full story and its standing lesson.
   - **View analytics + `/admin` dashboard** — records real page views and
     approximate time-on-page automatically, visible only behind a
     separate admin passcode on a new `/admin` route, never on a

@@ -1,10 +1,15 @@
 .panel {
+  /* Same fix as components/SchedulePanel.module.css's .panel (see its
+     comment for the full story) -- this panel shares .topRightCorner's
+     top-right corner with the Levels/Categories/Lighting/Search button
+     row, and starting at top:0 let that row visually sit on top of this
+     panel's own title/content at mobile widths. */
   position: absolute;
-  top: 0;
+  top: 4rem;
   right: 0;
   width: 320px;
   max-width: 100%;
-  height: 100%;
+  height: calc(100% - 4rem);
   overflow-y: auto;
   padding: 1.5rem;
   background: rgba(20, 20, 24, 0.92);
