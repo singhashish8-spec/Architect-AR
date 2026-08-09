@@ -76,6 +76,24 @@ the panel, confirmed the real level/room names appear, clicked a room
 room's actual geometry (wall corners, a door frame) rather than the
 far-away default view.
 
+## Addendum: a real scale-relativity bug, found via live testing
+
+The owner tested this live (the panel and real level/room names showed up
+correctly) and reported the camera didn't visibly move on tapping a room.
+Cause: the camera-framing distance used a fixed `0.5`-unit floor meant
+only to guard against a degenerate zero-size bounding box — but
+`visualScale()` shrinks the *entire* model's geometry by the scale
+preset's ratio, so at 1:100 (what the owner was actually testing with),
+every real room's bounding box in scene units is already smaller than
+0.5, meaning that floor silently dominated every jump and made them all
+land at roughly the same distance regardless of which room was clicked.
+Fixed by replacing the floor with a true near-zero epsilon
+(`ModelViewer.tsx`). Verified live at 1:100 scale against the real Duplex
+sample before calling it fixed: went from the whole building rendering
+as a tiny speck (the *pre-jump* default framing is also quite far out at
+that scale) to a fully framed, zoomed-in kitchen view — cabinets,
+countertops, room detail all clearly visible — after clicking a room.
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above
