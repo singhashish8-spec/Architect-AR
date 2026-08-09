@@ -6,47 +6,68 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-08**, end of Session 4. **The BIM tap-to-inspect
-feature is now confirmed working end-to-end on real data** — the owner
-tested it live and it worked, after two real bugs found along the way
-(Vercel routing, then a data-display issue) were fixed and verified.
+Last updated: **2026-08-08**, end of Session 4. **The full Phase 1
+pipeline is now confirmed working end-to-end on real data** — real
+Supabase-backed upload, a real shareable link, AR placement, and
+tap-to-inspect all tested live by the owner on a genuine Revit-exported
+building, not a generic sample or a unit test alone.
 
 - **`main` and PR #2 still run two different apps.** Gemini's simpler
   paste-a-URL version is live on `main`/`architect-ar.vercel.app`. This
   project's fuller Phase 1 build is on PR #2, which also now has its own
-  live Vercel preview (auto-deployed, confirmed working — see
-  [`sessions/2026-08-07-session-03.md`](sessions/2026-08-07-session-03.md)).
-  Formally still unreconciled, but all new work continues on PR #2 — treat
-  it as the active direction.
-- **Real, positive AR test happened**: the owner tested the *simple*
-  version live on a real phone using the Khronos `DamagedHelmet.glb`
-  sample — model loaded, AR placement worked. Confirms the core
-  `<model-viewer>` → phone-AR handoff works end-to-end on real hardware.
-  Does **not** confirm BIM tap-to-inspect (that feature doesn't exist in
-  the version tested).
-- **A real bug was found and fixed in the BIM correlation logic** — the
-  single biggest open risk in the project. Verified using a genuine
-  Revit-exported IFC sample (buildingSMART's "Duplex Apartment" file,
+  live Vercel preview. Formally still unreconciled, but all new work
+  continues on PR #2 — treat it as the active direction. See
+  [`sessions/2026-08-07-session-03.md`](sessions/2026-08-07-session-03.md).
+- **Supabase is now live and connected.** The owner created a Supabase
+  project, ran `web/supabase/schema.sql`, and added
+  `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` to Vercel's **Preview**
+  environment (Production still needs the same two vars — see pending
+  list below).
+- **Full real end-to-end test, done and confirmed**: the owner uploaded a
+  genuine Revit-exported IFC sample (buildingSMART's "Duplex Apartment,"
   converted to glTF with the independent open-source IfcOpenShell
-  toolkit, not our own code) that a real exporter names glTF nodes using
-  the *expanded UUID* form, not the compressed IFC GlobalId form our code
-  originally assumed exclusively. Fixed by porting IfcOpenShell's own
-  reference compress/expand algorithm (`web/src/ifc/ifcGuid.ts`) and
-  making the correlation resolver try both forms
-  (`resolveNodeNameToExpressId()` in `ifcPropertyLookup.ts`). All of this
-  verified with real extracted data, not invented test fixtures. See
-  [`sessions/2026-08-08-session-04.md`](sessions/2026-08-08-session-04.md).
-  **Still not proven**: whether the owner's actual export pipeline
-  (whatever Revit/SketchUp/Rhino setup they end up using) follows either
-  of the two now-supported conventions, or a third one — that still needs
-  a real end-to-end test.
+  toolkit) through PR #2's actual upload form — not `/local`, not a
+  synthetic test — and got back a real `/p/<id>` shareable link. On that
+  link: the model placed correctly in AR on a real phone, and
+  tap-to-inspect returned real IFC data (level, elevation, dimensions,
+  etc.). This closes out the single biggest open risk the project has had
+  since Session 2.
+- **Three real bugs found and fixed along the way this session**, all
+  verified against real data/config rather than guessed:
+  1. **BIM correlation logic** — the original code assumed glTF node
+     names always contained the compressed IFC GlobalId; a real exporter
+     (IfcOpenShell) actually uses an expanded-UUID form instead. Fixed by
+     porting IfcOpenShell's own compress/expand algorithm
+     (`web/src/ifc/ifcGuid.ts`) and making the resolver
+     (`resolveNodeNameToExpressId()`) try both forms.
+  2. **Vercel routing** — `web/` had no `vercel.json` SPA-fallback
+     rewrite, so any client-side route besides the bare `/` (like
+     `/local`) 404'd when hit directly. Fixed with a catch-all rewrite.
+  3. **IFC placeholder values** — the data panel showed junk rows like
+     `SerialNumber: SerialNumber`. Confirmed via direct inspection with
+     `ifcopenshell` that this is Revit's own exporter writing an unfilled
+     field's name as its placeholder value, not a bug in our lookup.
+     Added `hasMeaningfulValue()` to filter these out.
+  See [`findings.md`](findings.md) for the full story on each, and
+  [`sessions/2026-08-08-session-04.md`](sessions/2026-08-08-session-04.md)
+  for the session narrative.
+- **Also fixed**: the "View in AR" button was getting partially hidden
+  behind the phone browser's own toolbar (a `100vh`-on-mobile sizing
+  issue). Fixed with `100dvh` + a safe-area-inset offset.
+- **Confirmed and explained, not a bug**: tap-to-inspect only works in
+  the in-browser 3D view, not inside the native AR camera view (Scene
+  Viewer/Quick Look) reached via "View in AR" — that handoff goes to a
+  separate OS-level app with no access to our page or its data. Making AR
+  itself interactive needs a custom-built AR camera view, already scoped
+  for Phase 4 — see
+  [`../features/ar-walkthrough.md`](../features/ar-walkthrough.md).
 - **Code**: `web/` (PR #2) has upload flow, Supabase schema, R3F viewer
   with scale-aware model transform, `<model-viewer>` AR handoff, IFC
-  parsing + property lookup (now handling two node-naming conventions),
-  printable QR code export, routing. All four quality gates clean — 20
-  tests now, up from 1 at the start of Phase 1. The Android `app/` module
-  is still just the inherited default template — untouched, as planned
-  (Phase 4).
+  parsing + property lookup (handling two node-naming conventions and
+  filtering placeholder values), printable QR code export, routing. All
+  four quality gates clean — 24 tests, up from 1 at the start of Phase 1.
+  The Android `app/` module is still just the inherited default template
+  — untouched, as planned (Phase 4).
 - **Plan**: fully scoped through Phase 1 (MVP), with Phase 4's AR
   walkthrough now also covering the print-anchored/QR-triggered vision.
   See [`../roadmap/`](../roadmap/README.md).
@@ -58,42 +79,21 @@ tested it live and it worked, after two real bugs found along the way
 - **CI**: confirmed genuinely working — passed on PR #2's latest pushes,
   including a live Vercel preview deployment.
 
-- **Two more real bugs found and fixed while the owner tested live, both
-  verified against real data/config rather than guessed:**
-  1. `web/` had no `vercel.json` SPA-fallback rewrite, so any client-side
-     route besides the bare `/` (like `/local`) 404'd when hit directly —
-     fixed, pushed as `e1abda1`.
-  2. The Duplex sample's data panel showed junk rows like `SerialNumber:
-     SerialNumber` — confirmed via direct inspection with `ifcopenshell`
-     that this is Revit's own IFC exporter writing an unfilled field's
-     name as its placeholder value. Added a filter
-     (`hasMeaningfulValue()`) to drop these. Pushed as `53961aa`.
-  See
-  [`findings.md`](findings.md#finding-pr-2s-vercel-preview-404s-on-any-route-but--session-4)
-  and
-  [`findings.md`](findings.md#finding-revits-own-ifc-export-fills-unset-fields-with-the-fields-own-name-session-4).
-- **The BIM tap-to-inspect feature is now live-confirmed working**: the
-  owner uploaded `Duplex.glb` + `Duplex.ifc` on PR #2's `/local` page,
-  tapped a real element, and got a genuine data panel (`Level`,
-  `Elevation`, etc.) — the first real proof this session's correlation fix
-  (and the whole tap-to-inspect feature) actually works, not just unit
-  tests. The junk-row fix above has not yet been re-tested by the owner.
-
 ## What's still pending / open
 
-- **First real end-to-end test, once Supabase exists**: upload one real
-  Revit-exported glTF/GLB + IFC pair (the owner's own export, not a public
-  sample) through PR #2's actual upload flow, and confirm tap-to-inspect
-  works. This is the one thing that finally answers "does this work with
-  MY pipeline" — everything else has been de-risked as much as possible
-  without it.
-- **Owner decision, still open**: formally reconcile `main` vs. PR #2 (see
+- **Add the same Supabase env vars to Vercel's Production environment**
+  (only Preview is configured so far) — needed before this goes live for
+  real, not blocking further testing right now.
+- **Owner's own real export pipeline still untested**: everything proven
+  so far has used the public Duplex sample, not the owner's actual
+  Revit/SketchUp/Rhino export. That's the one remaining "does this work
+  with MY files" question — the mechanism is now proven, but not against
+  the owner's specific tools.
+- **Owner decision, still open**: formally reconcile `main` vs. PR #2,
+  including whether/how to bring Cloudflare R2 in as the storage layer
+  instead of (or alongside) Supabase Storage — see
   [`sessions/2026-08-07-session-03.md`](sessions/2026-08-07-session-03.md)
-  and [`../roadmap/decisions.md`](../roadmap/decisions.md)).
-- **Needs the owner, not an AI**: create the Supabase project (or decide
-  to bring in Cloudflare R2 instead, per the reconciliation decision) —
-  see
-  [`sessions/2026-08-06-session-01.md`](sessions/2026-08-06-session-01.md#what-still-needs-the-owner-not-an-ai).
+  and [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - **Unresolved**: the second ("Other") primary use case selected alongside
   "client presentation tool" during roadmap planning — the actual text
   wasn't captured.
