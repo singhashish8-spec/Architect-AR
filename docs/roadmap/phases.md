@@ -64,10 +64,14 @@
 - Snapshot/short video export of a view, for sharing outside the link
   (email, WhatsApp).
 - **Full admin dashboard** — turns Phase 2's read-only `/admin` stats page
-  into a real project management console: create/edit/delete projects and
-  manage their models directly from admin, richer analytics (per-visit
-  history, CSV export), and a storage-usage tracker. Scoped in detail (not
-  yet built) in [`features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
+  into a real project management console. **Project + model management
+  built and shipped (2026-08-09)**: create/edit/delete/duplicate projects,
+  status tags, search/sort, bulk delete, and full model management (add/
+  replace/rename/delete/reorder/note) all from `/admin` — project creation
+  moved entirely behind the admin passcode, the public upload form is gone.
+  **Still open**: richer analytics (per-visit history, CSV export) and a
+  storage-usage tracker. Full detail in
+  [`features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
 
 ## Phase 4 — Native shell for on-site AR
 - Wrap the same web codebase with **Capacitor**, matching the Budget

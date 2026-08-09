@@ -26,7 +26,7 @@
 | [Lighting presets (daylight/evening/studio)](lighting-presets.md) | 2 | Built, verified against real data in a real production build |
 | [Search/filter elements, and schedule/quantity-takeoff view](search-and-schedule.md) | 2 | Built, verified against real data in a real production build |
 | [View analytics + admin dashboard](analytics-and-admin-dashboard.md) | 2 | Built, unit-tested, gate UI checked in a real production build; stats not yet checked against a real live Supabase project |
-| [Full admin dashboard (project/model management, upgraded analytics, storage tracker)](full-admin-dashboard.md) | 3 | Scoped in detail, not started |
+| [Full admin dashboard (project/model management, upgraded analytics, storage tracker)](full-admin-dashboard.md) | 3 | Project + model management built and shipped 2026-08-09; upgraded analytics and the storage tracker still not started |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

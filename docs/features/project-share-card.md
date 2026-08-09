@@ -56,7 +56,9 @@ that's pasting into an email or sharing straight to WhatsApp.
 
 **Database**: `projects.description` (nullable `text`), added via
 `web/supabase/migrations/006_project_description.sql` — see that file
-for the exact SQL to run. `create_project()` gained an optional
+for the exact SQL to run. The project-creation RPC (`create_project()`
+at the time, since renamed to `admin_create_project()` — see
+[`full-admin-dashboard.md`](full-admin-dashboard.md)) gained an optional
 `p_description` parameter (blank/whitespace-only treated the same as
 not given, via `nullif(trim(...), '')`); `get_project()`'s return columns
 gained `description`. `schema.sql` updated in lockstep for fresh

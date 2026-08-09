@@ -13,38 +13,52 @@
 -- that only returns a row when the caller already knows its id (and, if
 -- the project has a passcode set, the correct passcode too).
 --
--- Known Phase 1 gap, not an oversight: INSERT is open to the anon role on
--- `project_models` (no architect login exists yet — auth isn't in scope
--- until it's tracked in docs/roadmap/decisions.md). `projects` itself is
--- NOT directly insertable by anon — see create_project() below, which is
--- the only way to create one, so a passcode (if set) is always hashed
--- server-side and never stored or transmitted in plain text.
+-- Project and model creation/editing/deletion (Phase 3) all go through
+-- admin_*() functions further down (admin_create_project(),
+-- admin_add_model(), etc.) -- every one of them re-verifies the admin
+-- passcode server-side before writing anything, same pattern
+-- verify_admin_passcode() established for reads. Neither `projects` nor
+-- `project_models` has an anon INSERT/UPDATE/DELETE policy as a result --
+-- there's nothing for one to usefully allow once every write path is a
+-- passcode-gated SECURITY DEFINER function instead.
+--
+-- Known Phase 1 gap, still open: the `project-files` Storage bucket's
+-- upload policy (further down) is still open to the anon role -- there's
+-- no real per-role Supabase Auth session to scope Storage writes to,
+-- admin-ness here is just a passcode check in a Postgres function, not a
+-- Storage-level identity. Locking that down would need real auth
+-- infrastructure; tracked in docs/roadmap/decisions.md, not solved here.
 
 -- Supabase's own convention: extensions live in the `extensions` schema,
--- not `public` -- see the search_path comment on create_project() below
--- for why that matters.
+-- not `public` -- see the search_path comment on admin_create_project()
+-- below for why that matters.
 create extension if not exists "pgcrypto" with schema extensions;
 
 create table if not exists projects (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  -- Set only via create_project() below, never a direct client insert --
-  -- null means the project has no passcode (Phase 1 default: anyone with
-  -- the link can open it).
+  -- Set only via admin_create_project() below, never a direct client
+  -- insert -- null means the project has no passcode (default: anyone
+  -- with the link can open it).
   passcode_hash text,
   -- Optional free-text blurb shown on the share card (QR + link + this
   -- text) alongside the project name -- see
   -- docs/features/project-share-card.md. Null/blank means no description
   -- was given at upload time.
   description text,
+  -- Organizing tag for a growing project list in /admin (Phase 3) --
+  -- purely presentational, doesn't affect who can view a project's own
+  -- link. See docs/features/full-admin-dashboard.md.
+  status text not null default 'active' check (status in ('active', 'sent_to_client', 'archived')),
   created_at timestamptz not null default now()
 );
 
 alter table projects enable row level security;
 
--- No direct anon INSERT policy on `projects` -- create_project() is the
--- only creation path (SECURITY DEFINER, hashes the passcode itself), so
--- there's nothing for a plain insert policy to usefully allow.
+-- No direct anon INSERT policy on `projects` -- admin_create_project()
+-- below is the only creation path (SECURITY DEFINER, hashes the
+-- passcode itself and re-verifies the admin passcode), so there's
+-- nothing for a plain insert policy to usefully allow.
 
 -- One project can hold multiple models (Phase 2) -- e.g. different rooms,
 -- or design options A/B, all reachable from the same shareable link. See
@@ -59,15 +73,41 @@ create table if not exists project_models (
     scale_preset in ('1:1', '1:5', '1:10', '1:20', '1:50', '1:100', '1:200', '1:500', '1:1000')
   ),
   sort_order integer not null default 0,
+  -- Short free-text note per model (e.g. "final", "client requested
+  -- changes") -- purely for the architect's own reference in /admin.
+  note text,
   created_at timestamptz not null default now()
 );
 
 alter table project_models enable row level security;
 
-create policy "anon can insert project_models"
-  on project_models for insert
-  to anon
-  with check (true);
+-- No anon INSERT policy here either (Phase 3) -- admin_add_model()
+-- below is the only creation path now. See the top-of-file security
+-- note.
+
+-- Shared by every admin_*() write function below -- raises instead of
+-- silently no-op'ing on a wrong passcode, unlike verify_admin_passcode()
+-- itself (further down, used for reads), so a write RPC's caller gets a
+-- real error to show rather than an ambiguous "did that work?".
+--
+-- Calls verify_admin_passcode(), which is defined later in this file (in
+-- the admin_settings section) -- a forward reference, but a harmless one:
+-- Postgres only checks a plpgsql function body's syntax at creation
+-- time, not that every function it calls already exists, so this is
+-- fine as long as the whole script (not just this statement) runs
+-- before anything actually calls assert_admin().
+create or replace function assert_admin(p_passcode text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if not verify_admin_passcode(p_passcode) then
+    raise exception 'Invalid admin passcode';
+  end if;
+end;
+$$;
 
 -- The only way to create a project. SECURITY DEFINER so it can hash
 -- p_passcode with pgcrypto's crypt()/gen_salt('bf') (bcrypt) itself --
@@ -81,11 +121,13 @@ create policy "anon can insert project_models"
 -- explicitly scoped (not the default search_path) for the usual
 -- SECURITY DEFINER reason: prevents a same-named function in some other
 -- schema from being called instead by search-path trickery.
-create or replace function create_project(
+create or replace function admin_create_project(
+  p_admin_passcode text,
   p_id uuid,
   p_name text,
   p_passcode text default null,
-  p_description text default null
+  p_description text default null,
+  p_status text default 'active'
 )
 returns void
 language plpgsql
@@ -93,7 +135,9 @@ security definer
 set search_path = public, extensions
 as $$
 begin
-  insert into projects (id, name, passcode_hash, description)
+  perform assert_admin(p_admin_passcode);
+
+  insert into projects (id, name, passcode_hash, description, status)
   values (
     p_id,
     p_name,
@@ -102,12 +146,211 @@ begin
         then crypt(p_passcode, gen_salt('bf'))
       else null
     end,
-    nullif(trim(coalesce(p_description, '')), '')
+    nullif(trim(coalesce(p_description, '')), ''),
+    p_status
   );
 end;
 $$;
 
-grant execute on function create_project(uuid, text, text, text) to anon;
+grant execute on function admin_create_project(text, uuid, text, text, text, text) to anon;
+
+-- Name/description/status only -- passcode changes go through
+-- admin_set_project_passcode() below, kept separate since it's a more
+-- sensitive change worth its own explicit action in the UI rather than
+-- bundled into every save of the basic details.
+create or replace function admin_update_project(
+  p_admin_passcode text,
+  p_id uuid,
+  p_name text,
+  p_description text default null,
+  p_status text default 'active'
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  update projects
+  set name = p_name,
+      description = nullif(trim(coalesce(p_description, '')), ''),
+      status = p_status
+  where id = p_id;
+end;
+$$;
+
+grant execute on function admin_update_project(text, uuid, text, text, text) to anon;
+
+-- Set, change, or remove a project's passcode after creation -- blank/
+-- null p_passcode clears it (the project goes back to open-by-default,
+-- same meaning as never having set one).
+create or replace function admin_set_project_passcode(
+  p_admin_passcode text,
+  p_id uuid,
+  p_passcode text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  update projects
+  set passcode_hash = case
+    when p_passcode is not null and length(trim(p_passcode)) > 0
+      then crypt(p_passcode, gen_salt('bf'))
+    else null
+  end
+  where id = p_id;
+end;
+$$;
+
+grant execute on function admin_set_project_passcode(text, uuid, text) to anon;
+
+-- Deletes the project row (cascades to project_models and project_views
+-- via their existing "on delete cascade" foreign keys). Deliberately
+-- does NOT touch Storage -- deleting rows from storage.objects directly
+-- in SQL does not reliably delete the underlying file bytes on
+-- Supabase's hosted storage, so the client removes the actual files via
+-- the Storage API first (see services/adminService.ts), then calls this
+-- to remove the database rows once that's confirmed to have worked.
+create or replace function admin_delete_project(
+  p_admin_passcode text,
+  p_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  delete from projects where id = p_id;
+end;
+$$;
+
+grant execute on function admin_delete_project(text, uuid) to anon;
+
+-- Appends a model to an existing project -- sort_order picks up right
+-- after the current highest one, so a newly added model lands at the
+-- end of the list by default (reorder afterwards via
+-- admin_reorder_models() below if it needs to go somewhere else).
+create or replace function admin_add_model(
+  p_admin_passcode text,
+  p_id uuid,
+  p_project_id uuid,
+  p_name text,
+  p_model_url text,
+  p_ifc_url text default null,
+  p_scale_preset text default '1:1',
+  p_note text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_next_sort_order integer;
+begin
+  perform assert_admin(p_admin_passcode);
+
+  select coalesce(max(sort_order) + 1, 0) into v_next_sort_order
+  from project_models where project_id = p_project_id;
+
+  insert into project_models (id, project_id, name, model_url, ifc_url, scale_preset, sort_order, note)
+  values (p_id, p_project_id, p_name, p_model_url, p_ifc_url, p_scale_preset, v_next_sort_order, nullif(trim(coalesce(p_note, '')), ''));
+end;
+$$;
+
+grant execute on function admin_add_model(text, uuid, uuid, text, text, text, text, text) to anon;
+
+-- Rename, replace the file, change the scale, or update the note on an
+-- existing model -- the client always sends the full current-plus-edited
+-- object (there's no partial-update convenience here, same as
+-- admin_update_project above).
+create or replace function admin_update_model(
+  p_admin_passcode text,
+  p_model_id uuid,
+  p_name text,
+  p_model_url text,
+  p_ifc_url text default null,
+  p_scale_preset text default '1:1',
+  p_note text default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  update project_models
+  set name = p_name,
+      model_url = p_model_url,
+      ifc_url = p_ifc_url,
+      scale_preset = p_scale_preset,
+      note = nullif(trim(coalesce(p_note, '')), '')
+  where id = p_model_id;
+end;
+$$;
+
+grant execute on function admin_update_model(text, uuid, text, text, text, text, text) to anon;
+
+-- Deletes only the database row -- same reasoning as admin_delete_project
+-- above, the client removes the model's actual files from Storage first.
+create or replace function admin_delete_model(
+  p_admin_passcode text,
+  p_model_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  delete from project_models where id = p_model_id;
+end;
+$$;
+
+grant execute on function admin_delete_model(text, uuid) to anon;
+
+-- p_ordered_ids is the full list of a project's model ids in the new
+-- order (whatever the "move up"/"move down" buttons in the admin UI
+-- computed client-side) -- sort_order becomes each id's position in that
+-- array. Scoped to `where project_id = p_project_id` as a sanity check,
+-- not just `where id = any(...)`, so a stray id from a different project
+-- can't have its sort_order clobbered by mistake.
+create or replace function admin_reorder_models(
+  p_admin_passcode text,
+  p_project_id uuid,
+  p_ordered_ids uuid[]
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  update project_models
+  set sort_order = ordered.idx - 1
+  from unnest(p_ordered_ids) with ordinality as ordered(id, idx)
+  where project_models.id = ordered.id
+    and project_models.project_id = p_project_id;
+end;
+$$;
+
+grant execute on function admin_reorder_models(text, uuid, uuid[]) to anon;
 
 -- Lets the viewer decide, before fetching any real project data, whether
 -- to show a passcode-entry gate at all -- a project with no passcode set
@@ -212,9 +455,9 @@ values ('project-files', 'project-files', true, 524288000) -- 500 MB
 on conflict (id) do nothing;
 
 -- Uploading still needs its own RLS policy regardless of the public flag
--- (that flag only affects reads). Same known Phase 1 gap as the anon
--- INSERT policy above: open to anyone with the anon key until real auth
--- exists.
+-- (that flag only affects reads). This is the one remaining open-to-
+-- anon-key gap noted at the top of this file -- open until real auth
+-- infrastructure exists to scope it further.
 create policy "anon can upload to project-files"
   on storage.objects for insert
   to anon
@@ -244,11 +487,11 @@ alter table project_views enable row level security;
 
 -- Anyone can record a view and update its own duration -- the row id is
 -- a random, unguessable UUID generated client-side (same trust model as
--- project_models' anon insert policy above; there is no real architect
--- login yet -- see docs/roadmap/decisions.md). No SELECT policy at all:
--- reads only ever go through get_admin_stats() below, gated by the admin
--- passcode, so nobody who only has a project's own link can see its view
--- counts.
+-- the "anon can upload to project-files" Storage policy above; there is
+-- no real architect login yet -- see docs/roadmap/decisions.md). No
+-- SELECT policy at all: reads only ever go through get_admin_projects()
+-- below, gated by the admin passcode, so nobody who only has a project's
+-- own link can see its view counts.
 create policy "anon can insert project_views"
   on project_views for insert
   to anon
@@ -272,7 +515,7 @@ create table if not exists admin_settings (
 
 alter table admin_settings enable row level security;
 -- Deliberately no policies at all on this table, not even anon SELECT --
--- the only access path is verify_admin_passcode()/get_admin_stats()
+-- the only access path is verify_admin_passcode()/get_admin_projects()
 -- below, both SECURITY DEFINER, so the passcode hash itself is never
 -- directly readable by anyone holding just the anon key.
 
@@ -299,11 +542,23 @@ grant execute on function verify_admin_passcode(text) to anon;
 -- Returns nothing at all on a wrong passcode -- the admin dashboard page
 -- calls verify_admin_passcode() separately first for real "wrong
 -- passcode" feedback, so this doesn't need to double as that signal too.
-create or replace function get_admin_stats(p_passcode text)
+--
+-- Everything the admin UI needs to list, search, sort, and manage
+-- projects in one call: the same view-analytics numbers Phase 2's
+-- get_admin_stats() had, plus description/status/has_passcode and the
+-- full models array (shaped the same way get_project()'s `models`
+-- column already is), so opening the management view for a project
+-- doesn't need a second round trip. Never returns passcode_hash itself
+-- -- has_passcode is a plain boolean.
+create or replace function get_admin_projects(p_passcode text)
 returns table (
   project_id uuid,
   project_name text,
+  description text,
+  status text,
   created_at timestamptz,
+  has_passcode boolean,
+  models jsonb,
   view_count bigint,
   last_viewed_at timestamptz,
   avg_duration_seconds numeric
@@ -317,22 +572,53 @@ begin
     return;
   end if;
 
+  -- Two separate lateral subqueries, not one flat double join -- joining
+  -- project_models and project_views directly in the same query would
+  -- cross-join every model row against every view row per project,
+  -- duplicating entries in the models jsonb array (once per view) as a
+  -- side effect. Aggregating each relation on its own side-steps that
+  -- entirely.
   return query
     select
       p.id,
       p.name,
+      p.description,
+      p.status,
       p.created_at,
-      count(v.id),
-      max(v.viewed_at),
-      -- nullif(..., 0) excludes views with no recorded duration yet
-      -- (someone who opened the link seconds ago, before the first
-      -- heartbeat fires) from dragging the average toward zero.
-      avg(nullif(v.duration_seconds, 0))
+      p.passcode_hash is not null,
+      coalesce(m.models, '[]'::jsonb),
+      coalesce(vs.view_count, 0),
+      vs.last_viewed_at,
+      vs.avg_duration_seconds
     from projects p
-    left join project_views v on v.project_id = p.id
-    group by p.id
+    left join lateral (
+      select jsonb_agg(
+        jsonb_build_object(
+          'id', pm.id,
+          'name', pm.name,
+          'modelUrl', pm.model_url,
+          'ifcUrl', pm.ifc_url,
+          'scalePreset', pm.scale_preset,
+          'note', pm.note
+        )
+        order by pm.sort_order, pm.created_at
+      ) as models
+      from project_models pm
+      where pm.project_id = p.id
+    ) m on true
+    left join lateral (
+      select
+        count(v.id) as view_count,
+        max(v.viewed_at) as last_viewed_at,
+        -- nullif(..., 0) excludes views with no recorded duration yet
+        -- (someone who opened the link seconds ago, before the first
+        -- heartbeat fires) from dragging the average toward zero.
+        avg(nullif(v.duration_seconds, 0)) as avg_duration_seconds
+      from project_views v
+      where v.project_id = p.id
+    ) vs on true
     order by p.created_at desc;
 end;
 $$;
 
-grant execute on function get_admin_stats(text) to anon;
+grant execute on function get_admin_projects(text) to anon;

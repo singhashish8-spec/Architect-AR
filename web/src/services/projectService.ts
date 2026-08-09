@@ -1,12 +1,14 @@
 import { getSupabase } from './supabaseClient'
-import type { NewProject, Project } from '../types/Project'
+import type { Project } from '../types/Project'
 import type { ProjectModel } from '../types/ProjectModel'
 import { isScalePreset } from '../types/ScalePreset'
 
-// Only this module talks to Supabase directly -- see
+// Only files under services/ talk to Supabase directly -- see
 // docs/engineering/folder-structure.md.
 
-const MODEL_BUCKET = 'project-files'
+// Exported for services/adminService.ts, which uploads/deletes/copies
+// files in this same bucket for project and model management (Phase 3).
+export const MODEL_BUCKET = 'project-files'
 
 interface ProjectModelJson {
   id: string
@@ -47,7 +49,10 @@ function fromRow(row: ProjectRow): Project {
   }
 }
 
-async function uploadFile(assetId: string, file: File): Promise<string> {
+// Exported for services/adminService.ts -- model/IFC files are still
+// uploaded the same way whether the project is brand new or an existing
+// one being edited.
+export async function uploadFile(assetId: string, file: File): Promise<string> {
   const supabase = getSupabase()
   const path = `${assetId}/${file.name}`
   const { error } = await supabase.storage.from(MODEL_BUCKET).upload(path, file)
@@ -64,52 +69,18 @@ export async function uploadIfcFile(file: File): Promise<string> {
   return uploadFile(crypto.randomUUID(), file)
 }
 
-export async function createProject(project: NewProject): Promise<Project> {
-  // Generate every id client-side and skip reading anything back after
-  // creation. Postgres RLS applies SELECT policies to a RETURNING clause
-  // too -- since there's deliberately no SELECT policy for anon on either
-  // table (see schema.sql), a direct .insert().select() would always come
-  // back with zero rows. Supplying ids ourselves means we already have
-  // everything needed to build the Project without reading anything back.
-  //
-  // The project row itself is created via the create_project() RPC, not a
-  // direct .insert() -- that's what lets a passcode (if provided) get
-  // hashed server-side and never stored or transmitted in plain text.
-  const id = crypto.randomUUID()
-  const createdAt = new Date().toISOString()
-
-  const { error: projectError } = await getSupabase().rpc('create_project', {
-    p_id: id,
-    p_name: project.name,
-    p_passcode: project.passcode || null,
-    p_description: project.description || null,
-  })
-  if (projectError) throw projectError
-
-  const models: ProjectModel[] = project.models.map((model) => ({
-    id: crypto.randomUUID(),
-    name: model.name,
-    modelUrl: model.modelUrl,
-    ifcUrl: model.ifcUrl,
-    scalePreset: model.scalePreset,
-  }))
-
-  const { error: modelsError } = await getSupabase()
-    .from('project_models')
-    .insert(
-      models.map((model, index) => ({
-        id: model.id,
-        project_id: id,
-        name: model.name,
-        model_url: model.modelUrl,
-        ifc_url: model.ifcUrl,
-        scale_preset: model.scalePreset,
-        sort_order: index,
-      })),
-    )
-  if (modelsError) throw modelsError
-
-  return { id, createdAt, name: project.name, description: project.description || null, models }
+// A model/IFC url is always this bucket's own getPublicUrl() output --
+// pulls the storage path back out of it so services/adminService.ts can
+// delete or copy the underlying file (the Storage API needs the path,
+// not the public url). Returns null for anything that isn't actually a
+// url in this bucket (defensive -- shouldn't happen for data this app
+// wrote itself, but a null return is a safer failure mode than deleting
+// the wrong thing from a malformed split).
+export function extractStoragePath(publicUrl: string): string | null {
+  const marker = `/${MODEL_BUCKET}/`
+  const index = publicUrl.indexOf(marker)
+  if (index === -1) return null
+  return publicUrl.slice(index + marker.length)
 }
 
 // Checked before ever calling getProject(), so a project with no passcode

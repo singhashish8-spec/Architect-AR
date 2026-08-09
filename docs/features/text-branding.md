@@ -17,14 +17,18 @@ just renders `<BrandMark />`, so nothing else needs to change.
 
 - **Accent only** — the brand color (`--color-brand`/`--color-brand-hover`
   in `index.css`) is used for the wordmark text and a couple of small
-  highlights (the upload form's submit button, the share card's button
-  hover border), never as a wholesale recolor of the app.
-- **Upload form and share card only, never the 3D viewer itself.** The
-  brand-accent override for the submit button lives in a page-scoped
-  `UploadProject.module.css`, not in the shared `styles/form.module.css`
-  — that file is also used by `PasscodeGate.tsx` (part of the
-  client-facing viewer flow) and `LocalPreview.tsx` (a device-only
-  preview tool), neither of which should pick up branding.
+  highlights (the share card's button hover border), never as a
+  wholesale recolor of the app.
+- **The share card only, never the 3D viewer itself.** Project creation
+  moved from a standalone, brand-accented public upload form into
+  `components/ProjectCreateForm.tsx`, embedded in the internal-only
+  `/admin` dashboard (see [`full-admin-dashboard.md`](full-admin-dashboard.md))
+  — its submit button uses the dashboard's own plain styling rather than
+  the brand accent now, since nothing inside `/admin` is client-facing
+  and the dashboard itself doesn't carry a `BrandMark` anywhere else
+  either. `styles/form.module.css` (shared by `PasscodeGate.tsx`,
+  `LocalPreview.tsx`, and the admin dashboard) was never brand-accented
+  to begin with, for the same reason.
 
 ## A theming detail worth knowing
 

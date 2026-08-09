@@ -1,6 +1,10 @@
 .card {
   width: 100%;
-  max-width: 720px;
+  /* Widened from the Phase 2 read-only version's 720px -- the table now
+     carries a lot more (status, passcode indicator, actions) and rows
+     can expand into a full project editor, both of which need the extra
+     room. */
+  max-width: 1100px;
   padding: 2rem;
   border-radius: var(--radius);
   background: var(--color-surface);
@@ -15,7 +19,13 @@
   margin-bottom: 1rem;
 }
 
-.refreshButton {
+.headerButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.refreshButton,
+.newProjectButton {
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -25,27 +35,160 @@
   cursor: pointer;
 }
 
+.newProjectButton {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
 .refreshButton:hover:not(:disabled) {
   background: var(--color-border);
 }
 
-.table {
-  width: 100%;
-  border-collapse: collapse;
+.newProjectButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.createPanel {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.createPanelTitle {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.searchInput {
+  flex: 1 1 200px;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
   font-size: 0.9rem;
 }
 
-.table th {
-  text-align: left;
-  padding: 0.5rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border);
+.filterSelect {
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: 0.85rem;
 }
 
-.table td {
-  padding: 0.6rem 0.5rem;
+.bulkBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  font-size: 0.85rem;
+}
+
+.dangerButton {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #b3413a;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #d1554b;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: rgba(209, 85, 75, 0.1);
+}
+
+.projectList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* A card list, not a table -- see the comment where this is rendered in
+   AdminDashboard.tsx for why: fields need to reflow (not clip or force
+   horizontal scroll) on a phone-width screen, and the expanded editor
+   needs its own full width rather than being trapped in a table's
+   horizontally-scrolled column set. */
+.projectCard {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.projectCardHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.projectCardName {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.statusBadge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.projectCardStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.actionsCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.editorWrapper {
+  margin: 1rem -1.25rem -1rem;
+}
+
+.smallButton {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.smallButton:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.editorCell {
+  padding: 0 !important;
   border-bottom: 1px solid var(--color-border);
 }

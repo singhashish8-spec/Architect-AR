@@ -20,3 +20,12 @@ export interface NewProjectModel {
   ifcUrl: string | null
   scalePreset: ScalePreset
 }
+
+// A model as managed from /admin (Phase 3) -- same shape as ProjectModel
+// plus the short free-text note field admin_add_model()/
+// admin_update_model() support. Kept separate from ProjectModel rather
+// than adding `note` there, since the public viewer (ProjectView.tsx,
+// LocalPreview.tsx) never needs or reads it.
+export interface AdminProjectModel extends ProjectModel {
+  note: string | null
+}

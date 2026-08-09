@@ -1,10 +1,13 @@
 # Feature: multiple models per project
 
 > Part of [`features/`](README.md). Phase 2. Status: **built
-> (`web/src/pages/UploadProject.tsx`, `ProjectView.tsx`,
-> `services/projectService.ts`, `supabase/schema.sql`), unverified
-> end-to-end** — needs a real upload of 2+ models through the live app
-> before trusting it (see Open questions).
+> (`web/src/components/ProjectCreateForm.tsx` — moved here from the now-
+> removed `pages/UploadProject.tsx` when project creation moved behind
+> the admin passcode, see [`full-admin-dashboard.md`](full-admin-dashboard.md)
+> — plus `ProjectView.tsx`, `services/projectService.ts`,
+> `supabase/schema.sql`), unverified end-to-end** — needs a real upload
+> of 2+ models through the live app before trusting it (see Open
+> questions).
 
 ## Summary
 
@@ -67,9 +70,10 @@ does a straightforward one-time move: create `project_models`, copy any
 existing `projects` row with a `model_url` into it as that project's first
 model, then drop the old columns. Run once, by hand, in the SQL editor.
 
-**Frontend**: `UploadProject.tsx` holds an array of in-progress model
-drafts (name, files, scale) instead of single fields, uploads each
-model's files sequentially at submit time, then calls `createProject()`
+**Frontend**: `ProjectCreateForm.tsx` (originally `UploadProject.tsx` —
+see the status line above) holds an array of in-progress model drafts
+(name, files, scale) instead of single fields, uploads each model's
+files sequentially at submit time, then calls `createAdminProject()`
 with the whole list. `ProjectView.tsx` tracks which model index is
 selected and derives the model URL/IFC URL/scale passed into
 `ModelViewer`/`ARHandoff`/`useIfcElementData` from that — none of those

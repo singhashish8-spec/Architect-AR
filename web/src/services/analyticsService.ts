@@ -8,9 +8,9 @@ import { getSupabase } from './supabaseClient'
 // Records one real page view and returns its id, so the caller can send
 // periodic duration updates against the same row later (see
 // updateProjectViewDuration below). The id is generated client-side, same
-// pattern createProject() uses -- project_views has no SELECT policy (see
-// docs/features/analytics-and-admin-dashboard.md), so there's nothing to
-// read back after inserting anyway.
+// pattern services/adminService.ts's write functions use -- project_views
+// has no SELECT policy (see docs/features/analytics-and-admin-dashboard.md),
+// so there's nothing to read back after inserting anyway.
 export async function recordProjectView(projectId: string): Promise<string> {
   const id = crypto.randomUUID()
   const { error } = await getSupabase().from('project_views').insert({ id, project_id: projectId })
@@ -32,6 +32,9 @@ export async function updateProjectViewDuration(viewId: string, durationSeconds:
   if (error) throw error
 }
 
+// The admin dashboard's own passcode gate calls this first, separately
+// from services/adminService.ts's listAdminProjects() (Phase 3), for
+// real "wrong passcode" feedback -- see pages/AdminDashboard.tsx.
 export async function verifyAdminPasscode(passcode: string): Promise<boolean> {
   const result = (await getSupabase().rpc('verify_admin_passcode', { p_passcode: passcode })) as {
     data: boolean | null
@@ -39,42 +42,4 @@ export async function verifyAdminPasscode(passcode: string): Promise<boolean> {
   }
   if (result.error) throw result.error
   return result.data === true
-}
-
-export interface AdminProjectStats {
-  projectId: string
-  projectName: string
-  createdAt: string
-  viewCount: number
-  lastViewedAt: string | null
-  avgDurationSeconds: number | null
-}
-
-interface AdminStatsRow {
-  project_id: string
-  project_name: string
-  created_at: string
-  view_count: number
-  last_viewed_at: string | null
-  avg_duration_seconds: number | null
-}
-
-// Empty (not an error) if the passcode is wrong -- callers should verify
-// with verifyAdminPasscode() first for real "wrong passcode" feedback
-// rather than reading that from an empty list here, which is
-// indistinguishable from "correct passcode, zero projects yet".
-export async function getAdminStats(passcode: string): Promise<AdminProjectStats[]> {
-  const result = (await getSupabase().rpc('get_admin_stats', { p_passcode: passcode })) as {
-    data: AdminStatsRow[] | null
-    error: Error | null
-  }
-  if (result.error) throw result.error
-  return (result.data ?? []).map((row) => ({
-    projectId: row.project_id,
-    projectName: row.project_name,
-    createdAt: row.created_at,
-    viewCount: row.view_count,
-    lastViewedAt: row.last_viewed_at,
-    avgDurationSeconds: row.avg_duration_seconds,
-  }))
 }

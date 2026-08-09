@@ -43,8 +43,11 @@ gets hold of the link.
 `web/supabase/migrations/007_analytics_and_admin_dashboard.sql` for the
 exact SQL to run. No `SELECT` policy at all (same enumeration-prevention
 reasoning `projects`/`project_models` already use): reads only ever go
-through `get_admin_stats()`, a `SECURITY DEFINER` RPC gated by the admin
-passcode.
+through an admin-passcode-gated `SECURITY DEFINER` RPC — originally
+`get_admin_stats()`, superseded by the richer `get_admin_projects()`
+once [`full-admin-dashboard.md`](full-admin-dashboard.md)'s project
+management shipped (same view-analytics numbers, plus everything the
+dashboard's project list/editor needs in one call).
 
 **Duration tracking, not via `sendBeacon`**: the obvious approach —
 record a final duration in a `navigator.sendBeacon` call when the tab
@@ -86,7 +89,7 @@ copy instead of building a second one.
 - **Duration is approximate**, not exact — see the `sendBeacon`
   limitation above. Someone who opens a link and closes the tab within
   the first 20 seconds gets no duration recorded at all (excluded from
-  the average via `nullif(duration_seconds, 0)` in `get_admin_stats()`,
+  the average via `nullif(duration_seconds, 0)` in `get_admin_projects()`,
   rather than dragging it toward zero).
 - **The admin passcode is a single shared secret**, not tied to any
   account — anyone who has it can see stats for every project. Fine for

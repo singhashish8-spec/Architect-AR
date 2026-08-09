@@ -42,10 +42,14 @@ found in browser history on a shared device).
 **Hashing, not plain text.** The passcode is never stored or transmitted
 in plain text past the moment it's set. `projects.passcode_hash` holds a
 bcrypt hash (Postgres's `pgcrypto` extension, `crypt(passcode,
-gen_salt('bf'))`), computed **inside** a new `create_project()` `SECURITY
-DEFINER` function — this is now the *only* way to create a project (the
-old direct anon `INSERT` policy on `projects` was removed), so the
-hashing step can't be bypassed by inserting a row directly.
+gen_salt('bf'))`), computed **inside** a `SECURITY DEFINER` function —
+originally `create_project()`, since renamed to `admin_create_project()`
+when project creation moved behind the admin passcode (see
+[`full-admin-dashboard.md`](full-admin-dashboard.md)) — this is the
+*only* way to create a project (there's no direct anon `INSERT` policy
+on `projects`), so the hashing step can't be bypassed by inserting a row
+directly. A passcode can also be set/changed/removed after creation via
+`admin_set_project_passcode()`, added by that same feature.
 
 **Two-step read**, both via `SECURITY DEFINER` functions (same
 enumeration-prevention reasoning as the rest of this project's read path

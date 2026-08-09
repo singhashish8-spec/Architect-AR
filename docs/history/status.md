@@ -18,14 +18,22 @@ the way. Every item from the original Phase 2 scope in
 [`../roadmap/phases.md`](../roadmap/phases.md) is done except a real
 logo file (deliberately still text-only branding, waiting on the owner).
 
-- **Phase 3 now has its first scoped item**: a **full admin dashboard**
-  (project/model management from `/admin`, richer analytics with CSV
-  export, a storage-usage progress bar) — scoped in detail across
-  conversation once the read-only Phase 2 `/admin` shipped, deliberately
-  **not built yet**, owner said to wait. See
+- **Phase 3's full admin dashboard: project + model management is now
+  built and shipped.** The owner said "let's complete all the phases...
+  for now let's start with dashboard" and chose "admin-only creation"
+  when asked what should happen to the public upload form. Built:
+  create/edit/delete/duplicate projects, status tags (Active/Sent to
+  client/Archived), search/sort/bulk-delete, and full model management
+  (add/replace/rename/delete/reorder/note) — all from `/admin`. The
+  public upload form is gone entirely; `/` now redirects to `/admin`.
+  Found and fixed a real mobile bug along the way (a data table has no
+  way to reflow on a phone screen — rebuilt the project list as a card
+  list instead, see the feature doc). **Still open**: upgraded analytics
+  (per-visit history, CSV export, a chart) and a storage-usage tracker —
+  the real storage-plan-limit number is still needed from the owner. See
   [`../features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
 
-- **Two new SQL migrations need running on the live Supabase project**,
+- **Three new SQL migrations need running on the live Supabase project**,
   in order:
   1. [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)
      — the optional project description used by the share card.
@@ -34,6 +42,11 @@ logo file (deliberately still text-only branding, waiting on the owner).
      `1234` (owner's choice, 2026-08-09) — that's what unlocks `/admin`;
      change it any time by re-running the file's `insert into
      admin_settings` statement with a different value.
+  3. [`008_full_admin_dashboard.sql`](../../web/supabase/migrations/008_full_admin_dashboard.sql)
+     — project + model management RPCs, the `status`/`note` columns, and
+     closes the old public project-creation path. **Run this before using
+     the new "New project"/"Manage" buttons in `/admin`** — without it,
+     those calls will fail since the RPCs they need won't exist yet.
   Same one-time-upgrade pattern as the earlier migrations this
   session — run each once in the Supabase SQL editor.
 - **The old "QR code" panel is now a fuller share card** — QR code,
