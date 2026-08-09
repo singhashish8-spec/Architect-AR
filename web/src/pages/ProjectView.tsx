@@ -13,6 +13,7 @@ import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './ProjectView.module.css'
+import labelStyles from '../styles/responsiveLabel.module.css'
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -133,8 +134,35 @@ export function ProjectView() {
         <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
       </div>
       <div className={styles.qrCorner}>
-        <button type="button" className={styles.qrToggle} onClick={() => setShowQr((current) => !current)}>
-          {showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}
+        <button
+          type="button"
+          className={styles.qrToggle}
+          onClick={() => setShowQr((current) => !current)}
+          aria-label={showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <line x1="14" y1="14" x2="14" y2="17" />
+            <line x1="14" y1="14" x2="17" y2="14" />
+            <line x1="21" y1="14" x2="21" y2="14.01" />
+            <line x1="14" y1="21" x2="14" y2="21.01" />
+            <line x1="17" y1="17" x2="21" y2="17" />
+            <line x1="21" y1="21" x2="17" y2="21" />
+            <line x1="21" y1="17" x2="21" y2="21" />
+          </svg>
+          <span className={labelStyles.label}>{showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}</span>
         </button>
         {showQr && (
           <div className={styles.qrCode}>

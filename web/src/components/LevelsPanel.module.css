@@ -1,6 +1,18 @@
+.wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.icon {
+  position: absolute;
+  left: 0.65rem;
+  pointer-events: none;
+}
+
 .select {
-  max-width: min(220px, calc(100vw - 2rem));
-  padding: 0.6rem 0.75rem;
+  max-width: min(160px, calc(100vw - 5rem));
+  padding: 0.6rem 0.6rem 0.6rem 2.1rem;
   border: none;
   border-radius: var(--radius-sm);
   background: var(--color-surface);

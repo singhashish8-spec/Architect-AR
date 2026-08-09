@@ -1,0 +1,13 @@
+/* Shared by every icon+label corner control (QR, levels/rooms, category
+   toggle) so they all collapse to icon-only at the same breakpoint,
+   consistently -- same pattern GitHub's own header buttons use (icon
+   alone on a phone-width screen, icon + text once there's room for it). */
+.label {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .label {
+    display: none;
+  }
+}

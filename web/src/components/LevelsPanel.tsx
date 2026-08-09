@@ -34,20 +34,48 @@ export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
   }
 
   return (
-    <select className={styles.select} defaultValue="" onChange={handleChange}>
-      <option value="" disabled>
-        Jump to a level or room…
-      </option>
-      {levels.map((level, levelIndex) => (
-        <optgroup key={level.expressId} label={level.name}>
-          <option value={`level:${levelIndex}`}>{level.name} (whole level)</option>
-          {level.rooms.map((room, roomIndex) => (
-            <option key={room.expressId} value={`room:${levelIndex}:${roomIndex}`}>
-              {room.name}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+    <div className={styles.wrapper}>
+      <svg
+        className={styles.icon}
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="4" y="2" width="16" height="20" rx="1" />
+        <line x1="4" y1="8" x2="20" y2="8" />
+        <line x1="4" y1="14" x2="20" y2="14" />
+        <line x1="9" y1="22" x2="9" y2="14" />
+      </svg>
+      {/* Kept short deliberately -- unlike the icon-button labels
+          elsewhere (see styles/responsiveLabel.module.css), a <select>'s
+          own text can't respond to a CSS media query, so there's no
+          "full label on wide screens" version of this one. */}
+      <select
+        className={styles.select}
+        defaultValue=""
+        onChange={handleChange}
+        aria-label="Jump to a level or room"
+      >
+        <option value="" disabled>
+          Levels
+        </option>
+        {levels.map((level, levelIndex) => (
+          <optgroup key={level.expressId} label={level.name}>
+            <option value={`level:${levelIndex}`}>{level.name} (whole level)</option>
+            {level.rooms.map((room, roomIndex) => (
+              <option key={room.expressId} value={`room:${levelIndex}:${roomIndex}`}>
+                {room.name}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
   )
 }

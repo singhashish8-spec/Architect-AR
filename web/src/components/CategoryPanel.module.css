@@ -1,4 +1,7 @@
 .toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.6rem 1rem;
   border: none;
   border-radius: var(--radius-sm);
