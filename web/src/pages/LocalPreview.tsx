@@ -6,6 +6,7 @@ import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
+import { SearchPanel } from '../components/SearchPanel'
 import { ConversionProgressBar } from '../components/ConversionProgressBar'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
@@ -197,6 +198,12 @@ export function LocalPreview() {
             <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
             <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
             <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
+            <SearchPanel
+              levels={levels}
+              categories={categories}
+              onIsolate={setHiddenGlobalIds}
+              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+            />
           </div>
           <ElementDataPanel
             data={selectedElement}

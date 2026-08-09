@@ -8,6 +8,7 @@ import { PasscodeGate } from '../components/PasscodeGate'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
+import { SearchPanel } from '../components/SearchPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
@@ -137,6 +138,12 @@ export function ProjectView() {
         <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
         <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
         <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
+        <SearchPanel
+          levels={levels}
+          categories={categories}
+          onIsolate={setHiddenGlobalIds}
+          onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+        />
       </div>
       <div className={styles.qrCorner}>
         <button

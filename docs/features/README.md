@@ -24,6 +24,7 @@
 | [Project share card (QR + link + details, copy/share actions)](project-share-card.md) | 2 | Built, unit-tested; not yet checked against a real live project (no live Supabase credentials in this dev environment) |
 | [Text-only branding](text-branding.md) | 2 | Built, verified visually in light and dark mode; waiting on a real logo file to replace it |
 | [Lighting presets (daylight/evening/studio)](lighting-presets.md) | 2 | Built, verified against real data in a real production build |
+| [Search/filter elements](search-and-schedule.md) | 2 | Built, verified against real data in a real production build |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec
