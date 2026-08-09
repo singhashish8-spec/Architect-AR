@@ -19,6 +19,7 @@ interface ProjectModelJson {
 interface ProjectRow {
   id: string
   name: string
+  description: string | null
   created_at: string
   models: ProjectModelJson[]
 }
@@ -40,6 +41,7 @@ function fromRow(row: ProjectRow): Project {
   return {
     id: row.id,
     name: row.name,
+    description: row.description,
     createdAt: row.created_at,
     models: row.models.map((model) => fromModelJson(row.id, model)),
   }
@@ -80,6 +82,7 @@ export async function createProject(project: NewProject): Promise<Project> {
     p_id: id,
     p_name: project.name,
     p_passcode: project.passcode || null,
+    p_description: project.description || null,
   })
   if (projectError) throw projectError
 
@@ -106,7 +109,7 @@ export async function createProject(project: NewProject): Promise<Project> {
     )
   if (modelsError) throw modelsError
 
-  return { id, createdAt, name: project.name, models }
+  return { id, createdAt, name: project.name, description: project.description || null, models }
 }
 
 // Checked before ever calling getProject(), so a project with no passcode

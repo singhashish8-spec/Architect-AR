@@ -8,11 +8,27 @@
 
 Last updated: **2026-08-09**, end of Session 5. **Supabase is live and
 the app is running against a real backend for the first time.** Phase 1
-is fully proven end-to-end (Session 4). Phase 2 is in progress: six
+is fully proven end-to-end (Session 4). Phase 2 is in progress: seven
 features shipped this session (multiple models, passcode links,
 levels/rooms navigation, category/discipline visibility, model lighting,
-IFC-only upload), real live usage found and fixed six real bugs along the
-way.
+IFC-only upload, project share card), real live usage found and fixed six
+real bugs along the way.
+
+- **A new SQL migration needs running on the live Supabase project**:
+  [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)
+  adds the optional project description used by the new share card
+  below. Same one-time-upgrade pattern as the earlier migrations this
+  session — run it once in the Supabase SQL editor.
+- **The old "QR code" panel is now a fuller share card** — QR code,
+  project name, an optional description (fillable once at upload time),
+  the plain link, "Copy link", "Copy for email" (pastes as a real
+  clickable link, not just bare text), a native "Share…" button
+  (WhatsApp/Mail/whatever's installed, where the browser supports it),
+  and an always-available "Share via WhatsApp" link. See
+  [`../features/project-share-card.md`](../features/project-share-card.md).
+  Unit-tested; not yet checked against a real live project (no live
+  Supabase credentials in this dev environment) — try it once the
+  migration above has been run.
 
 - **Uploading a project no longer requires a separately-exported GLB.**
   Given just an IFC file, the app now builds a real, hostable 3D model

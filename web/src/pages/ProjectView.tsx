@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
-import { ProjectQRCode } from '../components/ProjectQRCode'
+import { ProjectShareCard } from '../components/ProjectShareCard'
 import { PasscodeGate } from '../components/PasscodeGate'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
@@ -138,7 +138,7 @@ export function ProjectView() {
           type="button"
           className={styles.qrToggle}
           onClick={() => setShowQr((current) => !current)}
-          aria-label={showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}
+          aria-label={showQr ? 'Hide share options' : 'Share this project'}
         >
           <svg
             width="18"
@@ -162,11 +162,11 @@ export function ProjectView() {
             <line x1="21" y1="21" x2="17" y2="21" />
             <line x1="21" y1="17" x2="21" y2="21" />
           </svg>
-          <span className={labelStyles.label}>{showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}</span>
+          <span className={labelStyles.label}>{showQr ? 'Hide share options' : 'Share this project'}</span>
         </button>
         {showQr && (
           <div className={styles.qrCode}>
-            <ProjectQRCode url={window.location.href} projectName={project.name} />
+            <ProjectShareCard url={window.location.href} projectName={project.name} description={project.description} />
           </div>
         )}
       </div>

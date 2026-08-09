@@ -26,6 +26,7 @@ function emptyModel(): ModelDraft {
 export function UploadProject() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [models, setModels] = useState<ModelDraft[]>([emptyModel()])
   const [passcode, setPasscode] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -94,7 +95,7 @@ export function UploadProject() {
           scalePreset: draft.scalePreset,
         })
       }
-      const project = await createProject({ name, models: uploadedModels, passcode })
+      const project = await createProject({ name, models: uploadedModels, passcode, description })
       await navigate(`/p/${project.id}`)
     } catch (err) {
       setError(getErrorMessage(err, 'Upload failed. Please try again.'))
@@ -125,6 +126,20 @@ export function UploadProject() {
               className={styles.input}
               value={name}
               onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="description" className={styles.label}>
+              Project details (optional — shown on the share card you send to clients)
+            </label>
+            <textarea
+              id="description"
+              className={styles.textarea}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder={'e.g. "3BHK renovation, Bandra — walkthrough for client review"'}
+              rows={3}
             />
           </div>
 

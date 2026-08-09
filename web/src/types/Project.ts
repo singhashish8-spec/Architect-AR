@@ -7,6 +7,11 @@ import type { NewProjectModel, ProjectModel } from './ProjectModel'
 export interface Project {
   id: string
   name: string
+  // Optional free-text blurb the architect can fill in at upload time --
+  // shown on the share card (QR + link + this text) alongside the
+  // project name. Null when none was given. See
+  // docs/features/project-share-card.md.
+  description: string | null
   createdAt: string
   models: ProjectModel[]
 }
@@ -22,4 +27,6 @@ export interface NewProject {
   // getProject(). Undefined/blank means no passcode (Phase 1's original
   // open-by-default behavior).
   passcode?: string
+  // Optional -- see Project.description above.
+  description?: string
 }

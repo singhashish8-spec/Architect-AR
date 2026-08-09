@@ -21,6 +21,7 @@
 | [Category and discipline visibility](category-and-discipline-visibility.md) | 2 | Built; Architecture/Structure verified against real data, MEP discipline detection unverified (no real MEP sample yet) |
 | [Model lighting (environment/IBL foundation)](model-lighting.md) | 2 | Built, verified against real data in a real production build |
 | [IFC-only upload (auto-converted to a viewable/AR-ready model)](ifc-only-upload.md) | 2 | Built, verified against real data; not yet exercised through a real live Supabase upload |
+| [Project share card (QR + link + details, copy/share actions)](project-share-card.md) | 2 | Built, unit-tested; not yet checked against a real live project (no live Supabase credentials in this dev environment) |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

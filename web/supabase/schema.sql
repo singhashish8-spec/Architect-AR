@@ -32,6 +32,11 @@ create table if not exists projects (
   -- null means the project has no passcode (Phase 1 default: anyone with
   -- the link can open it).
   passcode_hash text,
+  -- Optional free-text blurb shown on the share card (QR + link + this
+  -- text) alongside the project name -- see
+  -- docs/features/project-share-card.md. Null/blank means no description
+  -- was given at upload time.
+  description text,
   created_at timestamptz not null default now()
 );
 
@@ -76,14 +81,19 @@ create policy "anon can insert project_models"
 -- explicitly scoped (not the default search_path) for the usual
 -- SECURITY DEFINER reason: prevents a same-named function in some other
 -- schema from being called instead by search-path trickery.
-create or replace function create_project(p_id uuid, p_name text, p_passcode text default null)
+create or replace function create_project(
+  p_id uuid,
+  p_name text,
+  p_passcode text default null,
+  p_description text default null
+)
 returns void
 language plpgsql
 security definer
 set search_path = public, extensions
 as $$
 begin
-  insert into projects (id, name, passcode_hash)
+  insert into projects (id, name, passcode_hash, description)
   values (
     p_id,
     p_name,
@@ -91,12 +101,13 @@ begin
       when p_passcode is not null and length(trim(p_passcode)) > 0
         then crypt(p_passcode, gen_salt('bf'))
       else null
-    end
+    end,
+    nullif(trim(coalesce(p_description, '')), '')
   );
 end;
 $$;
 
-grant execute on function create_project(uuid, text, text) to anon;
+grant execute on function create_project(uuid, text, text, text) to anon;
 
 -- Lets the viewer decide, before fetching any real project data, whether
 -- to show a passcode-entry gate at all -- a project with no passcode set
@@ -115,10 +126,13 @@ $$;
 grant execute on function project_requires_passcode(uuid) to anon;
 
 -- Signature changed from the original get_project(uuid) (Phase 1) to add
--- p_passcode -- drop the old one explicitly first, since a bare
--- `create or replace` with a different parameter list creates a second,
--- ambiguously-overloaded function instead of replacing it.
+-- p_passcode, and its return columns changed again since to add
+-- `description` -- drop the old one explicitly first, since a bare
+-- `create or replace` with a different parameter list or return type
+-- creates a second, ambiguously-overloaded function instead of replacing
+-- it.
 drop function if exists get_project(uuid);
+drop function if exists get_project(uuid, text);
 
 -- Deliberately no SELECT policy on `projects`/`project_models` above --
 -- reads go through this SECURITY DEFINER function, which returns a
@@ -133,6 +147,7 @@ create or replace function get_project(p_id uuid, p_passcode text default null)
 returns table (
   id uuid,
   name text,
+  description text,
   created_at timestamptz,
   models jsonb
 )
@@ -158,6 +173,7 @@ begin
     select
       p.id,
       p.name,
+      p.description,
       p.created_at,
       coalesce(
         jsonb_agg(
