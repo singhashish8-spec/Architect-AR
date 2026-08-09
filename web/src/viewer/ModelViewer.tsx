@@ -1,6 +1,6 @@
 import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef } from 'react'
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
-import { OrbitControls, useGLTF } from '@react-three/drei'
+import { Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { resolveNodeNameToExpressId } from '../ifc/ifcPropertyLookup'
@@ -167,6 +167,47 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 10, 5]} intensity={1} />
       <Suspense fallback={null}>
+        {/* Without this, PBR materials (glass, metal, anything glossy)
+            have nothing to reflect and render flat regardless of what
+            the source file actually specifies -- an ambient + one
+            directional light is enough to see shapes and colors, but not
+            enough for a material to look like its real substance.
+            Built from Lightformer panels (plain rectangles of light)
+            instead of a preset HDR image deliberately: drei's presets are
+            fetched from an external CDN at runtime, and that fetch
+            hanging or failing (slow/restricted networks, the CDN being
+            unreachable) was found to silently blank the *entire* model,
+            not just the lighting, because Environment and Model share
+            this Suspense boundary. Lightformers are plain geometry generated
+            entirely on-device, so there is nothing to fetch and nothing
+            that can hang. Not shown as a visible background/skybox
+            (background defaults to false), just used as a lighting
+            source. See docs/features/model-lighting.md for the fuller
+            lighting-preset feature this sets the foundation for. */}
+        <Environment resolution={256}>
+          <Lightformer intensity={2} color="white" position={[0, 5, 0]} scale={[10, 10, 1]} />
+          <Lightformer
+            intensity={1}
+            color="white"
+            position={[-5, 1, 0]}
+            rotation={[0, Math.PI / 2, 0]}
+            scale={[10, 5, 1]}
+          />
+          <Lightformer
+            intensity={1}
+            color="white"
+            position={[5, 1, 0]}
+            rotation={[0, -Math.PI / 2, 0]}
+            scale={[10, 5, 1]}
+          />
+          <Lightformer
+            intensity={0.5}
+            color="white"
+            position={[0, 1, -5]}
+            rotation={[0, 0, 0]}
+            scale={[10, 5, 1]}
+          />
+        </Environment>
         <Model
           modelUrl={modelUrl}
           scalePreset={scalePreset}

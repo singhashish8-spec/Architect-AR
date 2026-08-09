@@ -19,6 +19,7 @@
 | [Passcode-protected links](passcode-protected-links.md) | 2 | Built, unverified end-to-end |
 | [Levels and rooms navigation](levels-and-rooms-navigation.md) | 2 | Built, verified against real data (owner hasn't tested live yet) |
 | [Category and discipline visibility](category-and-discipline-visibility.md) | 2 | Built; Architecture/Structure verified against real data, MEP discipline detection unverified (no real MEP sample yet) |
+| [Model lighting (environment/IBL foundation)](model-lighting.md) | 2 | Built, verified against real data in a real production build |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

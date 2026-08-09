@@ -8,9 +8,10 @@
 
 Last updated: **2026-08-09**, end of Session 5. **Supabase is live and
 the app is running against a real backend for the first time.** Phase 1
-is fully proven end-to-end (Session 4). Phase 2 is in progress: three
-features shipped this session, real live usage found and fixed four real
-bugs along the way.
+is fully proven end-to-end (Session 4). Phase 2 is in progress: five
+features shipped this session (multiple models, passcode links,
+levels/rooms navigation, category/discipline visibility, model lighting),
+real live usage found and fixed five real bugs along the way.
 
 - **`main` and PR #2 still run two different apps.** Gemini's simpler
   paste-a-URL version is live on `main`/`architect-ar.vercel.app`. This
@@ -78,8 +79,27 @@ bugs along the way.
     matching the category panel's own style — both panels now sit side
     by side, top-right, with icon-only buttons on narrow screens and
     icon+label on wider ones (matching GitHub's own responsive header
-    button pattern).
-- **Real live testing surfaced and fixed four real bugs in a row** —
+    button pattern). Every level and discipline is collapsed by default
+    now too, opened with a small chevron, and both toggle buttons got
+    icons matched to what they do (layers for Levels, filter/funnel for
+    Categories).
+  - **Model lighting** — built. See
+    [`../features/model-lighting.md`](../features/model-lighting.md).
+    Added environment lighting so PBR materials (glass, glossy furniture)
+    reflect light instead of rendering flat. First attempt (a built-in HDR
+    preset fetched from an external CDN) was caught and dropped before
+    shipping — verifying it against a real production build showed the
+    fetch could hang indefinitely and blank the *entire* model, not just
+    the lighting. Shipped a procedural `<Lightformer>`-based environment
+    instead: no network dependency at all, verified to visibly improve
+    material realism against the real Duplex sample.
+  - **Confirmed AR mode's camera/hidden-category limit is a real technical
+    ceiling, not a gap**: read `<model-viewer>`'s own Scene Viewer intent
+    code directly — it only ever carries `mode`/`file`/display flags, no
+    page state — so neither a room-focused camera nor hidden categories
+    can carry into AR as things stand. True persistent/filtered AR needs
+    the custom AR camera view already scoped for Phase 4.
+- **Real live testing surfaced and fixed real bugs, five in total** —
   see [`sessions/2026-08-09-session-05.md`](sessions/2026-08-09-session-05.md)
   for the full story on each:
   1. `vercel.json` missing a SPA-fallback rewrite (`/local` 404'd).
@@ -90,6 +110,12 @@ bugs along the way.
   4. The "View in AR" button was rendering a full second copy of the
      model in its corner box — fixed by keeping `<model-viewer>` mounted
      off-screen and driving AR from a normal button instead.
+  5. Production minification silently broke IFC category classification
+     (`line.constructor.name` returned mangled names in the built
+     bundle) — fixed with a WASM-backed type-name lookup immune to
+     minification; caught by testing against a real production build,
+     not just the dev server, which is now this codebase's standing
+     practice for anything IFC-type-name-dependent.
   Also added `utils/errorMessage.ts` so future failures show their real
   reason instead of a generic message, and gave the app real visual
   styling for the first time (it had been raw unstyled HTML throughout).
@@ -98,7 +124,7 @@ bugs along the way.
   passcode support), R3F viewer with scale-aware model transform and
   camera jump-to, `<model-viewer>` AR handoff, IFC parsing + property
   lookup + spatial-tree navigation, printable QR code export, routing.
-  All four quality gates clean — 32 tests, up from 1 at the start of
+  All four quality gates clean — 36 tests, up from 1 at the start of
   Phase 1. The Android `app/` module is still just the inherited default
   template — untouched, as planned (Phase 4).
 - **Plan**: fully scoped through Phase 1 (MVP, done) and Phase 2 (in
@@ -117,9 +143,9 @@ bugs along the way.
   pgcrypto/ambiguous-id SQL bugs are fixed — create a project with 2+
   models, and separately one with a passcode, through the real upload
   form.
-- **Test levels/rooms navigation on the live app** — verified in this
-  session's own sandbox against the real Duplex sample, not yet by the
-  owner.
+- **Test levels/rooms navigation, category/discipline visibility, and the
+  new lighting on the live app** — all verified in this session's own
+  sandbox against the real Duplex sample, not yet by the owner.
 - **Provide a real logo file** (PNG/SVG, not a chat screenshot) to pick
   branding back up — see [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - **Add the Supabase env vars to Vercel's Production environment too**
