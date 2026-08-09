@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadIfcModel, type IfcModel } from './loadIfcModel'
-import { buildGlobalIdIndex, getElementData, resolveNodeNameToExpressId } from './ifcPropertyLookup'
+import {
+  buildGlobalIdIndex,
+  getElementData,
+  invertToHyphenatedGlobalIds,
+  resolveNodeNameToExpressId,
+} from './ifcPropertyLookup'
+import { getLevelsAndRooms, type Level } from './ifcSpatialTree'
 import type { IfcElementData } from '../types/IfcElementData'
 
 interface UseIfcElementDataResult {
@@ -21,11 +27,15 @@ interface UseIfcElementDataResult {
   // parse to finish if it's still running, rather than returning null for
   // a tap that happened to land before parsing completed.
   getElementDataByGlobalId: (nodeName: string) => Promise<IfcElementData | null>
+  // Empty until the background parse finishes (or if there's no IFC file
+  // at all) -- see docs/features/levels-and-rooms-navigation.md.
+  levels: Level[]
 }
 
 export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResult {
   const [loading, setLoading] = useState(Boolean(ifcUrl))
   const [error, setError] = useState<Error | null>(null)
+  const [levels, setLevels] = useState<Level[]>([])
   const modelRef = useRef<IfcModel | null>(null)
   const indexRef = useRef<Map<string, number> | null>(null)
   const readyRef = useRef<Promise<void> | null>(null)
@@ -40,7 +50,10 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
       // react-hooks/set-state-in-effect flags synchronous setState calls
       // as the first statement in an effect body. No `async` here since
       // there's nothing to await -- that alone satisfies the rule.
-      ;(() => setLoading(false))()
+      ;(() => {
+        setLoading(false)
+        setLevels([])
+      })()
       return
     }
 
@@ -53,6 +66,11 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
         if (cancelled) return
         modelRef.current = model
         indexRef.current = index
+
+        const expressIdToGlobalId = invertToHyphenatedGlobalIds(index)
+        const levelList = await getLevelsAndRooms(model.api, model.modelId, expressIdToGlobalId)
+        if (cancelled) return
+        setLevels(levelList)
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err : new Error(String(err)))
       } finally {
@@ -77,5 +95,5 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
     return getElementData(model.api, model.modelId, expressId)
   }
 
-  return { loading, error, getElementDataByGlobalId }
+  return { loading, error, getElementDataByGlobalId, levels }
 }

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { ModelViewer } from '../viewer/ModelViewer'
+import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ProjectQRCode } from '../components/ProjectQRCode'
 import { PasscodeGate } from '../components/PasscodeGate'
+import { LevelsPanel } from '../components/LevelsPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
@@ -30,7 +31,8 @@ export function ProjectView() {
   const [showQr, setShowQr] = useState(false)
 
   const activeModel = project?.models[selectedModelIndex] ?? null
-  const { getElementDataByGlobalId } = useIfcElementData(activeModel?.ifcUrl ?? null)
+  const { getElementDataByGlobalId, levels } = useIfcElementData(activeModel?.ifcUrl ?? null)
+  const viewerRef = useRef<ModelViewerHandle>(null)
 
   useEffect(() => {
     if (!projectId) return
@@ -100,6 +102,7 @@ export function ProjectView() {
   return (
     <div className={styles.root}>
       <ModelViewer
+        ref={viewerRef}
         modelUrl={activeModel.modelUrl}
         scalePreset={activeModel.scalePreset}
         onElementSelect={activeModel.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
@@ -120,6 +123,9 @@ export function ProjectView() {
       )}
       <div className={styles.arButton}>
         <ARHandoff modelUrl={activeModel.modelUrl} scalePreset={activeModel.scalePreset} alt={activeModel.name} />
+      </div>
+      <div className={styles.levelsCorner}>
+        <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
       </div>
       <div className={styles.qrCorner}>
         <button type="button" className={styles.qrToggle} onClick={() => setShowQr((current) => !current)}>

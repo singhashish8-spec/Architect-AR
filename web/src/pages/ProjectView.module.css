@@ -26,6 +26,12 @@
   left: 1rem;
 }
 
+.levelsCorner {
+  position: absolute;
+  left: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
 .modelSwitcher {
   position: absolute;
   top: 1rem;

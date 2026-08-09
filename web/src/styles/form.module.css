@@ -162,3 +162,9 @@
   overflow: hidden;
   border: 1px solid var(--color-border);
 }
+
+.viewerLevelsCorner {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+}

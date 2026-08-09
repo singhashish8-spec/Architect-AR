@@ -69,6 +69,27 @@ export async function buildGlobalIdIndex(
   return index
 }
 
+// Matches a bare, fully-hyphenated UUID exactly (start to end) -- unlike
+// UUID_PATTERN above, which deliberately matches a UUID-shaped substring
+// anywhere in a longer node name.
+const HYPHENATED_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+// The reverse of buildGlobalIdIndex's map -- expressId -> hyphenated
+// GlobalId, one entry per element, for callers that start from an
+// expressId (e.g. ifcSpatialTree.ts's per-room/per-level element lists)
+// and need the same identifier form ModelViewer's meshes are named after.
+// Picks the hyphenated form specifically (out of the three keys
+// buildGlobalIdIndex stores per element) since that's what
+// resolveNodeNameToExpressId ultimately extracts from a glTF node name
+// regardless of which convention the exporter used.
+export function invertToHyphenatedGlobalIds(index: Map<string, number>): Map<number, string> {
+  const reversed = new Map<number, string>()
+  for (const [key, expressId] of index) {
+    if (HYPHENATED_UUID.test(key)) reversed.set(expressId, key)
+  }
+  return reversed
+}
+
 // Resolves a glTF node's name to an expressId, trying the node name
 // as-is first (an exporter that names nodes directly after the
 // compressed GlobalId), then falling back to extracting a UUID-shaped

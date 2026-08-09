@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ModelViewer } from '../viewer/ModelViewer'
+import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
+import { LevelsPanel } from '../components/LevelsPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
@@ -23,7 +24,8 @@ export function LocalPreview() {
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   const [selecting, setSelecting] = useState(false)
 
-  const { getElementDataByGlobalId } = useIfcElementData(ifcUrl)
+  const { getElementDataByGlobalId, levels } = useIfcElementData(ifcUrl)
+  const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Blob URLs must be revoked when no longer needed, or the browser keeps
   // the file data alive in memory for the life of the tab. setState calls
@@ -117,10 +119,14 @@ export function LocalPreview() {
       {modelUrl && scalePreset && (
         <div className={styles.viewer}>
           <ModelViewer
+            ref={viewerRef}
             modelUrl={modelUrl}
             scalePreset={scalePreset}
             onElementSelect={ifcUrl ? (id) => void handleElementSelect(id) : undefined}
           />
+          <div className={styles.viewerLevelsCorner}>
+            <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
+          </div>
           <ElementDataPanel
             data={selectedElement}
             loading={selecting}

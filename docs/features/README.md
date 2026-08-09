@@ -17,6 +17,7 @@
 | [Model scale presets](model-scale-presets.md) | 1 | Built, unverified end-to-end |
 | [Multiple models per project](multiple-models-per-project.md) | 2 | Built, unverified end-to-end (no live 2+ model upload test yet) |
 | [Passcode-protected links](passcode-protected-links.md) | 2 | Built, unverified end-to-end |
+| [Levels and rooms navigation](levels-and-rooms-navigation.md) | 2 | Built, verified against real data (owner hasn't tested live yet) |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

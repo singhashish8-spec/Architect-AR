@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { hasMeaningfulValue, resolveNodeNameToExpressId, unwrap } from './ifcPropertyLookup'
+import {
+  hasMeaningfulValue,
+  invertToHyphenatedGlobalIds,
+  resolveNodeNameToExpressId,
+  unwrap,
+} from './ifcPropertyLookup'
 import { expandIfcGuid, hyphenateUuid } from './ifcGuid'
 
 describe('unwrap', () => {
@@ -51,6 +56,31 @@ describe('resolveNodeNameToExpressId', () => {
 
   it('returns undefined for a node name that matches nothing in the model', () => {
     expect(resolveNodeNameToExpressId('some-unrelated-mesh-name', buildIndex())).toBeUndefined()
+  })
+})
+
+describe('invertToHyphenatedGlobalIds', () => {
+  const compressedGuid = '2O2Fr$t4X7Zf8NOew3FKau'
+  const expandedGuid = expandIfcGuid(compressedGuid)
+  const hyphenated = hyphenateUuid(expandedGuid)
+  const expressId = 42
+
+  it('picks only the hyphenated form out of the three keys per element', () => {
+    const index = new Map<string, number>([
+      [compressedGuid, expressId],
+      [expandedGuid, expressId],
+      [hyphenated, expressId],
+    ])
+
+    const reversed = invertToHyphenatedGlobalIds(index)
+
+    expect(reversed.size).toBe(1)
+    expect(reversed.get(expressId)).toBe(hyphenated)
+  })
+
+  it('returns an empty map for an index with no hyphenated keys', () => {
+    const index = new Map<string, number>([[compressedGuid, expressId]])
+    expect(invertToHyphenatedGlobalIds(index).size).toBe(0)
   })
 })
 
