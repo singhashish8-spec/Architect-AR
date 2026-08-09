@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import styles from './ProjectQRCode.module.css'
 
 interface ProjectQRCodeProps {
   url: string
@@ -32,8 +33,8 @@ export function ProjectQRCode({ url, projectName }: ProjectQRCodeProps) {
   return (
     <div>
       <QRCodeSVG ref={svgRef} value={url} size={200} level="M" />
-      <div>
-        <button type="button" onClick={handleDownload}>
+      <div className={styles.actions}>
+        <button type="button" className={styles.download} onClick={handleDownload}>
           Download QR (SVG, for printing)
         </button>
       </div>

@@ -6,6 +6,7 @@ import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
+import styles from '../styles/form.module.css'
 
 // Loads a model straight from the visitor's own device via a local blob
 // URL -- no upload, no Supabase, no size limits, works before any backend
@@ -59,45 +60,62 @@ export function LocalPreview() {
   }
 
   return (
-    <main>
-      <p>
-        <Link to="/">← Back</Link>
-      </p>
-      <h1>Preview a file from your device</h1>
-      <p>
-        Nothing here is uploaded anywhere — the file stays on your device and is only read by
-        your browser. Good for a quick look, but the "View in AR" handoff needs a real hosted
-        link (see the main upload flow) since your phone's AR app can't reach a file that's only
-        local to this tab.
-      </p>
+    <main className={styles.stack}>
+      <div className={styles.card}>
+        <p className={styles.subtitle}>
+          <Link to="/" className={styles.link}>
+            ← Back
+          </Link>
+        </p>
+        <h1 className={styles.title}>Preview a file from your device</h1>
+        <p className={styles.subtitle}>
+          Nothing here is uploaded anywhere — the file stays on your device and is only read by
+          your browser. Good for a quick look, but the "View in AR" handoff needs a real hosted
+          link (see the main upload flow) since your phone's AR app can't reach a file that's
+          only local to this tab.
+        </p>
 
-      <div>
-        <label htmlFor="local-model-file">Model file (glTF / GLB)</label>
-        <input
-          id="local-model-file"
-          type="file"
-          accept=".glb,.gltf"
-          onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
-        />
-      </div>
+        <div className={styles.field}>
+          <label htmlFor="local-model-file" className={styles.label}>
+            Model file (glTF / GLB)
+          </label>
+          <input
+            id="local-model-file"
+            type="file"
+            accept=".glb,.gltf"
+            className={styles.fileInput}
+            onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="local-ifc-file">IFC file (optional — enables tap-to-inspect)</label>
-        <input
-          id="local-ifc-file"
-          type="file"
-          accept=".ifc"
-          onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
-        />
-      </div>
+        <div className={styles.field}>
+          <label htmlFor="local-ifc-file" className={styles.label}>
+            IFC file (optional — enables tap-to-inspect)
+          </label>
+          <input
+            id="local-ifc-file"
+            type="file"
+            accept=".ifc"
+            className={styles.fileInput}
+            onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
+          />
+        </div>
 
-      <div>
-        <label htmlFor="local-scale-preset">Scale</label>
-        <ScalePresetSelect id="local-scale-preset" value={scalePreset} onChange={setScalePreset} />
+        <div className={styles.field}>
+          <label htmlFor="local-scale-preset" className={styles.label}>
+            Scale
+          </label>
+          <ScalePresetSelect
+            id="local-scale-preset"
+            className={styles.select}
+            value={scalePreset}
+            onChange={setScalePreset}
+          />
+        </div>
       </div>
 
       {modelUrl && scalePreset && (
-        <div style={{ position: 'relative', width: '100%', height: '70vh', marginTop: '1rem' }}>
+        <div className={styles.viewer}>
           <ModelViewer
             modelUrl={modelUrl}
             scalePreset={scalePreset}

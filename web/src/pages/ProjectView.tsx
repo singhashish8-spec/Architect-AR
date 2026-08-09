@@ -57,8 +57,13 @@ export function ProjectView() {
     }
   }
 
-  if (loadError) return <p role="alert">{loadError}</p>
-  if (!project) return <p>Loading…</p>
+  if (loadError)
+    return (
+      <p role="alert" className={styles.status}>
+        {loadError}
+      </p>
+    )
+  if (!project) return <p className={styles.status}>Loading…</p>
 
   return (
     <div className={styles.root}>
@@ -71,7 +76,7 @@ export function ProjectView() {
         <ARHandoff modelUrl={project.modelUrl} scalePreset={project.scalePreset} alt={project.name} />
       </div>
       <div className={styles.qrCorner}>
-        <button type="button" onClick={() => setShowQr((current) => !current)}>
+        <button type="button" className={styles.qrToggle} onClick={() => setShowQr((current) => !current)}>
           {showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}
         </button>
         {showQr && (

@@ -4,15 +4,17 @@ interface ScalePresetSelectProps {
   value: ScalePreset | ''
   onChange: (value: ScalePreset) => void
   id?: string
+  className?: string
 }
 
 // Preset dropdown, not a free-form value -- the architect picks one of
 // the standard architectural drawing scales at import. See
 // docs/features/model-scale-presets.md.
-export function ScalePresetSelect({ value, onChange, id }: ScalePresetSelectProps) {
+export function ScalePresetSelect({ value, onChange, id, className }: ScalePresetSelectProps) {
   return (
     <select
       id={id}
+      className={className}
       value={value}
       required
       onChange={(event) => onChange(event.target.value as ScalePreset)}

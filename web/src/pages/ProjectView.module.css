@@ -14,8 +14,6 @@
 .arButton {
   position: absolute;
   right: 1rem;
-  width: 96px;
-  height: 96px;
   /* Layers the same fixed 1rem gap on top of the device's own unsafe
      area (e.g. a gesture bar) so the button clears both the browser
      toolbar and any hardware inset, not just one of the two. */
@@ -28,8 +26,31 @@
   left: 1rem;
 }
 
+.qrToggle {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
 .qrCode {
   background: #fff;
+  border-radius: var(--radius-sm);
   padding: 1rem;
   margin-top: 0.5rem;
+  box-shadow: var(--shadow);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--color-text-muted);
 }

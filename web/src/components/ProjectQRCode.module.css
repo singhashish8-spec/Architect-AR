@@ -1,0 +1,18 @@
+.actions {
+  margin-top: 0.75rem;
+}
+
+.download {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #d0d3d8;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #14161a;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.download:hover {
+  background: #f5f6f8;
+}
