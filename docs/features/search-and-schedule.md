@@ -121,6 +121,44 @@ the DOM, not just visually near it — a screenshot showing "the title is
 overlapped" can hide a second, more fundamental "the box it's in is
 tiny" bug directly underneath the first, more visible one.
 
+### A third bug, one layer deeper: the portal fix covered the QR card
+
+Right after the fix above shipped, the owner reported the QR/share
+button was "still overlapping" something. Confirmed with a small
+isolated reproduction (not the real Supabase-backed page, since that
+needs live credentials the owner didn't hand over — a minimal static
+page recreating the same CSS rules and DOM order was enough to prove it
+either way): `createPortal`'s target is `ProjectView.tsx`'s `.root` div,
+and the portaled `<aside>` lands as the **last** child of `.root` —
+after `.qrCorner`, not before it. Neither element had an explicit
+`z-index`, so default stacking order (later-in-DOM paints on top) put
+the schedule panel's dark background directly over the QR share card
+whenever both were open at once, since the schedule panel's footprint
+(`left: 0`, 320px wide, `top: 4rem` down) spatially covers where the QR
+corner's card sits (`top: 1rem`, `left: 1rem`, growing downward once
+opened).
+
+Fixed by making the layering explicit instead of leaving it to DOM
+order: the corner controls (`.qrCorner`, `.topRightCorner`, `.arButton`,
+`.modelSwitcher`, and `LocalPreview`'s equivalent
+`.viewerTopRightCorner`) all get `z-index: 2`; the full-height slide-in
+panels (`SchedulePanel`'s `.panel`, `ElementDataPanel`'s `.panel`) get
+`z-index: 1`. Controls now always paint above content panels regardless
+of where a portal happens to insert its DOM node. Verified with a
+before/after screenshot comparison against a minimal reproduction of the
+exact CSS rules: without the fix the QR card was almost entirely
+swallowed by the dark panel behind it; with the fix it stays fully
+visible on top.
+
+**Standing lesson, continued**: `React.createPortal` decouples a
+component's visual/logical position from its DOM position — which is
+exactly what made the earlier containing-block fix possible, but it also
+means DOM order (and therefore default paint order) can no longer be
+read off the JSX. Any time a portal's target already has other
+absolutely-positioned siblings, give everything in that shared stacking
+context an explicit `z-index` rather than relying on JSX order to imply
+DOM order.
+
 ## Open questions
 
 - **Search and schedule share one `hiddenGlobalIds` slot with the

@@ -15,6 +15,10 @@
   background: rgba(20, 20, 24, 0.92);
   color: #fff;
   box-sizing: border-box;
+  /* Same explicit layer as SchedulePanel.module.css's .panel -- keeps
+     this panel below the corner controls (z-index: 2) instead of
+     leaving the ordering to accident of DOM position. */
+  z-index: 1;
 }
 
 .closeButton {

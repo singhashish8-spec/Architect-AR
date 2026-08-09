@@ -36,6 +36,12 @@
   background: rgba(20, 20, 24, 0.92);
   color: #fff;
   box-sizing: border-box;
+  /* Explicitly below the corner controls (z-index: 2 in
+     ProjectView.module.css/form.module.css) -- this panel is portaled
+     to the end of its container's DOM children (see the comment above),
+     which would otherwise let it paint over the QR button/card by
+     accident. */
+  z-index: 1;
 }
 
 .closeButton {

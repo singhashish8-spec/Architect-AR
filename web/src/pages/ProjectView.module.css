@@ -18,12 +18,25 @@
      area (e.g. a gesture bar) so the button clears both the browser
      toolbar and any hardware inset, not just one of the two. */
   bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  /* Same layer as the other corner controls -- see .topRightCorner's
+     comment for why this needs an explicit z-index at all. */
+  z-index: 2;
 }
 
 .qrCorner {
   position: absolute;
   top: 1rem;
   left: 1rem;
+  /* Explicit stacking layer above the slide-in panels (Schedule,
+     ElementDataPanel), which both start at top: 4rem, left/right: 0 and
+     can grow tall enough to reach under this corner's button/QR card.
+     Without this, plain DOM order decides who paints on top -- and since
+     SchedulePanel portals its panel to the end of .root's children (see
+     SchedulePanel.module.css's .panel comment), it was landing after
+     .qrCorner in the DOM and covering the QR card whenever both were
+     open. z-index makes the "controls stay above content panels" layering
+     explicit instead of accidental. */
+  z-index: 2;
 }
 
 .topRightCorner {
@@ -35,6 +48,7 @@
   justify-content: flex-end;
   gap: 0.5rem;
   max-width: calc(100vw - 2rem);
+  z-index: 2;
 }
 
 .modelSwitcher {
@@ -50,6 +64,7 @@
   border-radius: 999px;
   background: rgba(20, 20, 24, 0.7);
   backdrop-filter: blur(6px);
+  z-index: 2;
 }
 
 .modelTab,

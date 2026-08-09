@@ -179,4 +179,8 @@
   justify-content: flex-end;
   gap: 0.5rem;
   max-width: calc(100% - 2rem);
+  /* Same explicit layer as ProjectView.module.css's corner controls --
+     keeps these buttons above the slide-in panels (SchedulePanel,
+     ElementDataPanel), which set z-index: 1 for exactly this reason. */
+  z-index: 2;
 }

@@ -87,6 +87,17 @@ logo file (deliberately still text-only branding, waiting on the owner).
     size, mobile just made it obvious. Fixed by portaling the panel into
     the same full-size container `ElementDataPanel` already uses — see
     the feature doc for the full story and its standing lesson.
+    **That portal fix then caused a follow-on bug**: the owner next
+    reported the QR/share button "still overlapping" — the portaled
+    panel lands as the *last* DOM child of the page's root container,
+    after the QR corner, and with no `z-index` set anywhere, default
+    paint order let the panel's dark background cover the QR share card
+    whenever both were open. Confirmed with a minimal reproduction
+    (screenshotted before/after, since the real page needs live Supabase
+    credentials this sandbox doesn't have) and fixed by giving every
+    corner control an explicit `z-index: 2` and the slide-in panels
+    `z-index: 1`, so layering no longer depends on DOM order. See the
+    same feature doc.
   - **View analytics + `/admin` dashboard** — records real page views and
     approximate time-on-page automatically, visible only behind a
     separate admin passcode on a new `/admin` route, never on a
