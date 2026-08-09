@@ -3,10 +3,11 @@
 > Part of [`features/`](README.md). Phase 2. Status: **built
 > (`ifc/ifcCategories.ts`, `components/CategoryPanel.tsx`,
 > `viewer/ModelViewer.tsx`), the Architecture/Structure side verified
-> against real data — the MEP discipline-detection logic is NOT verified
-> against any real MEP export (see Open questions, this is the one
-> feature in this project shipped without that step, by explicit owner
-> agreement).
+> against real data in an actual production build (a real
+> production-only bug was found and fixed here — see the Addendum) — the
+> MEP discipline-detection logic is NOT verified against any real MEP
+> export (see Open questions, this is the one feature in this project
+> shipped without that step, by explicit owner agreement).
 
 ## Summary
 
@@ -102,6 +103,42 @@ with zero `IfcRelAssignsToGroup` or `IfcSystem` entities in it at all, so
 there was nothing to test the real discipline-detection logic against.
 Owner's explicit decision (2026-08-09): ship this now, verify once a real
 MEP-inclusive export is available, rather than wait.
+
+## Addendum: a second real bug, this time production-only
+
+The owner reported the "Show/hide categories" button missing entirely —
+even on a brand-new test project, ruling out anything stale about an old
+project. Reproduced it directly: built and served the actual production
+bundle locally (`npm run build` + `npm run preview`), not just the dev
+server, and hit the same empty panel. Root cause, confirmed by grepping
+the built file itself: production minification renames `web-ifc`'s
+dynamically-generated IFC entity classes (the built bundle contains
+`class AS extends ...`, `class Aa extends ...`, etc.) — so
+`line.constructor.name`, which this feature's classification relied on,
+returned a meaningless mangled string in production instead of e.g.
+`"IfcWallStandardCase"`. Every element silently failed to classify, with
+no thrown error, since nothing ever matched the lookup table. Worked
+perfectly under `npm run dev` the whole time because dev builds don't
+minify, which is exactly why this wasn't caught earlier despite testing
+"against real data" — the data was real, the *build mode* wasn't.
+
+`ifc/ifcSpatialTree.ts` never had this problem, because it already reads
+type names via `GetLineType()`/`GetNameFromTypeCode()` — driven by
+`web-ifc`'s WASM module directly, not a JS class identifier, so it
+survives minification untouched. That's exactly why "Levels" kept
+working live while "Categories" silently didn't. Fixed by adding
+`getLineTypeName()` (in `ifcPropertyLookup.ts`) using that same pair, and
+switching every `.constructor.name` use in `ifcCategories.ts` — and in
+`ifcPropertyLookup.ts`'s `getElementData()`, which had the identical
+latent bug in its own `type` field, just not one that had broken
+anything visibly yet — to use it instead. Verified against the real
+*production build* this time (not the dev server) with the real Duplex
+sample before shipping again.
+
+**Standing lesson for this codebase**: don't trust `.constructor.name`
+(or any reliance on JS identifier names) surviving a production build —
+verify against `npm run build` + `npm run preview`, not just `npm run
+dev`, for anything that depends on it.
 
 ## Open questions
 

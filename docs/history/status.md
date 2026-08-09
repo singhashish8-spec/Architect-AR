@@ -57,6 +57,28 @@ bugs along the way.
     file with no page context passed along (confirmed by reading
     `<model-viewer>`'s own intent-building code). True persistent/filtered
     AR needs the custom AR camera view already scoped for Phase 4.
+  - **A significant production-only bug was found and fixed**: the
+    category panel worked perfectly in `npm run dev` but was silently
+    empty in the real deployed (production/minified) build — reproduced
+    by building and serving the production bundle locally, not just
+    testing against the dev server. Cause: production minification
+    renames `web-ifc`'s dynamically-generated IFC entity classes, so
+    `line.constructor.name` (which the category classification relied
+    on) returned meaningless mangled names instead of real IFC type
+    names. Fixed with `getLineTypeName()`, a WASM-backed lookup immune to
+    minification (the same mechanism the levels/rooms feature already
+    used, which is exactly why *that* feature was never affected).
+    **Standing lesson recorded in the feature doc**: verify anything
+    IFC-type-name-dependent against `npm run build` + `npm run preview`,
+    not just the dev server.
+  - **Levels & rooms UI reworked twice** based on owner feedback: first
+    from an always-expanded list (too long to scroll) to a native
+    `<select>` dropdown, then from that `<select>` (which opens as a
+    jarring full-screen picker on Android) to a small anchored panel
+    matching the category panel's own style — both panels now sit side
+    by side, top-right, with icon-only buttons on narrow screens and
+    icon+label on wider ones (matching GitHub's own responsive header
+    button pattern).
 - **Real live testing surfaced and fixed four real bugs in a row** —
   see [`sessions/2026-08-09-session-05.md`](sessions/2026-08-09-session-05.md)
   for the full story on each:
