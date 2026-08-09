@@ -1,16 +1,23 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { AdminDashboard } from './AdminDashboard'
-import * as analyticsService from '../services/analyticsService'
-import * as adminService from '../services/adminService'
-import type { AdminProject } from '../services/adminService'
+import App from '../../App'
+import * as analyticsService from '../../services/analyticsService'
+import * as adminService from '../../services/adminService'
+import type { AdminProject } from '../../services/adminService'
+
+// Covers the multi-page admin redesign (Phase 3, 2026-08-09) end to end:
+// passcode gate -> minimal project list -> click a row into its own page
+// -> tabs. Previously one file (pages/AdminDashboard.test.tsx) covered
+// the old single-page dashboard; that page is gone, replaced by the
+// pages/admin/ route tree tested here. See
+// docs/features/full-admin-dashboard.md.
 
 function project(overrides: Partial<AdminProject> = {}): AdminProject {
   return {
     id: 'p1',
     name: 'Test Project',
-    description: null,
+    description: 'A description',
     status: 'active',
     createdAt: '2026-08-09T10:00:00Z',
     hasPasscode: false,
@@ -36,11 +43,11 @@ async function unlock(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /view dashboard/i }))
 }
 
-describe('AdminDashboard', () => {
+describe('admin dashboard (multi-page)', () => {
   it('shows the passcode gate first, and rejects a wrong passcode', async () => {
     vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(false)
     const user = userEvent.setup()
-    render(<AdminDashboard />)
+    render(<App />)
 
     expect(screen.getByText('Admin dashboard')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Passcode'), 'wrong')
@@ -49,80 +56,80 @@ describe('AdminDashboard', () => {
     expect(await screen.findByText(/incorrect passcode/i)).toBeInTheDocument()
   })
 
-  it('shows project stats once the correct passcode is entered', async () => {
+  it('shows a minimal project list once unlocked -- name, status, views, no button row', async () => {
     vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
     vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([project()])
     const user = userEvent.setup()
-    render(<AdminDashboard />)
+    render(<App />)
 
     await unlock(user)
 
     expect(await screen.findByText('Test Project')).toBeInTheDocument()
     expect(screen.getByText('12 views')).toBeInTheDocument()
-    expect(screen.getByText('Avg. time: 1m 35s')).toBeInTheDocument()
+    // Secondary actions live behind the kebab menu, not as their own
+    // visible buttons on the row.
+    expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument()
   })
 
   it('shows a friendly message when there are no projects yet', async () => {
     vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
     vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([])
     const user = userEvent.setup()
-    render(<AdminDashboard />)
+    render(<App />)
 
     await unlock(user)
 
     expect(await screen.findByText('No projects yet — create one above.')).toBeInTheDocument()
   })
 
-  it('filters the list by the search box', async () => {
-    vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
-    vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([
-      project({ id: 'p1', name: 'Kitchen renovation' }),
-      project({ id: 'p2', name: 'Office fitout' }),
-    ])
-    const user = userEvent.setup()
-    render(<AdminDashboard />)
-    await unlock(user)
-
-    expect(await screen.findByText('Kitchen renovation')).toBeInTheDocument()
-    expect(screen.getByText('Office fitout')).toBeInTheDocument()
-
-    await user.type(screen.getByPlaceholderText('Search projects…'), 'kitchen')
-
-    expect(screen.getByText('Kitchen renovation')).toBeInTheDocument()
-    expect(screen.queryByText('Office fitout')).not.toBeInTheDocument()
-  })
-
-  it('opens the management panel and shows the project details form', async () => {
+  it('clicking a project row opens its own page with tabs', async () => {
     vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
     vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([project()])
     const user = userEvent.setup()
-    render(<AdminDashboard />)
+    render(<App />)
+    await unlock(user)
+
+    await user.click(await screen.findByText('Test Project'))
+
+    expect(await screen.findByRole('heading', { name: 'Test Project' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Overview' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Models' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Share' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
+    // Overview is the default tab -- shows the description and stats.
+    expect(screen.getByText('A description')).toBeInTheDocument()
+  })
+
+  it('the kebab menu offers Preview/Duplicate/Delete for a row', async () => {
+    vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
+    vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([project()])
+    const user = userEvent.setup()
+    render(<App />)
     await unlock(user)
 
     await screen.findByText('Test Project')
-    await user.click(screen.getByRole('button', { name: /manage/i }))
+    await user.click(screen.getByRole('button', { name: /actions for test project/i }))
 
-    expect(screen.getByRole('heading', { name: 'Details' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Models' })).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Test Project')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Preview' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Delete' })).toBeInTheDocument()
   })
 
-  it('deletes a project after confirming, and reloads the list', async () => {
+  it('deletes a project from its own page after confirming, and returns to the list', async () => {
     vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
-    const listSpy = vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([project()])
+    vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([project()])
     const deleteSpy = vi.spyOn(adminService, 'deleteAdminProject').mockResolvedValue(undefined)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     const user = userEvent.setup()
-    render(<AdminDashboard />)
+    render(<App />)
     await unlock(user)
 
-    await screen.findByText('Test Project')
-    const callsBeforeDelete = listSpy.mock.calls.length
-    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+    await user.click(await screen.findByText('Test Project'))
+    await screen.findByRole('heading', { name: 'Test Project' })
+    await user.click(screen.getByRole('button', { name: /actions for test project/i }))
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
 
     expect(deleteSpy).toHaveBeenCalledWith('correct', expect.objectContaining({ id: 'p1' }))
-    // Re-fetches the list after a successful delete, rather than trying
-    // to patch the deleted project out of local state itself.
-    await waitFor(() => expect(listSpy.mock.calls.length).toBeGreaterThan(callsBeforeDelete))
+    await waitFor(() => expect(screen.getByText('Admin dashboard')).toBeInTheDocument())
   })
 })

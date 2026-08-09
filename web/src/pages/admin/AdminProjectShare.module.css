@@ -1,0 +1,10 @@
+.cardWrap {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 0.5rem;
+}
+
+.cardWrap > * {
+  max-width: min(360px, 100%);
+  max-height: none;
+}

@@ -1,187 +1,25 @@
-import { useState, type FormEvent } from 'react'
-import { ScalePresetSelect } from './ScalePresetSelect'
+import { useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
+import { ScalePresetSelect } from '../../components/ScalePresetSelect'
 import {
   addAdminModel,
   deleteAdminModel,
   reorderAdminModels,
-  setAdminProjectPasscode,
   updateAdminModel,
-  updateAdminProjectDetails,
-  type AdminProject,
-} from '../services/adminService'
-import { uploadIfcFile, uploadModelFile } from '../services/projectService'
-import type { AdminProjectModel } from '../types/ProjectModel'
-import type { ProjectStatus } from '../types/Project'
-import type { ScalePreset } from '../types/ScalePreset'
-import { getErrorMessage } from '../utils/errorMessage'
-import formStyles from '../styles/form.module.css'
-import styles from './AdminProjectEditor.module.css'
+} from '../../services/adminService'
+import { uploadIfcFile, uploadModelFile } from '../../services/projectService'
+import type { AdminProjectModel } from '../../types/ProjectModel'
+import type { ScalePreset } from '../../types/ScalePreset'
+import { getErrorMessage } from '../../utils/errorMessage'
+import type { AdminProjectPageContext } from './AdminProjectPage'
+import formStyles from '../../styles/form.module.css'
+import styles from './AdminProjectModels.module.css'
 
-interface AdminProjectEditorProps {
-  adminPasscode: string
-  project: AdminProject
-  // Parent (pages/AdminDashboard.tsx) owns the real project list -- every
-  // successful write here just asks it to refetch, rather than this
-  // component trying to keep its own copy of the list in sync too.
-  onChanged: () => void
-}
-
-// The full per-project management panel opened by "Manage" in the admin
-// dashboard's project table (Phase 3 -- see
-// docs/features/full-admin-dashboard.md): edit the basic details, set/
-// change/remove the passcode, and manage its models (add, replace,
-// rename, delete, reorder, note).
-export function AdminProjectEditor({ adminPasscode, project, onChanged }: AdminProjectEditorProps) {
-  return (
-    <div className={styles.editor}>
-      <DetailsForm adminPasscode={adminPasscode} project={project} onChanged={onChanged} />
-      <PasscodeForm adminPasscode={adminPasscode} project={project} onChanged={onChanged} />
-      <ModelsSection adminPasscode={adminPasscode} project={project} onChanged={onChanged} />
-    </div>
-  )
-}
-
-function DetailsForm({ adminPasscode, project, onChanged }: AdminProjectEditorProps) {
-  const [name, setName] = useState(project.name)
-  const [description, setDescription] = useState(project.description ?? '')
-  const [status, setStatus] = useState<ProjectStatus>(project.status)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
-    setSaving(true)
-    setError(null)
-    try {
-      await updateAdminProjectDetails(adminPasscode, project.id, {
-        name,
-        description: description.trim() || null,
-        status,
-      })
-      onChanged()
-    } catch (err) {
-      setError(getErrorMessage(err, 'Could not save these details.'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>Details</h3>
-      <form onSubmit={(event) => void handleSubmit(event)}>
-        <div className={formStyles.field}>
-          <label htmlFor={`edit-name-${project.id}`} className={formStyles.label}>
-            Project name
-          </label>
-          <input
-            id={`edit-name-${project.id}`}
-            type="text"
-            required
-            className={formStyles.input}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </div>
-        <div className={formStyles.field}>
-          <label htmlFor={`edit-description-${project.id}`} className={formStyles.label}>
-            Project details
-          </label>
-          <textarea
-            id={`edit-description-${project.id}`}
-            className={formStyles.textarea}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            rows={3}
-          />
-        </div>
-        <div className={formStyles.field}>
-          <label htmlFor={`edit-status-${project.id}`} className={formStyles.label}>
-            Status
-          </label>
-          <select
-            id={`edit-status-${project.id}`}
-            className={formStyles.select}
-            value={status}
-            onChange={(event) => setStatus(event.target.value as ProjectStatus)}
-          >
-            <option value="active">Active</option>
-            <option value="sent_to_client">Sent to client</option>
-            <option value="archived">Archived</option>
-          </select>
-        </div>
-        {error && (
-          <p role="alert" className={formStyles.error}>
-            {error}
-          </p>
-        )}
-        <button type="submit" className={styles.saveButton} disabled={saving}>
-          {saving ? 'Saving…' : 'Save details'}
-        </button>
-      </form>
-    </section>
-  )
-}
-
-function PasscodeForm({ adminPasscode, project, onChanged }: AdminProjectEditorProps) {
-  const [newPasscode, setNewPasscode] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function apply(value: string | null) {
-    setSaving(true)
-    setError(null)
-    try {
-      await setAdminProjectPasscode(adminPasscode, project.id, value)
-      setNewPasscode('')
-      onChanged()
-    } catch (err) {
-      setError(getErrorMessage(err, 'Could not update the passcode.'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>Passcode</h3>
-      <p className={formStyles.subtitle}>
-        {project.hasPasscode
-          ? 'This project currently requires a passcode to view.'
-          : 'This project has no passcode — anyone with the link can open it.'}
-      </p>
-      <div className={styles.passcodeRow}>
-        <input
-          type="text"
-          className={formStyles.input}
-          value={newPasscode}
-          onChange={(event) => setNewPasscode(event.target.value)}
-          placeholder="New passcode"
-        />
-        <button
-          type="button"
-          className={styles.saveButton}
-          disabled={saving || !newPasscode}
-          onClick={() => void apply(newPasscode)}
-        >
-          {project.hasPasscode ? 'Change' : 'Set'}
-        </button>
-        {project.hasPasscode && (
-          <button type="button" className={styles.removeButton} disabled={saving} onClick={() => void apply(null)}>
-            Remove
-          </button>
-        )}
-      </div>
-      {error && (
-        <p role="alert" className={formStyles.error}>
-          {error}
-        </p>
-      )}
-    </section>
-  )
-}
-
-function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditorProps) {
+// Add/replace/rename/delete/reorder/note a project's models -- moved
+// here from the old single-page AdminProjectEditor.tsx once the
+// dashboard became multi-page. See docs/features/full-admin-dashboard.md.
+export function AdminProjectModels() {
+  const { project, passcode, refresh } = useOutletContext<AdminProjectPageContext>()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -191,7 +29,7 @@ function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditor
     setError(null)
     try {
       await action()
-      onChanged()
+      await refresh()
     } catch (err) {
       setError(getErrorMessage(err, 'That change did not go through. Please try again.'))
     } finally {
@@ -205,7 +43,7 @@ function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditor
       return
     }
     if (!window.confirm(`Delete model "${model.name}"? This can't be undone.`)) return
-    await withBusy(() => deleteAdminModel(adminPasscode, model))
+    await withBusy(() => deleteAdminModel(passcode, model))
   }
 
   async function handleMove(index: number, direction: -1 | 1) {
@@ -214,12 +52,11 @@ function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditor
     const ids = project.models.map((m) => m.id)
     const [moved] = ids.splice(index, 1)
     ids.splice(target, 0, moved)
-    await withBusy(() => reorderAdminModels(adminPasscode, project.id, ids))
+    await withBusy(() => reorderAdminModels(passcode, project.id, ids))
   }
 
   return (
-    <section className={styles.section}>
-      <h3 className={styles.sectionTitle}>Models</h3>
+    <div>
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -228,7 +65,7 @@ function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditor
       {project.models.map((model, index) => (
         <ModelRow
           key={model.id}
-          adminPasscode={adminPasscode}
+          passcode={passcode}
           model={model}
           busy={busy}
           isFirst={index === 0}
@@ -236,17 +73,17 @@ function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditor
           onMoveUp={() => void handleMove(index, -1)}
           onMoveDown={() => void handleMove(index, 1)}
           onDelete={() => void handleDelete(model)}
-          onChanged={onChanged}
+          onChanged={() => void refresh()}
         />
       ))}
 
       {showAddForm ? (
         <AddModelForm
-          adminPasscode={adminPasscode}
+          passcode={passcode}
           projectId={project.id}
           onDone={() => {
             setShowAddForm(false)
-            onChanged()
+            void refresh()
           }}
           onCancel={() => setShowAddForm(false)}
         />
@@ -255,12 +92,12 @@ function ModelsSection({ adminPasscode, project, onChanged }: AdminProjectEditor
           + Add another model
         </button>
       )}
-    </section>
+    </div>
   )
 }
 
 interface ModelRowProps {
-  adminPasscode: string
+  passcode: string
   model: AdminProjectModel
   busy: boolean
   isFirst: boolean
@@ -271,12 +108,7 @@ interface ModelRowProps {
   onChanged: () => void
 }
 
-// One existing model's editable row -- name/note/scale are always
-// editable inline (no separate edit-mode toggle, this is an internal
-// admin tool used by one person), "Replace file" is opt-in via its own
-// file inputs so a normal detail edit never re-uploads anything by
-// accident.
-function ModelRow({ adminPasscode, model, busy, isFirst, isLast, onMoveUp, onMoveDown, onDelete, onChanged }: ModelRowProps) {
+function ModelRow({ passcode, model, busy, isFirst, isLast, onMoveUp, onMoveDown, onDelete, onChanged }: ModelRowProps) {
   const [name, setName] = useState(model.name)
   const [note, setNote] = useState(model.note ?? '')
   const [scalePreset, setScalePreset] = useState<ScalePreset>(model.scalePreset)
@@ -291,7 +123,7 @@ function ModelRow({ adminPasscode, model, busy, isFirst, isLast, onMoveUp, onMov
     try {
       const modelUrl = replaceModelFile ? await uploadModelFile(replaceModelFile) : model.modelUrl
       const ifcUrl = replaceIfcFile ? await uploadIfcFile(replaceIfcFile) : model.ifcUrl
-      await updateAdminModel(adminPasscode, {
+      await updateAdminModel(passcode, {
         id: model.id,
         name,
         modelUrl,
@@ -373,13 +205,13 @@ function ModelRow({ adminPasscode, model, busy, isFirst, isLast, onMoveUp, onMov
 }
 
 interface AddModelFormProps {
-  adminPasscode: string
+  passcode: string
   projectId: string
   onDone: () => void
   onCancel: () => void
 }
 
-function AddModelForm({ adminPasscode, projectId, onDone, onCancel }: AddModelFormProps) {
+function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormProps) {
   const [name, setName] = useState('')
   const [modelFile, setModelFile] = useState<File | null>(null)
   const [ifcFile, setIfcFile] = useState<File | null>(null)
@@ -397,15 +229,14 @@ function AddModelForm({ adminPasscode, projectId, onDone, onCancel }: AddModelFo
       const modelUrl = modelFile ? await uploadModelFile(modelFile) : null
       const ifcUrl = ifcFile ? await uploadIfcFile(ifcFile) : null
       if (!modelUrl && !ifcUrl) throw new Error('Give either a model file or an IFC file.')
-      await addAdminModel(adminPasscode, projectId, {
+      await addAdminModel(passcode, projectId, {
         name: name.trim() || 'New model',
-        // A model file is required by NewProjectModel's shape -- an
-        // IFC-only add still needs *some* viewable geometry, same
-        // constraint the create-project form enforces; converting IFC to
-        // a GLB here would duplicate ProjectCreateForm.tsx's conversion
-        // logic for a case admins can also just cover by uploading a GLB
-        // alongside the IFC. Revisit if IFC-only model adds turn out to
-        // be common in practice.
+        // A model file is required by NewProjectModel's shape -- see the
+        // same note this had in the old AdminProjectEditor.tsx: an
+        // IFC-only add still needs some viewable geometry, and
+        // converting IFC to a GLB here would duplicate
+        // ProjectCreateForm.tsx's conversion logic for a case admins can
+        // also cover by uploading a GLB alongside the IFC.
         modelUrl: modelUrl ?? ifcUrl!,
         ifcUrl,
         scalePreset,

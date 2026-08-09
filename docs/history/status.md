@@ -19,19 +19,35 @@ the way. Every item from the original Phase 2 scope in
 logo file (deliberately still text-only branding, waiting on the owner).
 
 - **Phase 3's full admin dashboard: project + model management is now
-  built and shipped.** The owner said "let's complete all the phases...
-  for now let's start with dashboard" and chose "admin-only creation"
-  when asked what should happen to the public upload form. Built:
-  create/edit/delete/duplicate projects, status tags (Active/Sent to
-  client/Archived), search/sort/bulk-delete, and full model management
-  (add/replace/rename/delete/reorder/note) — all from `/admin`. The
-  public upload form is gone entirely; `/` now redirects to `/admin`.
-  Found and fixed a real mobile bug along the way (a data table has no
-  way to reflow on a phone screen — rebuilt the project list as a card
-  list instead, see the feature doc). **Still open**: upgraded analytics
-  (per-visit history, CSV export, a chart) and a storage-usage tracker —
-  the real storage-plan-limit number is still needed from the owner. See
+  built and shipped, then reshaped into a real multi-page dashboard the
+  same day based on the owner's own feedback after using it.** First
+  version: a single `/admin` page with an expandable "Manage" panel per
+  project. After trying it, the owner asked for something closer to a
+  real product — click a project to open its own page, tabs (Overview/
+  Models/Share/Settings), secondary actions behind a ⋮ menu, a minimal
+  list with no button row per row — GitHub's repo-list-then-repo-page
+  pattern, explicitly. Rebuilt as `/admin` (list) → `/admin/p/:id`
+  (a project's own page) → tabs as real nested routes, sharing one
+  passcode + project list via React Router's outlet context. The public
+  upload form is still gone entirely; `/` still redirects to `/admin`.
+  **Still open**: upgraded analytics (per-visit history, CSV export, a
+  chart) and a storage-usage tracker — the real storage-plan-limit
+  number is still needed from the owner. See
   [`../features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
+
+- **A real bug on the public viewer page, found in the same round of
+  feedback**: the Levels/Categories/Search/Schedule corner buttons
+  visibly reshuffled for about a second after a model loaded, since each
+  one independently decided it was ready the moment its own slice of IFC
+  data finished parsing, and those slices don't all finish at once.
+  Fixed by gating all four behind the same single `ifcLoading` flag so
+  they appear together. Two other reports from the same feedback
+  (a floating circle on the viewer's right edge; a project rename that
+  "did nothing") are recorded as open/unconfirmed in the feature doc —
+  the circle doesn't match anything in this app's own code (likely a
+  phone/browser UI element, not app-level), and the rename flow worked
+  correctly when rebuilt against a mocked backend, so a "Saved ✓"
+  confirmation was added to the Settings tab regardless.
 
 - **Three new SQL migrations need running on the live Supabase project**,
   in order:

@@ -39,7 +39,7 @@ export function LocalPreview() {
   // comment for why (the containing-block bug this fixes).
   const [viewerEl, setViewerEl] = useState<HTMLDivElement | null>(null)
 
-  const { getElementDataByGlobalId, levels, categories } = useIfcElementData(ifcUrl)
+  const { getElementDataByGlobalId, levels, categories, loading: ifcLoading } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Blob URLs must be revoked when no longer needed, or the browser keeps
@@ -199,21 +199,33 @@ export function LocalPreview() {
             lightingPreset={lightingPreset}
           />
           <div className={styles.viewerTopRightCorner}>
-            <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
-            <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+            {/* See pages/ProjectView.tsx's matching comment -- waiting for
+                the whole IFC parse to settle before showing any of these
+                avoids the button row visibly reshuffling as each slice of
+                data becomes ready at a slightly different moment. */}
+            {!ifcLoading && (
+              <>
+                <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
+                <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+              </>
+            )}
             <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
-            <SearchPanel
-              levels={levels}
-              categories={categories}
-              onIsolate={setHiddenGlobalIds}
-              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
-            />
-            <SchedulePanel
-              categories={categories}
-              onIsolate={setHiddenGlobalIds}
-              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
-              portalContainer={viewerEl}
-            />
+            {!ifcLoading && (
+              <>
+                <SearchPanel
+                  levels={levels}
+                  categories={categories}
+                  onIsolate={setHiddenGlobalIds}
+                  onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+                />
+                <SchedulePanel
+                  categories={categories}
+                  onIsolate={setHiddenGlobalIds}
+                  onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+                  portalContainer={viewerEl}
+                />
+              </>
+            )}
           </div>
           <ElementDataPanel
             data={selectedElement}

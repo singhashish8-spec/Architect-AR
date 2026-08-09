@@ -44,7 +44,9 @@ export function ProjectView() {
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
 
   const activeModel = project?.models[selectedModelIndex] ?? null
-  const { getElementDataByGlobalId, levels, categories } = useIfcElementData(activeModel?.ifcUrl ?? null)
+  const { getElementDataByGlobalId, levels, categories, loading: ifcLoading } = useIfcElementData(
+    activeModel?.ifcUrl ?? null,
+  )
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Only starts once a project has actually, really loaded -- not while
@@ -147,21 +149,40 @@ export function ProjectView() {
         <ARHandoff modelUrl={activeModel.modelUrl} scalePreset={activeModel.scalePreset} alt={activeModel.name} />
       </div>
       <div className={styles.topRightCorner}>
-        <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
-        <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+        {/* Levels/Categories/Search/Schedule all wait for the same
+            ifcLoading flag rather than each independently deciding
+            they're ready the moment their own slice of IFC data shows
+            up -- those slices don't all finish parsing at exactly the
+            same instant, so rendering them individually as each one
+            became ready made the button row visibly reflow/reshuffle
+            for a moment on every load (a real bug the owner caught and
+            screenshotted). Waiting for the whole parse to settle first
+            means they all appear together, once, instead of trickling
+            in one at a time. LightingPresetPanel doesn't depend on IFC
+            data at all, so it stays outside this gate. */}
+        {!ifcLoading && (
+          <>
+            <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
+            <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+          </>
+        )}
         <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
-        <SearchPanel
-          levels={levels}
-          categories={categories}
-          onIsolate={setHiddenGlobalIds}
-          onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
-        />
-        <SchedulePanel
-          categories={categories}
-          onIsolate={setHiddenGlobalIds}
-          onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
-          portalContainer={rootEl}
-        />
+        {!ifcLoading && (
+          <>
+            <SearchPanel
+              levels={levels}
+              categories={categories}
+              onIsolate={setHiddenGlobalIds}
+              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+            />
+            <SchedulePanel
+              categories={categories}
+              onIsolate={setHiddenGlobalIds}
+              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+              portalContainer={rootEl}
+            />
+          </>
+        )}
       </div>
       <div className={styles.qrCorner}>
         <button

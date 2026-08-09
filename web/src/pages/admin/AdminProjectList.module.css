@@ -1,14 +1,16 @@
 .card {
   width: 100%;
-  /* Widened from the Phase 2 read-only version's 720px -- the table now
-     carries a lot more (status, passcode indicator, actions) and rows
-     can expand into a full project editor, both of which need the extra
-     room. */
-  max-width: 1100px;
-  padding: 2rem;
+  max-width: 900px;
+  padding: 1.5rem;
   border-radius: var(--radius);
   background: var(--color-surface);
   box-shadow: var(--shadow);
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: 2rem;
+  }
 }
 
 .header {
@@ -50,20 +52,6 @@
   background: var(--color-primary-hover);
 }
 
-.createPanel {
-  margin-bottom: 1.5rem;
-  padding: 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-}
-
-.createPanelTitle {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
-  font-weight: 600;
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -103,49 +91,71 @@
 
 .dangerButton {
   padding: 0.4rem 0.75rem;
-  border: 1px solid #b3413a;
+  border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
   background: transparent;
-  color: #d1554b;
+  color: var(--color-danger);
   font-size: 0.82rem;
   cursor: pointer;
 }
 
 .dangerButton:hover:not(:disabled) {
-  background: rgba(209, 85, 75, 0.1);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
 }
 
-.projectList {
+/* A flat list, full width, one thin divider per row -- the "GitHub repo
+   list" density the owner asked for, not cards with their own padding
+   eating into the available width on a narrow phone screen (the
+   "wasted space on both sides" complaint). */
+.list {
   display: flex;
   flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
   gap: 0.75rem;
+  padding: 0.75rem 0.25rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
-/* A card list, not a table -- see the comment where this is rendered in
-   AdminDashboard.tsx for why: fields need to reflow (not clip or force
-   horizontal scroll) on a phone-width screen, and the expanded editor
-   needs its own full width rather than being trapped in a table's
-   horizontally-scrolled column set. */
-.projectCard {
-  padding: 1rem 1.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+.row:first-child {
+  border-top: 1px solid var(--color-border);
 }
 
-.projectCardHeader {
+.rowMain {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0.6rem;
-  margin-bottom: 0.5rem;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.4rem;
+  margin: -0.25rem -0.4rem;
 }
 
-.projectCardName {
+.rowMain:hover {
+  background: var(--color-surface-2);
+}
+
+.rowMain:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.rowName {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.98rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .statusBadge {
+  flex: none;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
   background: var(--color-surface-2);
@@ -153,42 +163,10 @@
   font-size: 0.75rem;
 }
 
-.projectCardStats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1rem;
-  margin-bottom: 0.75rem;
+.rowViews {
+  flex: none;
+  margin-left: auto;
   color: var(--color-text-muted);
   font-size: 0.82rem;
-}
-
-.actionsCell {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.editorWrapper {
-  margin: 1rem -1.25rem -1rem;
-}
-
-.smallButton {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  font-size: 0.8rem;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.smallButton:hover:not(:disabled) {
-  background: var(--color-border);
-}
-
-.editorCell {
-  padding: 0 !important;
-  border-bottom: 1px solid var(--color-border);
+  font-variant-numeric: tabular-nums;
 }
