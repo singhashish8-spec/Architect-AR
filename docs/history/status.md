@@ -88,17 +88,20 @@ building, not a generic sample or a unit test alone.
 - **CI**: confirmed genuinely working — passed on PR #2's latest pushes,
   including a live Vercel preview deployment.
 
-- **Phase 2 started**: owner shared HSA branding (logo pending an actual
-  file/exact color) and asked to close out the rest of Phase 2 —
-  passcode-protected links, multiple models per project, and lighting
-  presets, in that priority order after branding. **Multiple models per
-  project is built** (`project_models` table, tab switcher in the
-  viewer) — see
-  [`../features/multiple-models-per-project.md`](../features/multiple-models-per-project.md).
-  Not yet live-tested with a real 2+ model upload, and the owner's
-  existing Supabase project needs the one-time migration script run
-  (`web/supabase/migrations/002_multiple_models_per_project.sql`) before
-  this works against their live database.
+- **Phase 2 in progress**: owner asked to close out all of Phase 2.
+  Branding moved to *last* (no logo file on hand yet). Order now:
+  multiple models per project (done), passcode-protected links (done),
+  lighting presets (next), branding (last). Both done features are
+  unverified end-to-end so far — built carefully, all four quality gates
+  pass, but not yet exercised through the live app:
+  - **Multiple models per project** — see
+    [`../features/multiple-models-per-project.md`](../features/multiple-models-per-project.md).
+  - **Passcode-protected links** — see
+    [`../features/passcode-protected-links.md`](../features/passcode-protected-links.md).
+  The owner's existing Supabase project needs **two** one-time migration
+  scripts run, in order, before either feature works against their live
+  database: `web/supabase/migrations/002_multiple_models_per_project.sql`
+  then `003_optional_passcode.sql`.
 
 ## What's still pending / open
 
