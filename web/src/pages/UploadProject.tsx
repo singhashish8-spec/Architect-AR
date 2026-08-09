@@ -2,28 +2,66 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { createProject, uploadIfcFile, uploadModelFile } from '../services/projectService'
+import type { NewProjectModel } from '../types/ProjectModel'
 import type { ScalePreset } from '../types/ScalePreset'
 import styles from '../styles/form.module.css'
+
+// One in-progress model entry in the form -- turned into a
+// NewProjectModel (with real uploaded URLs) at submit time. Kept
+// separate from that type since the files themselves aren't URLs yet.
+interface ModelDraft {
+  name: string
+  modelFile: File | null
+  ifcFile: File | null
+  scalePreset: ScalePreset | ''
+}
+
+function emptyModel(): ModelDraft {
+  return { name: '', modelFile: null, ifcFile: null, scalePreset: '' }
+}
 
 export function UploadProject() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
-  const [modelFile, setModelFile] = useState<File | null>(null)
-  const [ifcFile, setIfcFile] = useState<File | null>(null)
-  const [scalePreset, setScalePreset] = useState<ScalePreset | ''>('')
+  const [models, setModels] = useState<ModelDraft[]>([emptyModel()])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  function updateModel(index: number, patch: Partial<ModelDraft>) {
+    setModels((current) => current.map((model, i) => (i === index ? { ...model, ...patch } : model)))
+  }
+
+  function addModel() {
+    setModels((current) => [...current, emptyModel()])
+  }
+
+  function removeModel(index: number) {
+    setModels((current) => current.filter((_, i) => i !== index))
+  }
+
+  const canSubmit = models.every((model) => model.modelFile && model.scalePreset)
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!modelFile || !scalePreset) return
+    if (!canSubmit) return
 
     setSubmitting(true)
     setError(null)
     try {
-      const modelUrl = await uploadModelFile(modelFile)
-      const ifcUrl = ifcFile ? await uploadIfcFile(ifcFile) : null
-      const project = await createProject({ name, modelUrl, ifcUrl, scalePreset })
+      const uploadedModels: NewProjectModel[] = []
+      for (const [index, draft] of models.entries()) {
+        // canSubmit already guarantees these, but TS can't see that here.
+        if (!draft.modelFile || !draft.scalePreset) continue
+        const modelUrl = await uploadModelFile(draft.modelFile)
+        const ifcUrl = draft.ifcFile ? await uploadIfcFile(draft.ifcFile) : null
+        uploadedModels.push({
+          name: draft.name.trim() || `Model ${index + 1}`,
+          modelUrl,
+          ifcUrl,
+          scalePreset: draft.scalePreset,
+        })
+      }
+      const project = await createProject({ name, models: uploadedModels })
       await navigate(`/p/${project.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
@@ -56,44 +94,74 @@ export function UploadProject() {
             />
           </div>
 
-          <div className={styles.field}>
-            <label htmlFor="model-file" className={styles.label}>
-              Model file (glTF / GLB)
-            </label>
-            <input
-              id="model-file"
-              type="file"
-              accept=".glb,.gltf"
-              required
-              className={styles.fileInput}
-              onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
-            />
-          </div>
+          {models.map((model, index) => (
+            <div key={index} className={styles.modelGroup}>
+              <div className={styles.modelHeader}>
+                <h2 className={styles.modelTitle}>Model {index + 1}</h2>
+                {models.length > 1 && (
+                  <button type="button" className={styles.removeButton} onClick={() => removeModel(index)}>
+                    Remove
+                  </button>
+                )}
+              </div>
 
-          <div className={styles.field}>
-            <label htmlFor="ifc-file" className={styles.label}>
-              IFC file (optional — enables tap-to-inspect)
-            </label>
-            <input
-              id="ifc-file"
-              type="file"
-              accept=".ifc"
-              className={styles.fileInput}
-              onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
-            />
-          </div>
+              <div className={styles.field}>
+                <label htmlFor={`model-name-${index}`} className={styles.label}>
+                  Model name (optional — e.g. "Kitchen" or "Option A")
+                </label>
+                <input
+                  id={`model-name-${index}`}
+                  type="text"
+                  className={styles.input}
+                  value={model.name}
+                  onChange={(event) => updateModel(index, { name: event.target.value })}
+                />
+              </div>
 
-          <div className={styles.field}>
-            <label htmlFor="scale-preset" className={styles.label}>
-              Scale
-            </label>
-            <ScalePresetSelect
-              id="scale-preset"
-              className={styles.select}
-              value={scalePreset}
-              onChange={setScalePreset}
-            />
-          </div>
+              <div className={styles.field}>
+                <label htmlFor={`model-file-${index}`} className={styles.label}>
+                  Model file (glTF / GLB)
+                </label>
+                <input
+                  id={`model-file-${index}`}
+                  type="file"
+                  accept=".glb,.gltf"
+                  required
+                  className={styles.fileInput}
+                  onChange={(event) => updateModel(index, { modelFile: event.target.files?.[0] ?? null })}
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor={`ifc-file-${index}`} className={styles.label}>
+                  IFC file (optional — enables tap-to-inspect)
+                </label>
+                <input
+                  id={`ifc-file-${index}`}
+                  type="file"
+                  accept=".ifc"
+                  className={styles.fileInput}
+                  onChange={(event) => updateModel(index, { ifcFile: event.target.files?.[0] ?? null })}
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor={`scale-preset-${index}`} className={styles.label}>
+                  Scale
+                </label>
+                <ScalePresetSelect
+                  id={`scale-preset-${index}`}
+                  className={styles.select}
+                  value={model.scalePreset}
+                  onChange={(value) => updateModel(index, { scalePreset: value })}
+                />
+              </div>
+            </div>
+          ))}
+
+          <button type="button" className={styles.addButton} onClick={addModel}>
+            + Add another model
+          </button>
 
           {error && (
             <p role="alert" className={styles.error}>
@@ -101,7 +169,7 @@ export function UploadProject() {
             </p>
           )}
 
-          <button type="submit" className={styles.button} disabled={submitting || !modelFile || !scalePreset}>
+          <button type="submit" className={styles.button} disabled={submitting || !canSubmit}>
             {submitting ? 'Uploading…' : 'Create shareable link'}
           </button>
         </form>

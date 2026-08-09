@@ -12,9 +12,10 @@
 
 | Feature | Phase | Status |
 |---|---|---|
-| [Client presentation viewer](client-presentation-viewer.md) | 1 | Built, unverified end-to-end (no live Supabase/device test yet) |
-| [Element data inspection](element-data-inspection.md) | 1 | Built, unverified end-to-end — riskiest untested assumption in the codebase, see the feature doc |
+| [Client presentation viewer](client-presentation-viewer.md) | 1 | Built, confirmed working end-to-end on a real device with a real Supabase project (2026-08-08) |
+| [Element data inspection](element-data-inspection.md) | 1 | Built, confirmed working end-to-end with real data (2026-08-08) — see the feature doc for what's still open |
 | [Model scale presets](model-scale-presets.md) | 1 | Built, unverified end-to-end |
+| [Multiple models per project](multiple-models-per-project.md) | 2 | Built, unverified end-to-end (no live 2+ model upload test yet) |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

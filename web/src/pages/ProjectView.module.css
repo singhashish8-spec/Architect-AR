@@ -26,6 +26,43 @@
   left: 1rem;
 }
 
+.modelSwitcher {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+  max-width: calc(100vw - 2rem);
+  overflow-x: auto;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.7);
+  backdrop-filter: blur(6px);
+}
+
+.modelTab,
+.modelTabActive {
+  flex-shrink: 0;
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.modelTab {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.modelTabActive {
+  background: var(--color-primary);
+  color: #fff;
+}
+
 .qrToggle {
   padding: 0.6rem 1rem;
   border: none;

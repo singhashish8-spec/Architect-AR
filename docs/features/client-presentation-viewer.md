@@ -1,9 +1,12 @@
 # Feature: client presentation viewer
 
 > Part of [`features/`](README.md). Phase 1. Status: **built
-> (`web/src/pages/`, `web/src/viewer/`), unverified end-to-end** — no live
-> Supabase project or real-device test yet, see
-> [`../history/sessions/2026-08-06-session-02.md`](../history/sessions/2026-08-06-session-02.md).
+> (`web/src/pages/`, `web/src/viewer/`), confirmed working end-to-end** on
+> a real device with a real Supabase project and a real Revit-exported
+> sample (2026-08-08) — see
+> [`../history/sessions/2026-08-08-session-04.md`](../history/sessions/2026-08-08-session-04.md).
+> As of Phase 2, a project can hold multiple models — see
+> [`multiple-models-per-project.md`](multiple-models-per-project.md).
 
 ## Summary
 

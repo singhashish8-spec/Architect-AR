@@ -14,6 +14,7 @@ export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
   const [project, setProject] = useState<Project | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [selectedModelIndex, setSelectedModelIndex] = useState(0)
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   // Tracks "the user tapped something and we're resolving it" --
   // deliberately separate from useIfcElementData's `loading` (the
@@ -22,7 +23,8 @@ export function ProjectView() {
   const [selecting, setSelecting] = useState(false)
   const [showQr, setShowQr] = useState(false)
 
-  const { getElementDataByGlobalId } = useIfcElementData(project?.ifcUrl ?? null)
+  const activeModel = project?.models[selectedModelIndex] ?? null
+  const { getElementDataByGlobalId } = useIfcElementData(activeModel?.ifcUrl ?? null)
 
   useEffect(() => {
     if (!projectId) return
@@ -47,6 +49,14 @@ export function ProjectView() {
     }
   }, [projectId])
 
+  // Switching models should drop any data panel left over from the
+  // previous one -- otherwise a tap on model A's wall would stay on
+  // screen describing model A after switching to model B.
+  function selectModel(index: number) {
+    setSelectedModelIndex(index)
+    setSelectedElement(null)
+  }
+
   async function handleElementSelect(globalId: string) {
     setSelecting(true)
     try {
@@ -63,17 +73,31 @@ export function ProjectView() {
         {loadError}
       </p>
     )
-  if (!project) return <p className={styles.status}>Loading…</p>
+  if (!project || !activeModel) return <p className={styles.status}>Loading…</p>
 
   return (
     <div className={styles.root}>
       <ModelViewer
-        modelUrl={project.modelUrl}
-        scalePreset={project.scalePreset}
-        onElementSelect={project.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
+        modelUrl={activeModel.modelUrl}
+        scalePreset={activeModel.scalePreset}
+        onElementSelect={activeModel.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
       />
+      {project.models.length > 1 && (
+        <div className={styles.modelSwitcher}>
+          {project.models.map((model, index) => (
+            <button
+              key={model.id}
+              type="button"
+              className={index === selectedModelIndex ? styles.modelTabActive : styles.modelTab}
+              onClick={() => selectModel(index)}
+            >
+              {model.name}
+            </button>
+          ))}
+        </div>
+      )}
       <div className={styles.arButton}>
-        <ARHandoff modelUrl={project.modelUrl} scalePreset={project.scalePreset} alt={project.name} />
+        <ARHandoff modelUrl={activeModel.modelUrl} scalePreset={activeModel.scalePreset} alt={activeModel.name} />
       </div>
       <div className={styles.qrCorner}>
         <button type="button" className={styles.qrToggle} onClick={() => setShowQr((current) => !current)}>

@@ -1,5 +1,6 @@
 import { getSupabase } from './supabaseClient'
 import type { NewProject, Project } from '../types/Project'
+import type { ProjectModel } from '../types/ProjectModel'
 import { isScalePreset } from '../types/ScalePreset'
 
 // Only this module talks to Supabase directly -- see
@@ -7,26 +8,40 @@ import { isScalePreset } from '../types/ScalePreset'
 
 const MODEL_BUCKET = 'project-files'
 
+interface ProjectModelJson {
+  id: string
+  name: string
+  modelUrl: string
+  ifcUrl: string | null
+  scalePreset: string
+}
+
 interface ProjectRow {
   id: string
   name: string
-  model_url: string
-  ifc_url: string | null
-  scale_preset: string
   created_at: string
+  models: ProjectModelJson[]
+}
+
+function fromModelJson(projectId: string, model: ProjectModelJson): ProjectModel {
+  if (!isScalePreset(model.scalePreset)) {
+    throw new Error(`Unknown scale preset "${model.scalePreset}" on project ${projectId}`)
+  }
+  return {
+    id: model.id,
+    name: model.name,
+    modelUrl: model.modelUrl,
+    ifcUrl: model.ifcUrl,
+    scalePreset: model.scalePreset,
+  }
 }
 
 function fromRow(row: ProjectRow): Project {
-  if (!isScalePreset(row.scale_preset)) {
-    throw new Error(`Unknown scale preset "${row.scale_preset}" on project ${row.id}`)
-  }
   return {
     id: row.id,
     name: row.name,
-    modelUrl: row.model_url,
-    ifcUrl: row.ifc_url,
-    scalePreset: row.scale_preset,
     createdAt: row.created_at,
+    models: row.models.map((model) => fromModelJson(row.id, model)),
   }
 }
 
@@ -48,28 +63,46 @@ export async function uploadIfcFile(file: File): Promise<string> {
 }
 
 export async function createProject(project: NewProject): Promise<Project> {
-  // Generate the id client-side and skip .select() after the insert.
+  // Generate every id client-side and skip .select() after each insert.
   // Postgres RLS applies SELECT policies to a RETURNING clause too (which
   // is what .select() triggers) -- since there's deliberately no SELECT
-  // policy for anon on `projects` (see schema.sql), .select() would
+  // policy for anon on either table (see schema.sql), .select() would
   // always come back with zero rows and .single() would throw, even
-  // though the insert itself succeeded. Supplying the id ourselves means
-  // we already have everything needed to build the Project without
-  // reading anything back.
+  // though the insert itself succeeded. Supplying ids ourselves means we
+  // already have everything needed to build the Project without reading
+  // anything back.
   const id = crypto.randomUUID()
   const createdAt = new Date().toISOString()
 
-  const { error } = await getSupabase().from('projects').insert({
-    id,
-    name: project.name,
-    model_url: project.modelUrl,
-    ifc_url: project.ifcUrl,
-    scale_preset: project.scalePreset,
-    created_at: createdAt,
-  })
+  const { error: projectError } = await getSupabase()
+    .from('projects')
+    .insert({ id, name: project.name, created_at: createdAt })
+  if (projectError) throw projectError
 
-  if (error) throw error
-  return { id, createdAt, ...project }
+  const models: ProjectModel[] = project.models.map((model) => ({
+    id: crypto.randomUUID(),
+    name: model.name,
+    modelUrl: model.modelUrl,
+    ifcUrl: model.ifcUrl,
+    scalePreset: model.scalePreset,
+  }))
+
+  const { error: modelsError } = await getSupabase()
+    .from('project_models')
+    .insert(
+      models.map((model, index) => ({
+        id: model.id,
+        project_id: id,
+        name: model.name,
+        model_url: model.modelUrl,
+        ifc_url: model.ifcUrl,
+        scale_preset: model.scalePreset,
+        sort_order: index,
+      })),
+    )
+  if (modelsError) throw modelsError
+
+  return { id, createdAt, name: project.name, models }
 }
 
 export async function getProject(id: string): Promise<Project | null> {

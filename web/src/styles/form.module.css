@@ -104,6 +104,53 @@
   margin: 0 0 1rem;
 }
 
+.modelGroup {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.modelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.modelTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.removeButton {
+  border: none;
+  background: none;
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.addButton {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+}
+
+.addButton:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .viewer {
   position: relative;
   width: 100%;
