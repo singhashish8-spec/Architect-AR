@@ -64,7 +64,7 @@ as $$
 declare
   v_passcode_hash text;
 begin
-  select passcode_hash into v_passcode_hash from projects where id = p_id;
+  select passcode_hash into v_passcode_hash from projects where projects.id = p_id;
 
   if v_passcode_hash is not null
      and (p_passcode is null or crypt(p_passcode, v_passcode_hash) <> v_passcode_hash) then

@@ -1,32 +1,8 @@
--- Fixes "function gen_salt(unknown) does not exist" from
--- 003_optional_passcode.sql. Cause: Supabase installs the pgcrypto
--- extension into its `extensions` schema, not `public` -- the two
--- functions below explicitly set search_path = public (a normal
--- SECURITY DEFINER precaution) which left gen_salt()/crypt()
--- unreachable. Re-creates both with `extensions` added to that
--- search_path. Safe to run again if needed.
-
-create or replace function create_project(p_id uuid, p_name text, p_passcode text default null)
-returns void
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-begin
-  insert into projects (id, name, passcode_hash)
-  values (
-    p_id,
-    p_name,
-    case
-      when p_passcode is not null and length(trim(p_passcode)) > 0
-        then crypt(p_passcode, gen_salt('bf'))
-      else null
-    end
-  );
-end;
-$$;
-
-grant execute on function create_project(uuid, text, text) to anon;
+-- Fixes 'column reference "id" is ambiguous' from get_project().
+-- Cause: `returns table (id uuid, ...)` implicitly declares `id` as a
+-- plpgsql variable in scope for the whole function body -- the bare
+-- `where id = p_id` inside was ambiguous between that variable and
+-- `projects.id`. Qualifies it. Safe to run again if needed.
 
 create or replace function get_project(p_id uuid, p_passcode text default null)
 returns table (

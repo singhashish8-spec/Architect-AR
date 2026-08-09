@@ -143,7 +143,11 @@ as $$
 declare
   v_passcode_hash text;
 begin
-  select passcode_hash into v_passcode_hash from projects where id = p_id;
+  -- `projects.id` must be qualified here -- `returns table (id uuid, ...)`
+  -- above implicitly declares `id` as a plpgsql variable in scope for the
+  -- whole function body, so a bare `id` is ambiguous with that variable,
+  -- not just the table's column.
+  select passcode_hash into v_passcode_hash from projects where projects.id = p_id;
 
   if v_passcode_hash is not null
      and (p_passcode is null or crypt(p_passcode, v_passcode_hash) <> v_passcode_hash) then
