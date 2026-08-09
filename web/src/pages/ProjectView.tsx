@@ -9,6 +9,7 @@ import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
+import { getErrorMessage } from '../utils/errorMessage'
 import styles from './ProjectView.module.css'
 
 export function ProjectView() {
@@ -49,7 +50,7 @@ export function ProjectView() {
         }
       } catch (err) {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : 'Failed to load this project.')
+          setLoadError(getErrorMessage(err, 'Failed to load this project.'))
         }
       }
     })()

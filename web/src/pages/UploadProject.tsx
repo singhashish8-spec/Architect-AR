@@ -4,6 +4,7 @@ import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { createProject, uploadIfcFile, uploadModelFile } from '../services/projectService'
 import type { NewProjectModel } from '../types/ProjectModel'
 import type { ScalePreset } from '../types/ScalePreset'
+import { getErrorMessage } from '../utils/errorMessage'
 import styles from '../styles/form.module.css'
 
 // One in-progress model entry in the form -- turned into a
@@ -65,7 +66,7 @@ export function UploadProject() {
       const project = await createProject({ name, models: uploadedModels, passcode })
       await navigate(`/p/${project.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed. Please try again.')
+      setError(getErrorMessage(err, 'Upload failed. Please try again.'))
     } finally {
       setSubmitting(false)
     }
