@@ -8,6 +8,7 @@ import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject } from '../services/projectService'
 import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
+import styles from './ProjectView.module.css'
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -60,21 +61,21 @@ export function ProjectView() {
   if (!project) return <p>Loading…</p>
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+    <div className={styles.root}>
       <ModelViewer
         modelUrl={project.modelUrl}
         scalePreset={project.scalePreset}
         onElementSelect={project.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
       />
-      <div style={{ position: 'absolute', bottom: '1rem', right: '1rem', width: 96, height: 96 }}>
+      <div className={styles.arButton}>
         <ARHandoff modelUrl={project.modelUrl} scalePreset={project.scalePreset} alt={project.name} />
       </div>
-      <div style={{ position: 'absolute', top: '1rem', left: '1rem' }}>
+      <div className={styles.qrCorner}>
         <button type="button" onClick={() => setShowQr((current) => !current)}>
           {showQr ? 'Hide QR code' : 'Get QR code for a printed sheet'}
         </button>
         {showQr && (
-          <div style={{ background: '#fff', padding: '1rem', marginTop: '0.5rem' }}>
+          <div className={styles.qrCode}>
             <ProjectQRCode url={window.location.href} projectName={project.name} />
           </div>
         )}

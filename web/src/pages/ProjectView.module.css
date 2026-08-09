@@ -1,0 +1,35 @@
+.root {
+  position: relative;
+  width: 100vw;
+  /* 100vh on mobile browsers is measured against the largest possible
+     viewport (toolbar collapsed), so fixed-position content near the
+     bottom edge -- like .arButton below -- ends up hidden behind the
+     browser's own address/toolbar chrome when it's expanded. 100dvh
+     tracks the *current* visible viewport instead. Kept as a fallback
+     since older browsers ignore the unsupported dvh line and keep vh. */
+  height: 100vh;
+  height: 100dvh;
+}
+
+.arButton {
+  position: absolute;
+  right: 1rem;
+  width: 96px;
+  height: 96px;
+  /* Layers the same fixed 1rem gap on top of the device's own unsafe
+     area (e.g. a gesture bar) so the button clears both the browser
+     toolbar and any hardware inset, not just one of the two. */
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+
+.qrCorner {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+}
+
+.qrCode {
+  background: #fff;
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
