@@ -11,6 +11,7 @@ import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { SearchPanel } from '../components/SearchPanel'
 import { SchedulePanel } from '../components/SchedulePanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
+import { useProjectViewTracking } from '../hooks/useProjectViewTracking'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
@@ -41,6 +42,12 @@ export function ProjectView() {
   const activeModel = project?.models[selectedModelIndex] ?? null
   const { getElementDataByGlobalId, levels, categories } = useIfcElementData(activeModel?.ifcUrl ?? null)
   const viewerRef = useRef<ModelViewerHandle>(null)
+
+  // Only starts once a project has actually, really loaded -- not while
+  // still checking for a passcode gate or waiting on one to be entered,
+  // so a view only ever gets recorded for someone who actually saw the
+  // model. See docs/features/analytics-and-admin-dashboard.md.
+  useProjectViewTracking(project?.id ?? null)
 
   useEffect(() => {
     if (!projectId) return

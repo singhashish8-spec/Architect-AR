@@ -6,11 +6,23 @@ interface PasscodeGateProps {
   // is the one that actually knows, since it's the one holding the
   // project state that gets populated on success.
   onSubmit: (passcode: string) => Promise<boolean>
+  // Defaults match the original per-project gate's copy -- overridden by
+  // pages/AdminDashboard.tsx, which reuses this same component for its
+  // own passcode gate rather than duplicating the form. See
+  // docs/features/analytics-and-admin-dashboard.md.
+  title?: string
+  description?: string
+  submitLabel?: string
 }
 
 // Shown instead of the viewer when project_requires_passcode() says a
 // project has one set. See docs/features/passcode-protected-links.md.
-export function PasscodeGate({ onSubmit }: PasscodeGateProps) {
+export function PasscodeGate({
+  onSubmit,
+  title = 'Enter passcode',
+  description = 'This project is protected. Ask whoever shared this link for the passcode.',
+  submitLabel = 'View project',
+}: PasscodeGateProps) {
   const [passcode, setPasscode] = useState('')
   const [checking, setChecking] = useState(false)
   const [wrongPasscode, setWrongPasscode] = useState(false)
@@ -30,10 +42,8 @@ export function PasscodeGate({ onSubmit }: PasscodeGateProps) {
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <h1 className={styles.title}>Enter passcode</h1>
-        <p className={styles.subtitle}>
-          This project is protected. Ask whoever shared this link for the passcode.
-        </p>
+        <h1 className={styles.title}>{title}</h1>
+        <p className={styles.subtitle}>{description}</p>
         <form onSubmit={(event) => void handleSubmit(event)}>
           <div className={styles.field}>
             <label htmlFor="gate-passcode" className={styles.label}>
@@ -54,7 +64,7 @@ export function PasscodeGate({ onSubmit }: PasscodeGateProps) {
             </p>
           )}
           <button type="submit" className={styles.button} disabled={checking || !passcode}>
-            {checking ? 'Checking…' : 'View project'}
+            {checking ? 'Checking…' : submitLabel}
           </button>
         </form>
       </div>

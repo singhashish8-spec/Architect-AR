@@ -8,17 +8,27 @@
 
 Last updated: **2026-08-09**, end of Session 5. **Supabase is live and
 the app is running against a real backend for the first time.** Phase 1
-is fully proven end-to-end (Session 4). Phase 2 is in progress: seven
-features shipped this session (multiple models, passcode links,
-levels/rooms navigation, category/discipline visibility, model lighting,
-IFC-only upload, project share card), real live usage found and fixed six
-real bugs along the way.
+is fully proven end-to-end (Session 4). **Phase 2 is now fully built** —
+twelve features shipped this session in total (multiple models, passcode
+links, levels/rooms navigation, category/discipline visibility, model
+lighting + presets, IFC-only upload, project share card, text-only
+branding, search/filter, schedule/quantity-takeoff, view analytics +
+admin dashboard), real live usage found and fixed six real bugs along
+the way. Every item from the original Phase 2 scope in
+[`../roadmap/phases.md`](../roadmap/phases.md) is done except a real
+logo file (deliberately still text-only branding, waiting on the owner).
 
-- **A new SQL migration needs running on the live Supabase project**:
-  [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)
-  adds the optional project description used by the new share card
-  below. Same one-time-upgrade pattern as the earlier migrations this
-  session — run it once in the Supabase SQL editor.
+- **Two new SQL migrations need running on the live Supabase project**,
+  in order:
+  1. [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)
+     — the optional project description used by the share card.
+  2. [`007_analytics_and_admin_dashboard.sql`](../../web/supabase/migrations/007_analytics_and_admin_dashboard.sql)
+     — view analytics + the `/admin` dashboard. **Edit this file and
+     replace `'change-me'` with a real passcode before running it** —
+     that's what unlocks `/admin`; the file ships with a placeholder, not
+     a real credential.
+  Same one-time-upgrade pattern as the earlier migrations this
+  session — run each once in the Supabase SQL editor.
 - **The old "QR code" panel is now a fuller share card** — QR code,
   project name, an optional description (fillable once at upload time),
   the plain link, "Copy link", "Copy for email" (pastes as a real
@@ -48,6 +58,29 @@ real bugs along the way.
   jump reframing the camera, a real category hide removing walls from
   view) — see the feature doc for the full story and the standing lesson
   it left.
+
+- **Rest of Phase 2, all built in the same push**:
+  - **Text-only branding** — "Hiten Sethi & Associates" / "HSA" styled
+    text (navy/indigo) on the upload form and share card only, per the
+    owner's own scoping call, waiting on a real logo file. See
+    [`../features/text-branding.md`](../features/text-branding.md).
+  - **Lighting presets** — Daylight/Evening/Studio picker on top of the
+    environment-lighting foundation from earlier this session. See
+    [`../features/lighting-presets.md`](../features/lighting-presets.md).
+  - **Search/filter + schedule/quantity-takeoff** — a search box and a
+    full counts-per-category list, both isolating and framing matches in
+    the 3D view on selection ("show me every door" works exactly as the
+    original Phase 2 scope described it). See
+    [`../features/search-and-schedule.md`](../features/search-and-schedule.md).
+  - **View analytics + `/admin` dashboard** — records real page views and
+    approximate time-on-page automatically, visible only behind a
+    separate admin passcode on a new `/admin` route, never on a
+    project's own link. See
+    [`../features/analytics-and-admin-dashboard.md`](../features/analytics-and-admin-dashboard.md).
+  All verified against real data in real production builds except the
+  two that need a live Supabase project to fully exercise (the share
+  card and the admin dashboard's actual stats) — see each feature doc's
+  Open Questions.
 
 - **`main` and PR #2 still run two different apps.** Gemini's simpler
   paste-a-URL version is live on `main`/`architect-ar.vercel.app`. This
@@ -180,13 +213,19 @@ real bugs along the way.
   models, and separately one with a passcode, through the real upload
   form.
 - **Test levels/rooms navigation, category/discipline visibility, the
-  new lighting, and IFC-only upload on the live app** — all verified in
-  this session's own sandbox against the real Duplex sample, not yet by
-  the owner. IFC-only upload specifically hasn't been tested through a
-  real live Supabase upload at all (no live credentials in this dev
-  environment) — try uploading a project with just an IFC file, no GLB.
-- **Provide a real logo file** (PNG/SVG, not a chat screenshot) to pick
-  branding back up — see [`../roadmap/decisions.md`](../roadmap/decisions.md).
+  new lighting, IFC-only upload, search/schedule, and the admin
+  dashboard on the live app** — all verified in this session's own
+  sandbox against the real Duplex sample (or, for the admin dashboard,
+  its passcode gate only), not yet by the owner. IFC-only upload and the
+  admin dashboard's actual stats specifically haven't been tested
+  through a real live Supabase round-trip at all (no live credentials in
+  this dev environment).
+- **Run `007_analytics_and_admin_dashboard.sql`** (after editing in a
+  real admin passcode, replacing the `'change-me'` placeholder) to turn
+  on view analytics and unlock `/admin`.
+- **Provide a real logo file** (PNG/SVG, not a chat screenshot) to
+  replace the current text-only branding — see
+  [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - **Add the Supabase env vars to Vercel's Production environment too**
   (only Preview is configured) — needed before this goes live for real,
   not blocking further testing.

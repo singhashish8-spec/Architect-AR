@@ -25,6 +25,7 @@
 | [Text-only branding](text-branding.md) | 2 | Built, verified visually in light and dark mode; waiting on a real logo file to replace it |
 | [Lighting presets (daylight/evening/studio)](lighting-presets.md) | 2 | Built, verified against real data in a real production build |
 | [Search/filter elements, and schedule/quantity-takeoff view](search-and-schedule.md) | 2 | Built, verified against real data in a real production build |
+| [View analytics + admin dashboard](analytics-and-admin-dashboard.md) | 2 | Built, unit-tested, gate UI checked in a real production build; stats not yet checked against a real live Supabase project |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec
