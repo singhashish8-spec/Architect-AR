@@ -58,10 +58,9 @@ export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          <rect x="4" y="2" width="16" height="20" rx="1" />
-          <line x1="4" y1="8" x2="20" y2="8" />
-          <line x1="4" y1="14" x2="20" y2="14" />
-          <line x1="9" y1="22" x2="9" y2="14" />
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
         </svg>
         <span className={labelStyles.label}>{open ? 'Hide levels & rooms' : 'Levels & rooms'}</span>
       </button>
