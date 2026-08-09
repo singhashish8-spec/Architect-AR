@@ -7,6 +7,7 @@ import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { SearchPanel } from '../components/SearchPanel'
+import { SchedulePanel } from '../components/SchedulePanel'
 import { ConversionProgressBar } from '../components/ConversionProgressBar'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
@@ -200,6 +201,11 @@ export function LocalPreview() {
             <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
             <SearchPanel
               levels={levels}
+              categories={categories}
+              onIsolate={setHiddenGlobalIds}
+              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+            />
+            <SchedulePanel
               categories={categories}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}

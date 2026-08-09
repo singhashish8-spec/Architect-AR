@@ -1,10 +1,15 @@
-# Feature: search/filter elements
+# Feature: search/filter elements, and the schedule/quantity-takeoff view
 
 > Part of [`features/`](README.md). Phase 2. Status: **built, verified
 > against real data in a real production build** — searching "door"
 > against the real Duplex sample correctly isolated every door across the
 > whole building (all other elements hidden) and framed the camera around
-> all of them together.
+> all of them together; the schedule panel correctly listed and isolated
+> "Windows: 24" the same way.
+
+Two closely related features in one doc, since they share the same
+underlying data and the same isolate/jump mechanism — search finds by
+typing, the schedule shows the full list with counts up front.
 
 ## Summary
 
@@ -58,15 +63,32 @@ then hides everything *except* the selected result's elements. Reuses
 the exact same `hiddenGlobalIds` prop `ModelViewer.tsx` already had for
 category hide/show — no viewer changes needed for this feature at all.
 
+## Feature: schedule/quantity-takeoff view
+
+A left-edge slide-in panel (`SchedulePanel.tsx`, matching
+`ElementDataPanel.tsx`'s own slide-in style, opposite edge so the two
+don't collide) listing every category's element count, grouped by
+discipline, with a grand total — the "list form of the same IFC data,
+not just tap-to-inspect" from the original Phase 2 scope. Rows sorted by
+count (highest first) within each discipline, since those are generally
+what someone doing a takeoff cares about first. Clicking a row isolates
+and frames that category, exactly like a search result does — reuses the
+same isolate mechanism (`utils/scheduleData.ts`'s `buildSchedule()` is
+the schedule-shaped equivalent of `searchResults.ts`'s per-category
+grouping).
+
 ## Open questions
 
-- **Shares one `hiddenGlobalIds` slot with the Categories panel.**
-  Using search-isolate and then toggling a category checkbox afterward
-  makes the category panel's own hide/show state win (it recomputes the
-  whole hidden set from its own checkboxes on every change), silently
-  discarding the search isolation. Each feature works correctly and
-  predictably on its own; using both together in the same session, the
-  most-recently-changed one wins — a reasonable, unsurprising default,
-  but a real limitation if the two ever need to genuinely compose (e.g.
-  "hide MEP AND isolate to just this room").
-- No fuzzy matching or typo tolerance — plain substring match only.
+- **Search and schedule share one `hiddenGlobalIds` slot with the
+  Categories panel** (and with each other). Using one isolate/hide
+  action and then another (search → schedule, or either → toggling a
+  category checkbox) makes the most-recently-changed one win — each
+  works correctly and predictably on its own, but they don't compose.
+  Reasonable as a first version; would need real merging logic if these
+  ever need to combine (e.g. "hide MEP AND isolate to just this room").
+- No fuzzy matching or typo tolerance in search — plain substring match
+  only.
+- The schedule counts classified elements only (same real-physical-only
+  scope as the Categories panel) — an unmapped element type is invisible
+  to both the schedule and search, same known limitation documented in
+  [`category-and-discipline-visibility.md`](category-and-discipline-visibility.md).
