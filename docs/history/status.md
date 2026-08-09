@@ -38,7 +38,25 @@ bugs along the way.
     casing assumption was caught and fixed before ever telling the owner
     to test it). See
     [`../features/levels-and-rooms-navigation.md`](../features/levels-and-rooms-navigation.md).
-    Not yet tested by the owner on the live app.
+    Not yet tested by the owner on the live app. **A real scale bug was
+    found and fixed** — the "jump" distance used a fixed real-world-unit
+    floor that silently dominated at any scale other than 1:1, so every
+    room jump landed at roughly the same distance regardless of size.
+  - **Category and discipline visibility** — built. See
+    [`../features/category-and-discipline-visibility.md`](../features/category-and-discipline-visibility.md).
+    Architecture/Structure categorization verified live against real
+    data (a real bug was found and fixed here too — the first version
+    surfaced IFC bookkeeping entities like "PropertySet" as if they were
+    physical-element categories). MEP sub-discipline detection
+    (Plumbing/Fire/HVAC/etc.) is NOT verified against real MEP data —
+    owner's explicit choice to ship now, verify once a real MEP export
+    exists.
+  - **Confirmed a real technical limit, not a gap**: neither camera
+    focus nor hidden categories can carry into "View in AR" — Scene
+    Viewer/Quick Look always re-fetch the original, complete, unmodified
+    file with no page context passed along (confirmed by reading
+    `<model-viewer>`'s own intent-building code). True persistent/filtered
+    AR needs the custom AR camera view already scoped for Phase 4.
 - **Real live testing surfaced and fixed four real bugs in a row** —
   see [`sessions/2026-08-09-session-05.md`](sessions/2026-08-09-session-05.md)
   for the full story on each:
