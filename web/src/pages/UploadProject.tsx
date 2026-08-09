@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
+import { ConversionProgressBar } from '../components/ConversionProgressBar'
 import { createProject, uploadIfcFile, uploadModelFile } from '../services/projectService'
+import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
 import type { NewProjectModel } from '../types/ProjectModel'
 import type { ScalePreset } from '../types/ScalePreset'
 import { getErrorMessage } from '../utils/errorMessage'
@@ -28,6 +30,12 @@ export function UploadProject() {
   const [passcode, setPasscode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Which model draft is currently being converted, plus that
+  // conversion's own progress -- only ever one at a time, since models
+  // upload sequentially in handleSubmit below.
+  const [conversion, setConversion] = useState<{ modelIndex: number; progress: ConversionProgress } | null>(
+    null,
+  )
 
   function updateModel(index: number, patch: Partial<ModelDraft>) {
     setModels((current) => current.map((model, i) => (i === index ? { ...model, ...patch } : model)))
@@ -41,7 +49,12 @@ export function UploadProject() {
     setModels((current) => current.filter((_, i) => i !== index))
   }
 
-  const canSubmit = models.every((model) => model.modelFile && model.scalePreset)
+  // A model needs either a GLB (uploaded as-is) or an IFC file (converted
+  // to a GLB automatically -- see ifc/ifcToGlb.ts) to have anything to
+  // show in the viewer or hand off to "View in AR". Both together is
+  // fine too (the given GLB is used as-is; the IFC still powers
+  // tap-to-inspect/levels/categories, same as before this feature).
+  const canSubmit = models.every((model) => (model.modelFile || model.ifcFile) && model.scalePreset)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -53,8 +66,26 @@ export function UploadProject() {
       const uploadedModels: NewProjectModel[] = []
       for (const [index, draft] of models.entries()) {
         // canSubmit already guarantees these, but TS can't see that here.
-        if (!draft.modelFile || !draft.scalePreset) continue
-        const modelUrl = await uploadModelFile(draft.modelFile)
+        if (!(draft.modelFile || draft.ifcFile) || !draft.scalePreset) continue
+
+        let modelUrl: string
+        if (draft.modelFile) {
+          modelUrl = await uploadModelFile(draft.modelFile)
+        } else {
+          // No GLB given -- build one from the IFC file's own geometry
+          // instead of requiring a separately-exported model file. Real
+          // Revit/IFC materials are flat colors either way (see
+          // docs/roadmap/decisions.md), so this loses nothing over a
+          // hand-supplied GLB that also has no real textures.
+          const glbBlob = await convertIfcToGlb(draft.ifcFile!, (progress) => {
+            setConversion({ modelIndex: index, progress })
+          })
+          setConversion(null)
+          const glbFile = new File([glbBlob], `${draft.ifcFile!.name.replace(/\.ifc$/i, '')}.glb`, {
+            type: 'model/gltf-binary',
+          })
+          modelUrl = await uploadModelFile(glbFile)
+        }
         const ifcUrl = draft.ifcFile ? await uploadIfcFile(draft.ifcFile) : null
         uploadedModels.push({
           name: draft.name.trim() || `Model ${index + 1}`,
@@ -68,6 +99,7 @@ export function UploadProject() {
     } catch (err) {
       setError(getErrorMessage(err, 'Upload failed. Please try again.'))
     } finally {
+      setConversion(null)
       setSubmitting(false)
     }
   }
@@ -122,13 +154,12 @@ export function UploadProject() {
 
               <div className={styles.field}>
                 <label htmlFor={`model-file-${index}`} className={styles.label}>
-                  Model file (glTF / GLB)
+                  Model file (glTF / GLB) — optional
                 </label>
                 <input
                   id={`model-file-${index}`}
                   type="file"
                   accept=".glb,.gltf"
-                  required
                   className={styles.fileInput}
                   onChange={(event) => updateModel(index, { modelFile: event.target.files?.[0] ?? null })}
                 />
@@ -136,7 +167,7 @@ export function UploadProject() {
 
               <div className={styles.field}>
                 <label htmlFor={`ifc-file-${index}`} className={styles.label}>
-                  IFC file (optional — enables tap-to-inspect)
+                  IFC file — required if no model file is given above; also enables tap-to-inspect
                 </label>
                 <input
                   id={`ifc-file-${index}`}
@@ -145,6 +176,13 @@ export function UploadProject() {
                   className={styles.fileInput}
                   onChange={(event) => updateModel(index, { ifcFile: event.target.files?.[0] ?? null })}
                 />
+                {!model.modelFile && model.ifcFile && (
+                  <p className={styles.subtitle}>
+                    No model file given — we'll build the 3D view straight from this IFC file when you
+                    submit. Materials will show as flat colors, not real textures, since IFC doesn't
+                    carry those.
+                  </p>
+                )}
               </div>
 
               <div className={styles.field}>
@@ -158,6 +196,8 @@ export function UploadProject() {
                   onChange={(value) => updateModel(index, { scalePreset: value })}
                 />
               </div>
+
+              {conversion?.modelIndex === index && <ConversionProgressBar progress={conversion.progress} />}
             </div>
           ))}
 
@@ -186,7 +226,7 @@ export function UploadProject() {
           )}
 
           <button type="submit" className={styles.button} disabled={submitting || !canSubmit}>
-            {submitting ? 'Uploading…' : 'Create shareable link'}
+            {submitting ? (conversion ? 'Converting…' : 'Uploading…') : 'Create shareable link'}
           </button>
         </form>
       </div>

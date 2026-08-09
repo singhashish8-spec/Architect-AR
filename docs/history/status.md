@@ -8,10 +8,23 @@
 
 Last updated: **2026-08-09**, end of Session 5. **Supabase is live and
 the app is running against a real backend for the first time.** Phase 1
-is fully proven end-to-end (Session 4). Phase 2 is in progress: five
+is fully proven end-to-end (Session 4). Phase 2 is in progress: six
 features shipped this session (multiple models, passcode links,
-levels/rooms navigation, category/discipline visibility, model lighting),
-real live usage found and fixed five real bugs along the way.
+levels/rooms navigation, category/discipline visibility, model lighting,
+IFC-only upload), real live usage found and fixed six real bugs along the
+way.
+
+- **Uploading a project no longer requires a separately-exported GLB.**
+  Given just an IFC file, the app now builds a real, hostable 3D model
+  from the IFC's own geometry in-browser at upload time — see
+  [`../features/ifc-only-upload.md`](../features/ifc-only-upload.md).
+  Real textures still can't come from IFC (a Revit/IFC limitation, not
+  something this works around — the free path for real textures is noted
+  in the decisions log below), and this hasn't been tested through a real
+  live Supabase upload yet (no live credentials in this dev environment),
+  but every downstream feature (AR, tap-to-inspect, category hide/show,
+  levels/rooms) was verified working unchanged against the auto-generated
+  model.
 
 - **`main` and PR #2 still run two different apps.** Gemini's simpler
   paste-a-URL version is live on `main`/`architect-ar.vercel.app`. This
@@ -143,9 +156,12 @@ real live usage found and fixed five real bugs along the way.
   pgcrypto/ambiguous-id SQL bugs are fixed — create a project with 2+
   models, and separately one with a passcode, through the real upload
   form.
-- **Test levels/rooms navigation, category/discipline visibility, and the
-  new lighting on the live app** — all verified in this session's own
-  sandbox against the real Duplex sample, not yet by the owner.
+- **Test levels/rooms navigation, category/discipline visibility, the
+  new lighting, and IFC-only upload on the live app** — all verified in
+  this session's own sandbox against the real Duplex sample, not yet by
+  the owner. IFC-only upload specifically hasn't been tested through a
+  real live Supabase upload at all (no live credentials in this dev
+  environment) — try uploading a project with just an IFC file, no GLB.
 - **Provide a real logo file** (PNG/SVG, not a chat screenshot) to pick
   branding back up — see [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - **Add the Supabase env vars to Vercel's Production environment too**

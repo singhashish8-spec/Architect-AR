@@ -5,9 +5,12 @@ import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
+import { ConversionProgressBar } from '../components/ConversionProgressBar'
 import { useIfcElementData } from '../ifc/useIfcElementData'
+import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
+import { getErrorMessage } from '../utils/errorMessage'
 import styles from '../styles/form.module.css'
 
 // Loads a model straight from the visitor's own device via a local blob
@@ -25,23 +28,69 @@ export function LocalPreview() {
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   const [selecting, setSelecting] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
+  const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null)
+  const [conversionError, setConversionError] = useState<string | null>(null)
 
   const { getElementDataByGlobalId, levels, categories } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Blob URLs must be revoked when no longer needed, or the browser keeps
   // the file data alive in memory for the life of the tab. setState calls
-  // deferred into an inner function -- same react-hooks/set-state-in-effect
+  // deferred into an async IIFE -- same react-hooks/set-state-in-effect
   // workaround used in ifc/useIfcElementData.ts.
+  //
+  // When only an IFC file is given (no GLB), there's nothing to point a
+  // blob URL at yet -- build one ourselves from the IFC's own geometry
+  // (ifc/ifcToGlb.ts) instead of requiring a separately-exported model
+  // file. See docs/features/ifc-only-upload.md.
   useEffect(() => {
-    if (!modelFile) {
-      ;(() => setModelUrl(null))()
+    if (modelFile) {
+      const url = URL.createObjectURL(modelFile)
+      ;(() => {
+        setConversionProgress(null)
+        setConversionError(null)
+        setModelUrl(url)
+      })()
+      return () => URL.revokeObjectURL(url)
+    }
+
+    if (!ifcFile) {
+      ;(() => {
+        setModelUrl(null)
+        setConversionProgress(null)
+        setConversionError(null)
+      })()
       return
     }
-    const url = URL.createObjectURL(modelFile)
-    ;(() => setModelUrl(url))()
-    return () => URL.revokeObjectURL(url)
-  }, [modelFile])
+
+    let cancelled = false
+    let generatedUrl: string | null = null
+
+    void (async () => {
+      setModelUrl(null)
+      setConversionError(null)
+      setConversionProgress({ phase: 'parsing', current: 0, total: 1 })
+      try {
+        const blob = await convertIfcToGlb(ifcFile, (progress) => {
+          if (!cancelled) setConversionProgress(progress)
+        })
+        if (cancelled) return
+        generatedUrl = URL.createObjectURL(blob)
+        setModelUrl(generatedUrl)
+      } catch (err) {
+        if (!cancelled) {
+          setConversionError(getErrorMessage(err, 'Could not build a 3D view from this IFC file.'))
+        }
+      } finally {
+        if (!cancelled) setConversionProgress(null)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      if (generatedUrl) URL.revokeObjectURL(generatedUrl)
+    }
+  }, [modelFile, ifcFile])
 
   useEffect(() => {
     if (!ifcFile) {
@@ -81,7 +130,7 @@ export function LocalPreview() {
 
         <div className={styles.field}>
           <label htmlFor="local-model-file" className={styles.label}>
-            Model file (glTF / GLB)
+            Model file (glTF / GLB) — optional
           </label>
           <input
             id="local-model-file"
@@ -94,7 +143,7 @@ export function LocalPreview() {
 
         <div className={styles.field}>
           <label htmlFor="local-ifc-file" className={styles.label}>
-            IFC file (optional — enables tap-to-inspect)
+            IFC file — required if no model file is given above; also enables tap-to-inspect
           </label>
           <input
             id="local-ifc-file"
@@ -103,7 +152,20 @@ export function LocalPreview() {
             className={styles.fileInput}
             onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
           />
+          {!modelFile && ifcFile && (
+            <p className={styles.subtitle}>
+              No model file given — building a 3D view straight from this IFC file's own shapes.
+              Materials will show as flat colors, not real textures, since IFC doesn't carry those.
+            </p>
+          )}
         </div>
+
+        {conversionProgress && <ConversionProgressBar progress={conversionProgress} />}
+        {conversionError && (
+          <p role="alert" className={styles.error}>
+            {conversionError}
+          </p>
+        )}
 
         <div className={styles.field}>
           <label htmlFor="local-scale-preset" className={styles.label}>

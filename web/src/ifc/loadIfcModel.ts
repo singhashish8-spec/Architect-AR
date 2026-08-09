@@ -16,13 +16,10 @@ export interface IfcModel {
   modelId: number
 }
 
-export async function loadIfcModel(ifcUrl: string): Promise<IfcModel> {
-  const response = await fetch(ifcUrl)
-  if (!response.ok) {
-    throw new Error(`Failed to fetch IFC file: ${response.status} ${response.statusText}`)
-  }
-  const buffer = new Uint8Array(await response.arrayBuffer())
-
+// Opens an already-in-memory IFC buffer -- shared by loadIfcModel (fetches
+// the buffer from a URL first) and ifcToGlb.ts (converts a buffer the user
+// just picked in a file input, before it's been uploaded anywhere).
+export async function openIfcModel(buffer: Uint8Array): Promise<IfcModel> {
   const api = new WebIFC.IfcAPI()
   // The `true` here is load-bearing: SetWasmPath's second argument means
   // "this path is absolute (site-root relative)", not "relative to the
@@ -39,4 +36,13 @@ export async function loadIfcModel(ifcUrl: string): Promise<IfcModel> {
 
   const modelId = api.OpenModel(buffer)
   return { api, modelId }
+}
+
+export async function loadIfcModel(ifcUrl: string): Promise<IfcModel> {
+  const response = await fetch(ifcUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch IFC file: ${response.status} ${response.statusText}`)
+  }
+  const buffer = new Uint8Array(await response.arrayBuffer())
+  return openIfcModel(buffer)
 }
