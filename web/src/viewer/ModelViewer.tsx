@@ -6,6 +6,8 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { resolveNodeNameToExpressId } from '../ifc/ifcPropertyLookup'
 import type { ScalePreset } from '../types/ScalePreset'
 import { visualScale } from '../types/ScalePreset'
+import type { LightingPreset } from '../types/LightingPreset'
+import { BASE_LIGHT_CONFIGS, LIGHTFORMER_CONFIGS } from '../types/LightingPreset'
 
 export interface ModelViewerHandle {
   // Frames the camera around every mesh whose name resolves to one of
@@ -30,6 +32,9 @@ interface ModelViewerProps {
   // element counts this app deals with. See
   // docs/features/category-and-discipline-visibility.md.
   hiddenGlobalIds?: Set<string>
+  // Client-side-only viewing preference, not persisted anywhere -- see
+  // docs/features/lighting-presets.md. Defaults to 'daylight'.
+  lightingPreset?: LightingPreset
 }
 
 function Model({
@@ -146,11 +151,13 @@ function CameraRig({
 }
 
 export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(function ModelViewer(
-  { modelUrl, scalePreset, onElementSelect, hiddenGlobalIds },
+  { modelUrl, scalePreset, onElementSelect, hiddenGlobalIds, lightingPreset = 'daylight' },
   ref,
 ) {
   const sceneRef = useRef<THREE.Object3D | null>(null)
   const focusHandlerRef = useRef<((globalIds: string[]) => void) | null>(null)
+  const baseLight = BASE_LIGHT_CONFIGS[lightingPreset]
+  const lightformers = LIGHTFORMER_CONFIGS[lightingPreset]
 
   useImperativeHandle(
     ref,
@@ -164,8 +171,8 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
 
   return (
     <Canvas camera={{ position: [CAMERA_DISTANCE, CAMERA_DISTANCE, CAMERA_DISTANCE], fov: 50 }}>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[10, 10, 5]} intensity={1} />
+      <ambientLight intensity={baseLight.ambientIntensity} />
+      <directionalLight position={[10, 10, 5]} intensity={baseLight.directionalIntensity} color={baseLight.directionalColor} />
       <Suspense fallback={null}>
         {/* Without this, PBR materials (glass, metal, anything glossy)
             have nothing to reflect and render flat regardless of what
@@ -182,31 +189,21 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
             entirely on-device, so there is nothing to fetch and nothing
             that can hang. Not shown as a visible background/skybox
             (background defaults to false), just used as a lighting
-            source. See docs/features/model-lighting.md for the fuller
-            lighting-preset feature this sets the foundation for. */}
-        <Environment resolution={256}>
-          <Lightformer intensity={2} color="white" position={[0, 5, 0]} scale={[10, 10, 1]} />
-          <Lightformer
-            intensity={1}
-            color="white"
-            position={[-5, 1, 0]}
-            rotation={[0, Math.PI / 2, 0]}
-            scale={[10, 5, 1]}
-          />
-          <Lightformer
-            intensity={1}
-            color="white"
-            position={[5, 1, 0]}
-            rotation={[0, -Math.PI / 2, 0]}
-            scale={[10, 5, 1]}
-          />
-          <Lightformer
-            intensity={0.5}
-            color="white"
-            position={[0, 1, -5]}
-            rotation={[0, 0, 0]}
-            scale={[10, 5, 1]}
-          />
+            source. The actual panel configuration per mood
+            (daylight/evening/studio) lives in types/LightingPreset.ts,
+            re-keyed here so this component doesn't need to know the
+            preset's internals. See docs/features/lighting-presets.md. */}
+        <Environment key={lightingPreset} resolution={256}>
+          {lightformers.map((formatter, index) => (
+            <Lightformer
+              key={index}
+              intensity={formatter.intensity}
+              color={formatter.color}
+              position={formatter.position}
+              rotation={formatter.rotation}
+              scale={formatter.scale}
+            />
+          ))}
         </Environment>
         <Model
           modelUrl={modelUrl}

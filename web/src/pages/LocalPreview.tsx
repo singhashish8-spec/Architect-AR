@@ -5,11 +5,13 @@ import { ElementDataPanel } from '../components/ElementDataPanel'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
+import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { ConversionProgressBar } from '../components/ConversionProgressBar'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
+import type { LightingPreset } from '../types/LightingPreset'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from '../styles/form.module.css'
 
@@ -30,6 +32,7 @@ export function LocalPreview() {
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null)
   const [conversionError, setConversionError] = useState<string | null>(null)
+  const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
 
   const { getElementDataByGlobalId, levels, categories } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
@@ -188,10 +191,12 @@ export function LocalPreview() {
             scalePreset={scalePreset}
             onElementSelect={ifcUrl ? (id) => void handleElementSelect(id) : undefined}
             hiddenGlobalIds={hiddenGlobalIds}
+            lightingPreset={lightingPreset}
           />
           <div className={styles.viewerTopRightCorner}>
             <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
             <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+            <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
           </div>
           <ElementDataPanel
             data={selectedElement}

@@ -1,4 +1,13 @@
 .card {
+  /* This card is always dark-styled regardless of the visitor's system
+     theme (see `background` below) -- override the brand tokens locally
+     to their dark-mode values so BrandMark's text stays legible even
+     when the OS is in light mode, where the root :root would otherwise
+     hand it the *light*-mode (dark indigo) brand color meant for a
+     light card background. */
+  --color-brand: #818cf8;
+  --color-brand-hover: #a5b4fc;
+
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -61,4 +70,5 @@
 
 .actionButton:hover {
   background: rgba(255, 255, 255, 0.12);
+  border-color: var(--color-brand);
 }

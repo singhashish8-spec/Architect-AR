@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { buildShareHtml, buildShareText } from '../utils/projectShareText'
+import { BrandMark } from './BrandMark'
 import styles from './ProjectShareCard.module.css'
 
 interface ProjectShareCardProps {
@@ -95,6 +96,7 @@ export function ProjectShareCard({ url, projectName, description }: ProjectShare
 
   return (
     <div className={styles.card}>
+      <BrandMark />
       <QRCodeSVG ref={svgRef} value={url} size={160} level="M" />
 
       <div className={styles.details}>

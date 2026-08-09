@@ -11,6 +11,13 @@
   --color-primary: #4f8cff;
   --color-primary-hover: #6d9fff;
   --color-danger: #ff6b6b;
+  /* Hiten Sethi & Associates' navy/indigo -- used as an accent only, and
+     only on the upload form and share card (see
+     docs/features/text-branding.md) -- never on the 3D viewer itself, per
+     the owner's own scoping decision. Swap for real logo colors once a
+     brand file exists. */
+  --color-brand: #818cf8;
+  --color-brand-hover: #a5b4fc;
   --radius: 12px;
   --radius-sm: 8px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -27,6 +34,8 @@
     --color-primary: #2f6fed;
     --color-primary-hover: #1f5ee0;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    --color-brand: #3730a3;
+    --color-brand-hover: #312e81;
   }
 }
 

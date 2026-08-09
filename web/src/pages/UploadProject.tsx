@@ -2,12 +2,14 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { ConversionProgressBar } from '../components/ConversionProgressBar'
+import { BrandMark } from '../components/BrandMark'
 import { createProject, uploadIfcFile, uploadModelFile } from '../services/projectService'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
 import type { NewProjectModel } from '../types/ProjectModel'
 import type { ScalePreset } from '../types/ScalePreset'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from '../styles/form.module.css'
+import uploadStyles from './UploadProject.module.css'
 
 // One in-progress model entry in the form -- turned into a
 // NewProjectModel (with real uploaded URLs) at submit time. Kept
@@ -108,6 +110,7 @@ export function UploadProject() {
   return (
     <main className={styles.page}>
       <div className={styles.card}>
+        <BrandMark />
         <h1 className={styles.title}>New project</h1>
         <p className={styles.subtitle}>
           <Link to="/local" className={styles.link}>
@@ -240,7 +243,11 @@ export function UploadProject() {
             </p>
           )}
 
-          <button type="submit" className={styles.button} disabled={submitting || !canSubmit}>
+          <button
+            type="submit"
+            className={`${styles.button} ${uploadStyles.brandButton}`}
+            disabled={submitting || !canSubmit}
+          >
             {submitting ? (conversion ? 'Converting…' : 'Uploading…') : 'Create shareable link'}
           </button>
         </form>

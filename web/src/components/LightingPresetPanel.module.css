@@ -1,0 +1,38 @@
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.panel {
+  max-width: min(200px, calc(100vw - 2rem));
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgba(20, 20, 24, 0.92);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.optionRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.35rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.optionRow:hover {
+  background: rgba(255, 255, 255, 0.08);
+}

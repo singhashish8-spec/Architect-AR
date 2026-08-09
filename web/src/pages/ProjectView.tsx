@@ -7,10 +7,12 @@ import { ProjectShareCard } from '../components/ProjectShareCard'
 import { PasscodeGate } from '../components/PasscodeGate'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
+import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
+import type { LightingPreset } from '../types/LightingPreset'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './ProjectView.module.css'
 import labelStyles from '../styles/responsiveLabel.module.css'
@@ -32,6 +34,7 @@ export function ProjectView() {
   const [selecting, setSelecting] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
+  const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
 
   const activeModel = project?.models[selectedModelIndex] ?? null
   const { getElementDataByGlobalId, levels, categories } = useIfcElementData(activeModel?.ifcUrl ?? null)
@@ -111,6 +114,7 @@ export function ProjectView() {
         scalePreset={activeModel.scalePreset}
         onElementSelect={activeModel.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
         hiddenGlobalIds={hiddenGlobalIds}
+        lightingPreset={lightingPreset}
       />
       {project.models.length > 1 && (
         <div className={styles.modelSwitcher}>
@@ -132,6 +136,7 @@ export function ProjectView() {
       <div className={styles.topRightCorner}>
         <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
         <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+        <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
       </div>
       <div className={styles.qrCorner}>
         <button
