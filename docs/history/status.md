@@ -61,6 +61,15 @@ building, not a generic sample or a unit test alone.
   itself interactive needs a custom-built AR camera view, already scoped
   for Phase 4 — see
   [`../features/ar-walkthrough.md`](../features/ar-walkthrough.md).
+- **Fixed the AR button rendering a second copy of the model**: it was a
+  full `<model-viewer ar>` sized to fill its corner box, which always
+  renders its own complete 3D scene — a second, redundant render of the
+  building, not an icon. Now kept off-screen (only used to call
+  `activateAR()`) behind a normal styled button.
+- **Gave the app real visual styling for the first time** — every page
+  had been raw unstyled HTML. Added light/dark-aware design tokens
+  (`src/index.css`) and a shared card/form stylesheet, with matching
+  polish on `ProjectView`'s floating AR/QR controls.
 - **Code**: `web/` (PR #2) has upload flow, Supabase schema, R3F viewer
   with scale-aware model transform, `<model-viewer>` AR handoff, IFC
   parsing + property lookup (handling two node-naming conventions and
