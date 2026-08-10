@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { ScalePresetSelect } from '../../components/ScalePresetSelect'
+import { ConversionProgressBar } from '../../components/ConversionProgressBar'
 import {
   addAdminModel,
   deleteAdminModel,
@@ -8,6 +9,7 @@ import {
   updateAdminModel,
 } from '../../services/adminService'
 import { uploadIfcFile, uploadModelFile } from '../../services/projectService'
+import { convertIfcToGlb, type ConversionProgress } from '../../ifc/ifcToGlb'
 import type { AdminProjectModel } from '../../types/ProjectModel'
 import type { ScalePreset } from '../../types/ScalePreset'
 import { getErrorMessage } from '../../utils/errorMessage'
@@ -303,6 +305,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
   const [ifcFile, setIfcFile] = useState<File | null>(null)
   const [scalePreset, setScalePreset] = useState<ScalePreset | ''>('')
   const [submitting, setSubmitting] = useState(false)
+  const [conversion, setConversion] = useState<ConversionProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const canSubmit = (modelFile || ifcFile) && scalePreset
@@ -312,18 +315,30 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
     setSubmitting(true)
     setError(null)
     try {
-      const modelUrl = modelFile ? await uploadModelFile(modelFile) : null
+      let modelUrl: string
+      if (modelFile) {
+        modelUrl = await uploadModelFile(modelFile)
+      } else {
+        // No GLB given, only an IFC file -- build one from the IFC's own
+        // geometry, same as ProjectCreateForm.tsx does for the same
+        // situation on the "new project" form. This used to instead
+        // store the *IFC file's own URL* as modelUrl (`modelUrl ??
+        // ifcUrl!`, no conversion at all) -- the viewer then tried to
+        // load a plain-text IFC file as if it were a glTF/GLB binary,
+        // which never resolves. From the admin's side that looked
+        // exactly like the page getting stuck on "Adding…" forever, not
+        // like a clear error, since nothing ever actually threw.
+        const glbBlob = await convertIfcToGlb(ifcFile!, setConversion)
+        setConversion(null)
+        const glbFile = new File([glbBlob], `${ifcFile!.name.replace(/\.ifc$/i, '')}.glb`, {
+          type: 'model/gltf-binary',
+        })
+        modelUrl = await uploadModelFile(glbFile)
+      }
       const ifcUrl = ifcFile ? await uploadIfcFile(ifcFile) : null
-      if (!modelUrl && !ifcUrl) throw new Error('Give either a model file or an IFC file.')
       await addAdminModel(passcode, projectId, {
         name: name.trim() || 'New model',
-        // A model file is required by NewProjectModel's shape -- see the
-        // same note this had in the old AdminProjectEditor.tsx: an
-        // IFC-only add still needs some viewable geometry, and
-        // converting IFC to a GLB here would duplicate
-        // ProjectCreateForm.tsx's conversion logic for a case admins can
-        // also cover by uploading a GLB alongside the IFC.
-        modelUrl: modelUrl ?? ifcUrl!,
+        modelUrl,
         ifcUrl,
         scalePreset,
       })
@@ -331,6 +346,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
     } catch (err) {
       setError(getErrorMessage(err, 'Could not add this model.'))
     } finally {
+      setConversion(null)
       setSubmitting(false)
     }
   }
@@ -351,7 +367,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       </div>
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor={`add-model-file-${projectId}`}>
-          Model file (glTF / GLB)
+          Model file (glTF / GLB) — optional
         </label>
         <input
           id={`add-model-file-${projectId}`}
@@ -363,7 +379,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       </div>
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor={`add-model-ifc-${projectId}`}>
-          IFC file (optional — enables tap-to-inspect)
+          IFC file — required if no model file is given above; also enables tap-to-inspect
         </label>
         <input
           id={`add-model-ifc-${projectId}`}
@@ -372,6 +388,12 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
           className={formStyles.fileInput}
           onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
         />
+        {!modelFile && ifcFile && (
+          <p className={formStyles.subtitle}>
+            No model file given — we'll build the 3D view straight from this IFC file when you submit.
+            Materials will show as flat colors, not real textures, since IFC doesn't carry those.
+          </p>
+        )}
       </div>
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor={`add-model-scale-${projectId}`}>
@@ -384,6 +406,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
           onChange={setScalePreset}
         />
       </div>
+      {conversion && <ConversionProgressBar progress={conversion} />}
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -391,7 +414,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       )}
       <div className={styles.modelRowActions}>
         <button type="button" className={styles.saveButton} onClick={() => void handleAdd()} disabled={submitting || !canSubmit}>
-          {submitting ? 'Adding…' : 'Add model'}
+          {submitting ? (conversion ? 'Converting…' : 'Adding…') : 'Add model'}
         </button>
         <button type="button" className={styles.smallButton} onClick={onCancel} disabled={submitting}>
           Cancel

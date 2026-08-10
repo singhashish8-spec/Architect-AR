@@ -176,12 +176,59 @@ before; this feature only changes *where the GLB comes from*.
   path is identical to the already-live-tested manual-GLB path once the
   GLB blob exists, but the owner should confirm a real end-to-end IFC-only
   upload once testing live.
-- **Conversion time on a real, large building is unverified.** Only
-  tested against the small/medium Duplex sample (224 elements, 728
-  placed geometries, converts in well under a second in this
-  environment). A real multi-story building could be meaningfully
-  slower — the progress bar exists specifically because of this
-  uncertainty, but no real large-file timing has been measured yet.
 - Same open MEP/real-export caveats as the rest of this project's IFC
   handling — see [`category-and-discipline-visibility.md`](category-and-discipline-visibility.md)
   and [`../roadmap/decisions.md`](../roadmap/decisions.md).
+
+## Addendum: the page looked frozen on a real project ("new project" AND "add/edit model")
+
+The owner reported the page getting stuck on "loading" both creating a
+brand-new project and separately adding/replacing a model on an
+existing one — both real projects, not the small Duplex sample every
+check above was run against. Two separate real bugs, found by reading
+the actual conversion/upload code rather than guessing:
+
+**1. The geometry loop in `convertIfcToGlb()` (`ifc/ifcToGlb.ts`) never
+yielded to the browser.** The per-element loop that turns each IFC
+element into a mesh ran as one uninterrupted synchronous block from
+start to finish — invisible on the small Duplex sample (a couple
+hundred elements, done in well under a second, exactly why the earlier
+"conversion time on a large building is unverified" open question above
+went unanswered for so long), but a real building's worth of elements
+can keep that loop running for many seconds. A blocked main thread
+can't repaint anything, including the progress bar this whole feature
+built specifically so "someone waiting doesn't assume the page has
+frozen" (see `ConversionProgressBar.tsx`'s own comment) — so on a big
+enough file, even that safeguard couldn't show itself. Fixed by handing
+control back to the browser every 25 elements
+(`await new Promise((resolve) => setTimeout(resolve, 0))`), letting
+React actually paint the progress update as it goes rather than only
+being able to show anything once the entire loop has finished.
+
+**2. Adding a model via the admin dashboard's "Add model" form
+(`pages/admin/AdminProjectModels.tsx`) never actually called
+`convertIfcToGlb()` at all when only an IFC file was given.** Unlike
+`ProjectCreateForm.tsx` (the "New project" form, which converts IFC to
+a GLB correctly, and predates this bug), `AddModelForm` fell back to
+`modelUrl: modelUrl ?? ifcUrl!` — storing the **IFC file's own URL** as
+if it were the model file. The viewer then tried to load a plain-text
+IFC file as if it were glTF/GLB binary, which never resolves and never
+throws a catchable error either, so from the admin's side this looked
+exactly like the page getting stuck on "Adding…" forever — not a slow
+conversion this time, but no conversion happening at all. Fixed by
+giving `AddModelForm` the same IFC-only conversion path
+`ProjectCreateForm.tsx` already had (including its own progress bar),
+rather than duplicating and slightly diverging from that logic as the
+original code's own comment had deliberately chosen to do. Verified via
+`/local`'s IFC-only path (the same `convertIfcToGlb()` function, same
+code either way) that the fix (both the yield and reusing the real
+conversion) still converts and renders correctly, and that
+tap-to-inspect still resolves on the result.
+
+**Still open**: conversion time on a real, large multi-story building
+is still unverified in absolute terms — the fix here stops the page
+from looking frozen while it's happening, it doesn't make a genuinely
+large file convert faster. If a real building's conversion turns out to
+take long enough to be impractical on a phone, that's a separate,
+bigger problem (likely needing a background/server-side conversion
+step instead of in-browser WASM) than what this fix addresses.

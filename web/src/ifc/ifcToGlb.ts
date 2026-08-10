@@ -73,6 +73,24 @@ export async function convertIfcToGlb(
       // still called.
 
       onProgress?.({ phase: 'geometry', current: i + 1, total })
+
+      // Yields back to the browser every so often -- without this, the
+      // whole loop runs as one uninterrupted synchronous block. That's
+      // unnoticeable against the small Duplex sample this feature was
+      // originally verified with (a few hundred elements, done in a
+      // blink), but a real building's worth of elements can take this
+      // loop many seconds to run through, and a blocked main thread
+      // can't repaint -- not even the progress bar this callback is
+      // meant to be driving -- so the whole page looks and feels frozen
+      // for the entire conversion, on a real project's real file, not
+      // just slow. `setTimeout(..., 0)` hands control back to the event
+      // loop for one tick, letting React actually paint the progress
+      // update before the loop picks back up. Every 25 elements, not
+      // every single one -- each yield has its own real overhead, and
+      // paying it per-element would noticeably slow down conversion for
+      // a model with many thousands of elements for no benefit over
+      // yielding periodically.
+      if (i % 25 === 24) await new Promise((resolve) => setTimeout(resolve, 0))
     }
 
     onProgress?.({ phase: 'exporting', current: 0, total: 1 })
