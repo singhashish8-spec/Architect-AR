@@ -59,6 +59,22 @@
   free-floating points, since picking already exists from Phase 1.
 - Walkthrough camera paths (a guided tour instead of free orbit) using
   React Three Fiber.
+- **Free walk/fly navigation** (scoped 2026-08-10, not built yet) —
+  Twinmotion-style first-person movement as an alternative to orbiting:
+  a **fly/drone mode** (free movement along the camera's own look
+  direction, no ground constraint) first, then a **walk mode** on top
+  of it (locked to a ground height; real collision against the model's
+  geometry is a further follow-up, not needed for a first version). A
+  speed control (slow/normal/fast, scaled by the same `visualScale()`
+  factor the scale presets already use) applies to both. Desktop:
+  WASD/arrow keys + drag-to-look, consistent with how orbiting already
+  works. Phone: a dual virtual joystick (left thumb moves, right thumb
+  looks) — the standard mobile pattern for this kind of navigation.
+  Needs an explicit mode switcher (Orbit/Walk/Fly) and an easy way back
+  to orbit, since the corner buttons are already fairly full on a phone
+  screen. See [`levels-and-rooms-navigation.md`](../features/levels-and-rooms-navigation.md)
+  for the existing `centerPivotOnCamera()` "look around from here"
+  control this would build alongside.
 - Section/clipping planes (cut through the model horizontally/vertically —
   natural fit once element picking + R3F control exist).
 - Snapshot/short video export of a view, for sharing outside the link

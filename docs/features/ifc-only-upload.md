@@ -279,3 +279,56 @@ this change doesn't touch — worth watching for a future "the viewer
 itself feels slow to open" report, but a real GPU on the owner's actual
 phone should handle that far better than this sandbox's software
 rendering does.
+
+## Addendum 3: some real-project elements weren't rendering right
+
+A screenshot of a real kitchen model showed a handful of pieces (upper
+cabinet doors, mainly) looking flat/washed-out compared to everything
+else around them, plus a faint doubled edge line along one countertop.
+The owner's own guess was "maybe they don't have materials" — worth
+being precise about, since that's not quite what's happening:
+**every** generated mesh gets a material (`buildMesh()` in
+`ifc/ifcToGlb.worker.ts` always builds one from the placed geometry's
+own color), so nothing here is rendering with *no* material. Two
+different, more specific things are going on instead:
+
+**A real, fixed bug: inconsistent face winding making some faces
+invisible.** `THREE.Material` defaults to `side: FrontSide` (confirmed
+in the installed `three` package's own source) — only the
+winding-order-determined "front" of a triangle actually renders.
+Boolean-cut BIM geometry (a cabinet door cutout, a countertop sink
+recess, complex joinery) doesn't always triangulate with fully
+consistent winding across every face in every IFC exporter, so a face
+here and there can end up GPU-culled — invisible from the expected
+angle, not because it lacks a material, but because the renderer has
+decided it's facing away. This is a well-known category of issue
+for exactly this kind of custom IFC-to-mesh pipeline, and matches the
+"upper cabinet doors look flat" symptom well: a culled front face would
+show either nothing or whatever's directly behind it, both of which
+read as "not showing properly." Fixed by setting `side: THREE.DoubleSide`
+on every generated material — costs a little more to render, but makes
+this entire category of bug impossible regardless of which way any
+given triangle happens to wind. Verified against the real Duplex sample
+(no regression, still renders correctly) — not verified against the
+owner's own kitchen file, since that file isn't available in this
+environment; worth confirming once redeployed.
+
+**A separate, not-yet-fixed real possibility: some elements may
+genuinely have partial transparency baked into the source IFC data.**
+Checked directly against the real Duplex sample (not assumed): of 728
+placed geometries, 34 (~5%) have an alpha under 0.99 — `color.w` from
+web-ifc, used as-is for `opacity`/`transparent`. None were exactly 0
+in this sample, but this shows the data genuinely does vary per
+element, not just per file. Some of that is surely intentional (glass,
+sheer materials) and should stay that way; but a surface style
+authored slightly wrong upstream (in Revit, or however the IFC was
+produced) could just as easily make an ordinary solid surface come out
+partially see-through here, and this app currently has no way to tell
+those two cases apart — it renders whatever alpha the file says.
+**Not changed yet**, since guessing wrong in either direction has a
+real cost (silently forcing everything opaque would break real glass;
+leaving it as-is risks an unintentionally-transparent solid surface
+looking "off"). Worth a closer look with the owner's actual file before
+deciding: if the "flat/washed out" pieces turn out to have low alpha
+specifically, that would confirm this as the real remaining cause
+rather than (or in addition to) the winding-order fix above.

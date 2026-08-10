@@ -89,6 +89,18 @@ function buildMesh(api: IfcAPI, modelId: number, placedGeometry: PlacedGeometry)
     transparent: color.w < 1,
     roughness: 0.7,
     metalness: 0.05,
+    // THREE.Material defaults to FrontSide -- only the winding-order-
+    // determined "front" of a triangle renders at all. IFC/Revit's own
+    // triangulation of Boolean-cut geometry (a cabinet cutout, a
+    // countertop sink recess, complex joinery) doesn't always come out
+    // with fully consistent winding across every face, so a face here
+    // and there can end up culled -- invisible from the expected angle,
+    // not because it lacks a material, but because the GPU has decided
+    // it's facing away. DoubleSide costs a little more to render but
+    // makes that whole category of "this one piece just isn't showing
+    // up" issue impossible, regardless of which way any given triangle
+    // happens to wind. See docs/features/ifc-only-upload.md.
+    side: THREE.DoubleSide,
   })
 
   const mesh = new THREE.Mesh(bufferGeometry, material)
