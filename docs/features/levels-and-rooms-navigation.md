@@ -94,6 +94,52 @@ as a tiny speck (the *pre-jump* default framing is also quite far out at
 that scale) to a fully framed, zoomed-in kitchen view — cabinets,
 countertops, room detail all clearly visible — after clicking a room.
 
+## Addendum 2: the *default* view, before ever using "jump to", also pivoted around the wrong point
+
+A separate report (2026-08-09, after the admin dashboard redesign): the
+owner clarified this wasn't about AR mode (already a confirmed hard
+limit, see [`../roadmap/decisions.md`](../roadmap/decisions.md)) but the
+in-app 3D preview itself — rotating felt like it was pivoting somewhere
+other than the camera/what's on screen, like Twinmotion or Lumion don't.
+Real bug, and a plain one once traced: `<OrbitControls>` in
+`ModelViewer.tsx` was never given an explicit `target`, so it pivots
+around its own default — world origin `(0, 0, 0)` — until something
+explicitly moves it. `focusOnGlobalIds()` (this feature's own "jump to")
+already did that correctly when used, which is exactly why it was never
+caught earlier: as long as you'd clicked a level or room at least once,
+rotation felt right afterward. A Revit-exported model is essentially
+never centered exactly at the origin (real-world/shared-coordinates
+survey points routinely put a building thousands of units away from it),
+so *before* ever using "jump to," every rotation pivoted around empty
+space nowhere near the visible building.
+
+Fixed by auto-framing the whole model's bounding box the moment it
+finishes loading (and again on switching to a different model within a
+project) — factored the existing jump-to math out into a shared
+`frameCameraOnBox()` helper so both paths move the camera *and* update
+`controls.target` together, rather than only the jump-to path doing so.
+
+**A real regression this introduced, caught immediately from an owner
+report ("the preview mode screen is getting frozen")**: the new
+auto-frame trigger needed to know when a *new* scene had actually
+finished loading, not just when `modelUrl` changed (Suspense means the
+new GLB isn't ready yet at that exact moment) — so it's driven by a
+`sceneVersion` counter bumped from the same `onSceneReady` callback
+`Model` already calls once its GLTF resolves. That callback was (and had
+always been) written as a fresh inline arrow function on every render;
+harmless before, since it only wrote to a ref. Once it also called
+`setSceneVersion(...)`, the arrow function's fresh identity every render
+kept re-firing `Model`'s effect (which lists it as a dependency), each
+firing incremented the counter, each increment triggered another
+render, which created another fresh arrow function — a genuine infinite
+render loop, not just a wasted extra effect run. Fixed by wrapping it in
+`useCallback` with no dependencies (a functional `setState` update, so
+it doesn't need `sceneVersion` itself as a dependency either). Verified
+against the real Duplex sample, not just typechecking: loaded the
+model, confirmed the page kept responding to real clicks (opening the
+Lighting panel) both immediately after load and several seconds later,
+then confirmed rotating still kept the building centered in frame.
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above

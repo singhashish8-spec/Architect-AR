@@ -1,4 +1,4 @@
-import { forwardRef, Suspense, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, Suspense, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Environment, Lightformer, OrbitControls, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -207,6 +207,22 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
   const baseLight = BASE_LIGHT_CONFIGS[lightingPreset]
   const lightformers = LIGHTFORMER_CONFIGS[lightingPreset]
 
+  // Must be referentially stable (useCallback with no deps, functional
+  // setState update so sceneVersion itself doesn't need to be a dep) --
+  // Model's own effect (ifc/ModelViewer.tsx's Model component) lists
+  // this callback in its dependency array, so a version recreated fresh
+  // every render would re-fire that effect every render too, and since
+  // this version *also* calls setSceneVersion (unlike the ref-only
+  // assignment before that addition), each re-fire triggered another
+  // render, recreating the callback again -- a genuine infinite render
+  // loop, not just a wasted effect run like it was before. Real
+  // regression, caught from an owner report ("preview mode screen is
+  // getting frozen") right after the camera-pivot fix shipped.
+  const handleSceneReady = useCallback((scene: THREE.Object3D) => {
+    sceneRef.current = scene
+    setSceneVersion((current) => current + 1)
+  }, [])
+
   useImperativeHandle(
     ref,
     () => ({
@@ -258,10 +274,7 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
           scalePreset={scalePreset}
           onElementSelect={onElementSelect}
           hiddenGlobalIds={hiddenGlobalIds}
-          onSceneReady={(scene) => {
-            sceneRef.current = scene
-            setSceneVersion((current) => current + 1)
-          }}
+          onSceneReady={handleSceneReady}
         />
       </Suspense>
       <CameraRig sceneRef={sceneRef} sceneVersion={sceneVersion} focusHandlerRef={focusHandlerRef} />

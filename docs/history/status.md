@@ -76,6 +76,22 @@ logo file (deliberately still text-only branding, waiting on the owner).
   [`../features/full-admin-dashboard.md`](../features/full-admin-dashboard.md)
   and [`../roadmap/decisions.md`](../roadmap/decisions.md).
 
+- **That pivot fix shipped with its own regression, caught immediately
+  from an owner report ("the preview mode screen is getting frozen")**:
+  the new auto-frame-on-load logic needed to fire only once a *new*
+  model had actually finished loading, tracked with a `sceneVersion`
+  counter bumped from the existing `onSceneReady` callback — but that
+  callback was a fresh inline arrow function on every render, and now
+  that it also updated state (not just a ref), it re-triggered the
+  effect that called it every render, which bumped state again, which
+  re-rendered, forever — a genuine infinite render loop, not just a
+  wasted effect. Fixed by wrapping the callback in `useCallback` with no
+  dependencies. Verified against the real Duplex sample specifically for
+  *responsiveness* (timed checks and a real button click both
+  immediately after load and several seconds later), not just a
+  screenshot, since a screenshot alone wouldn't show a frozen page. See
+  [`../features/levels-and-rooms-navigation.md`](../features/levels-and-rooms-navigation.md#addendum-2-the-default-view-before-ever-using-jump-to-also-pivoted-around-the-wrong-point).
+
 - **Three new SQL migrations need running on the live Supabase project**,
   in order:
   1. [`006_project_description.sql`](../../web/supabase/migrations/006_project_description.sql)
