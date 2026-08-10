@@ -184,3 +184,25 @@
      ElementDataPanel), which set z-index: 1 for exactly this reason. */
   z-index: 2;
 }
+
+/* See ProjectView.module.css's matching .recenterButton comment --
+   same control, same reason, just anchored to this page's own .viewer
+   box instead of the full page. */
+.viewerRecenterButton {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}

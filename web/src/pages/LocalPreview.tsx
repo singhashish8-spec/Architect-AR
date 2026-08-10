@@ -202,6 +202,28 @@ export function LocalPreview() {
             hiddenGlobalIds={hiddenGlobalIds}
             lightingPreset={lightingPreset}
           />
+          <button
+            type="button"
+            className={styles.viewerRecenterButton}
+            onClick={() => viewerRef.current?.centerPivotOnCamera()}
+            aria-label="Look around from here"
+            title="Rotate around where you're standing, instead of around the room/model"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+          </button>
           <div className={styles.viewerTopRightCorner}>
             {/* See pages/ProjectView.tsx's matching comment -- waiting for
                 the whole IFC parse to settle before showing any of these

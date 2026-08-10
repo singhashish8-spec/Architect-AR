@@ -17,6 +17,19 @@ export interface ModelViewerHandle {
   // frames whatever elements IFC says the level/room actually contains.
   // See ifc/ifcSpatialTree.ts and docs/features/levels-and-rooms-navigation.md.
   focusOnGlobalIds: (globalIds: string[]) => void
+  // Re-anchors OrbitControls' pivot to right in front of the camera's
+  // own current position, instead of wherever it last was (the room/
+  // level just jumped to, or the whole model's center on load). A
+  // "jump to room" deliberately pivots on the *room*, which is correct
+  // for framing it -- but once the camera has moved in close (e.g. to
+  // look around from inside that room), orbiting around a point that's
+  // no longer near the camera itself feels wrong: dragging swings the
+  // view around some distant fixed point instead of turning in place,
+  // like looking around a room in twinmotion/lumion's first-person mode
+  // rather than orbiting an object. This gives an explicit, on-demand
+  // way to switch to that in-place feel without changing what "jump to"
+  // itself does. See docs/features/levels-and-rooms-navigation.md.
+  centerPivotOnCamera: () => void
 }
 
 interface ModelViewerProps {
@@ -84,6 +97,16 @@ function Model({
 // site and a 1:1 room end up roughly comparable in on-screen size.
 const CAMERA_DISTANCE = 5
 
+// How far in front of the camera centerPivotOnCamera() below plants the
+// new orbit target -- deliberately small and fixed (not scaled to the
+// model's own size the way frameCameraOnBox's distance is), since the
+// whole point here is "pivot close to where the camera already is",
+// not "frame something". Small enough that dragging to rotate reads as
+// turning in place rather than swinging around a visible arc; not
+// exactly zero, since a literal zero-length target vector would make
+// OrbitControls' own spherical-coordinate math degenerate.
+const RECENTER_PIVOT_DISTANCE = 0.05
+
 // Shared by both the "jump to a level/room" handler and the auto-frame-
 // on-load effect below -- points the camera at box's center from
 // whatever direction it's currently facing, and (this is the actual
@@ -135,6 +158,7 @@ function CameraRig({
   sceneRef,
   sceneVersion,
   focusHandlerRef,
+  recenterHandlerRef,
 }: {
   sceneRef: React.RefObject<THREE.Object3D | null>
   // Bumped (see ModelViewer below) each time a model actually finishes
@@ -144,6 +168,7 @@ function CameraRig({
   // sceneRef.
   sceneVersion: number
   focusHandlerRef: React.RefObject<((globalIds: string[]) => void) | null>
+  recenterHandlerRef: React.RefObject<(() => void) | null>
 }) {
   const { camera } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -189,6 +214,17 @@ function CameraRig({
     }
   }, [camera, sceneRef, focusHandlerRef])
 
+  useEffect(() => {
+    recenterHandlerRef.current = () => {
+      const controls = controlsRef.current
+      if (!controls) return
+      const direction = new THREE.Vector3()
+      camera.getWorldDirection(direction)
+      controls.target.copy(camera.position).addScaledVector(direction, RECENTER_PIVOT_DISTANCE)
+      controls.update()
+    }
+  }, [camera, recenterHandlerRef])
+
   return <OrbitControls ref={controlsRef} />
 }
 
@@ -198,6 +234,7 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
 ) {
   const sceneRef = useRef<THREE.Object3D | null>(null)
   const focusHandlerRef = useRef<((globalIds: string[]) => void) | null>(null)
+  const recenterHandlerRef = useRef<(() => void) | null>(null)
   // Starts at 0 (CameraRig's auto-frame effect deliberately skips that
   // value -- nothing has loaded yet) and increments each time a model
   // actually finishes loading, including switching to a different one.
@@ -228,6 +265,9 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
     () => ({
       focusOnGlobalIds: (globalIds: string[]) => {
         focusHandlerRef.current?.(globalIds)
+      },
+      centerPivotOnCamera: () => {
+        recenterHandlerRef.current?.()
       },
     }),
     [],
@@ -277,7 +317,12 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
           onSceneReady={handleSceneReady}
         />
       </Suspense>
-      <CameraRig sceneRef={sceneRef} sceneVersion={sceneVersion} focusHandlerRef={focusHandlerRef} />
+      <CameraRig
+        sceneRef={sceneRef}
+        sceneVersion={sceneVersion}
+        focusHandlerRef={focusHandlerRef}
+        recenterHandlerRef={recenterHandlerRef}
+      />
     </Canvas>
   )
 })

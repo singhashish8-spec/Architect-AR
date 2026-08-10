@@ -23,6 +23,30 @@
   z-index: 2;
 }
 
+/* Mirrors .arButton on the opposite corner -- a manual escape hatch for
+   when "jump to room" (or the initial auto-frame) has correctly pivoted
+   the camera on the room/model, but the visitor has since moved in close
+   and wants to look around from right where they are instead of orbiting
+   that far-away point. See ModelViewer.tsx's centerPivotOnCamera(). */
+.recenterButton {
+  position: absolute;
+  left: 1rem;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
 .topRightCorner {
   position: absolute;
   top: 1rem;

@@ -267,6 +267,42 @@ no wrapping and no off-screen overflow at the two realistic scales; a
 1px rounding-level overflow remains only at the extreme stress-test
 scale, judged not worth chasing further.
 
+## Addendum 7: a manual "look around from here" control
+
+A follow-up request, same day: after "jump to room" correctly pivots
+the camera on the room, moving in closer afterward and rotating still
+orbits around that room-center point, not around wherever the camera
+has since moved to -- correct for what "jump to" itself does, but not
+what someone wants once they're standing inside looking around, more
+like twinmotion/lumion's first-person look mode than orbiting an
+object.
+
+Added a small button (bottom-left corner, mirroring the AR button's
+bottom-right position on `ProjectView.tsx`; bottom-left inside the
+`.viewer` box on `LocalPreview.tsx`) that re-anchors OrbitControls'
+pivot to a point just in front of the camera's own current position and
+facing direction (`ModelViewer.tsx`'s new `centerPivotOnCamera()`,
+exposed on `ModelViewerHandle` the same way `focusOnGlobalIds()` is).
+Doesn't change what "jump to room/level" itself does -- this is a
+separate, explicit, on-demand action, not a change to the existing
+framing behavior.
+
+`RECENTER_PIVOT_DISTANCE` (0.05 scene units) is a small fixed constant,
+not scaled to the model's own size the way `frameCameraOnBox`'s
+distance is -- the point here is "pivot near the camera", not "frame
+something", so it's deliberately scale-invariant to the model rather
+than proportional to it.
+
+**Verified live**: jumped to a real room (Duplex sample's A102, which
+frames tight, 7.3 scene units between camera and pivot), clicked the
+new button, and confirmed via the actual live `camera.position`/
+`controls.target` state that the pivot distance dropped to exactly
+0.05 -- right at the camera, as intended. Screenshots before/after the
+click look identical (expected -- clicking it only moves the *pivot*,
+not the camera itself; the visible difference only shows up on the
+*next* rotate, which now turns in place instead of swinging around the
+room).
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above
