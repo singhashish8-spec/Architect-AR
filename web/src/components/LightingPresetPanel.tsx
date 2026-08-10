@@ -16,7 +16,7 @@ export function LightingPresetPanel({ value, onChange }: LightingPresetPanelProp
   const [open, setOpen] = useState(false)
 
   return (
-    <div>
+    <div className={styles.wrapper}>
       <button
         type="button"
         className={styles.toggle}

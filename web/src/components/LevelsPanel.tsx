@@ -40,7 +40,7 @@ export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
   }
 
   return (
-    <div>
+    <div className={styles.wrapper}>
       <button
         type="button"
         className={styles.toggle}

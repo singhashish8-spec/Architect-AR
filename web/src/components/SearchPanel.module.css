@@ -13,7 +13,18 @@
   box-shadow: var(--shadow);
 }
 
+.wrapper {
+  position: relative;
+}
+
+/* See LevelsPanel.module.css's .panel comment -- same fix, same reason:
+   this used to be a plain in-flow sibling of the toggle button inside
+   the shared .topRightCorner flex row, so opening it pushed every other
+   corner button to a different spot. */
 .panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
   max-width: min(280px, calc(100vw - 2rem));
   max-height: 60vh;
   overflow-y: auto;

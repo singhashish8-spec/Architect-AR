@@ -84,7 +84,7 @@ export function CategoryPanel({ categories, onHiddenGlobalIdsChange }: CategoryP
   }
 
   return (
-    <div>
+    <div className={styles.wrapper}>
       <button
         type="button"
         className={styles.toggle}

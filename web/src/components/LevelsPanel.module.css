@@ -13,7 +13,25 @@
   box-shadow: var(--shadow);
 }
 
+.wrapper {
+  position: relative;
+}
+
+/* Anchored to its own toggle button via the wrapper's position:relative
+   rather than left in normal document flow -- previously this panel was
+   just a plain sibling block under the button inside the shared
+   .topRightCorner flex row (ProjectView.module.css), so opening it grew
+   that flex item tall enough to visibly push every *other* corner button
+   (Categories, Lighting, Search, Schedule) to a different position, and
+   they'd all shift back the moment it closed. An owner report
+   screenshotted this exact reflow across several button combinations.
+   position: absolute takes the open panel out of that flex layout
+   entirely, so sibling buttons never move regardless of which panels are
+   open. */
 .panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
   max-width: min(240px, calc(100vw - 2rem));
   max-height: 50vh;
   overflow-y: auto;

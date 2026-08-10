@@ -170,6 +170,45 @@ floor, and `A102` (unaffected, still has its own elements) keeps
 framing tightly on just that room. Covered by a new test case in
 `ifcSpatialTree.test.ts` using a synthetic empty room.
 
+## Addendum 4: opening any corner panel visibly shoved the other buttons around
+
+A report with three screenshots, same day as Addendum 3: opening the
+Levels & rooms panel (and Categories, at the same time in one shot)
+visibly relocated the Lighting/Search/Schedule buttons to different
+spots each time, and they snapped back when the panel closed. This
+looks like the earlier "button-shuffle" bug (`ifcLoading` gating, see
+`full-admin-dashboard.md`'s history) but is a different, permanent
+mechanism, not a one-time load-order race: `LevelsPanel`,
+`CategoryPanel`, `LightingPresetPanel`, and `SearchPanel` each rendered
+their open dropdown as a plain in-flow sibling `<div>` right next to
+their own toggle button -- and all four toggle buttons live inside one
+shared `display: flex; flex-wrap: wrap` row (`.topRightCorner` in
+`ProjectView.module.css`, `.viewerTopRightCorner` in
+`form.module.css` for `/local`). Opening a panel made its own flex item
+much taller (up to 50-60vh), which pushed every button *after* it onto
+a new wrapped line -- and which line each button landed on depended on
+exactly how many panels were open and how tall each one was, matching
+every combination in the screenshots.
+
+Fixed by giving each of those four panels' own wrapper `<div>` a
+`position: relative` (`.wrapper` in each component's CSS module) and
+making the dropdown itself `position: absolute; top: 100%; left: 0`,
+anchored under its own button instead of sitting in the shared flex
+flow. `SchedulePanel` was already exempt from this (it portals its
+panel elsewhere, see the mobile-overlap addendum in
+`search-and-schedule.md`), which is why it never contributed to the
+shuffle. Verified live at the owner's exact screen width (412px,
+matching the screenshots): the Lighting button's on-screen position was
+checked with nothing open, with Levels open, and with Levels+Categories
+both open at once -- identical every time, versus visibly different
+positions in all three of the owner's screenshots before this fix. One
+minor, much smaller remaining cosmetic case: opening *two* panels at
+once on a narrow phone screen can still overlap their dropdowns
+slightly, since both panels-under-buttons are close together in
+that little space -- not the reported bug (nothing moves anymore), just
+a tighter-quarters visual overlap when two menus are open
+simultaneously, which is an uncommon thing to do.
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above

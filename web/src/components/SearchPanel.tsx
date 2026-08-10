@@ -51,7 +51,7 @@ export function SearchPanel({ levels, categories, onIsolate, onJumpTo }: SearchP
   }
 
   return (
-    <div>
+    <div className={styles.wrapper}>
       <button
         type="button"
         className={styles.toggle}
