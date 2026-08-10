@@ -80,24 +80,41 @@ export async function getLevelsAndRooms(
 
   const levels: Level[] = []
   for (const storey of storeys) {
+    const levelElementIds: number[] = []
+    collectDescendantIds(storey, levelElementIds)
+    const levelGlobalIds = toGlobalIds(levelElementIds, expressIdToGlobalId)
+
     const rooms: SpatialItem[] = []
     for (const child of storey.children) {
       if (child.type !== 'IfcSpace') continue
       const roomElementIds: number[] = []
       collectDescendantIds(child, roomElementIds)
+      const roomGlobalIds = toGlobalIds(roomElementIds, expressIdToGlobalId)
       rooms.push({
         expressId: child.expressID,
         name: await nameOf(api, modelId, child.expressID),
-        elementGlobalIds: toGlobalIds(roomElementIds, expressIdToGlobalId),
+        // A room's own IfcSpace subtree is frequently empty -- most IFC
+        // exporters (including Revit's) attach a room's walls/doors/
+        // furniture to the *storey* via IfcRelContainedInSpatialStructure,
+        // not to the IfcSpace itself; only rooms with something explicitly
+        // modeled as "contained in" the space (rare) end up with any
+        // descendants here at all. Confirmed against the real Duplex
+        // sample: roughly half its rooms (A101, B101, B104, B105, ...)
+        // have zero descendants while others (A102, A103, ...) have
+        // several -- not a parsing bug, just how the file's containment
+        // relationships are structured. Framing on an empty box would
+        // silently do nothing when a room like that is clicked (this is
+        // what an owner report called "not jumping to rooms"), so fall
+        // back to framing the room's whole level instead of leaving the
+        // click with no visible effect.
+        elementGlobalIds: roomGlobalIds.length > 0 ? roomGlobalIds : levelGlobalIds,
       })
     }
 
-    const levelElementIds: number[] = []
-    collectDescendantIds(storey, levelElementIds)
     levels.push({
       expressId: storey.expressID,
       name: await nameOf(api, modelId, storey.expressID),
-      elementGlobalIds: toGlobalIds(levelElementIds, expressIdToGlobalId),
+      elementGlobalIds: levelGlobalIds,
       rooms,
     })
   }

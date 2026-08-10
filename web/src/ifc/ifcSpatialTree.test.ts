@@ -91,4 +91,43 @@ describe('getLevelsAndRooms', () => {
     const levels = await getLevelsAndRooms(api, 0, new Map())
     expect(levels[0].elementGlobalIds).toEqual([])
   })
+
+  it('falls back to the level\'s elements when a room has none of its own', async () => {
+    // A room's IfcSpace subtree is frequently empty in real exports --
+    // most exporters attach a room's walls/doors to the *storey*, not the
+    // space, so only rooms with something explicitly modeled as
+    // "contained in" the space end up with descendants here at all.
+    // Confirmed against the real Duplex sample, where roughly half the
+    // rooms have zero descendants. Framing on an empty box would silently
+    // do nothing when a room like that is clicked, so an empty room
+    // should fall back to its level's own elements instead.
+    const tree = {
+      expressID: 1,
+      type: 'IfcProject',
+      children: [
+        {
+          expressID: 10,
+          type: 'IfcBuildingStorey',
+          children: [
+            { expressID: 20, type: 'IfcSpace', children: [] }, // empty room
+            { expressID: 30, type: 'IfcWall', children: [] },
+          ],
+        },
+      ],
+    }
+    const api = {
+      properties: {
+        getSpatialStructure: () => Promise.resolve(tree),
+        getItemProperties: (_modelId: number, expressId: number) =>
+          Promise.resolve({ Name: { value: expressId === 20 ? 'Closet' : '' } }),
+      },
+    } as unknown as IfcAPI
+    const expressIdToGlobalId = new Map([[30, 'wall-guid-1']])
+
+    const levels = await getLevelsAndRooms(api, 0, expressIdToGlobalId)
+
+    expect(levels[0].elementGlobalIds).toEqual(['wall-guid-1'])
+    expect(levels[0].rooms[0].name).toBe('Closet')
+    expect(levels[0].rooms[0].elementGlobalIds).toEqual(['wall-guid-1'])
+  })
 })

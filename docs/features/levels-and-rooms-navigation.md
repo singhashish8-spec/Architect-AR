@@ -140,6 +140,36 @@ model, confirmed the page kept responding to real clicks (opening the
 Lighting panel) both immediately after load and several seconds later,
 then confirmed rotating still kept the building centered in frame.
 
+## Addendum 3: some rooms silently did nothing when clicked
+
+A follow-up report right after Addendum 2 shipped: "now it is not
+jumping to rooms." Traced with the real Duplex sample loaded through
+`/local` and temporary logging (removed before shipping): the room the
+owner clicked, `A101`, resolves to zero elements in
+`getLevelsAndRooms()`'s own output -- not a parsing failure, a real
+property of the file. Most IFC exporters (Revit's included) attach a
+room's walls/doors/furniture to the *storey* via
+`IfcRelContainedInSpatialStructure`, not to the `IfcSpace` itself; only
+elements explicitly modeled as "contained in" the space end up as its
+descendants in `getSpatialStructure()`'s tree. Roughly half the Duplex
+sample's rooms are like this (`A101`, `B101`, `B104`, `B105`, ...) while
+others (`A102`, `A103`, ...) have several. This was true before Round D
+(the pivot fix) too -- confirmed by testing `A102` (a "good" room)
+against the *current* code and watching it still frame correctly
+(`found: true`, camera position/target actually changed) -- it just
+happened that every room tested for this feature's original
+verification and the pivot-fix verification was one with elements,
+so an always-empty room was never exercised until now.
+
+Fixed in `ifcSpatialTree.ts`: when a room has no elements of its own,
+`getLevelsAndRooms()` now hands it its containing level's own element
+list instead of an empty array, so clicking it frames the whole level
+rather than silently doing nothing. Verified against the real Duplex
+sample: clicking `A101` now visibly reframes onto the whole ground
+floor, and `A102` (unaffected, still has its own elements) keeps
+framing tightly on just that room. Covered by a new test case in
+`ifcSpatialTree.test.ts` using a synthetic empty room.
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above
