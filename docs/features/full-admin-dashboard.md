@@ -207,15 +207,27 @@ looking dark in light mode with off-center content. `embedded` follows
 the surrounding page's own light/dark tokens and centers everything;
 the popup usage is untouched.
 
-**An optional `VITE_PUBLIC_SITE_URL`** (`utils/publicUrl.ts`) lets every
-share link (the admin Share tab, the viewer's own share popup) use a
-clean configured domain instead of `window.location.origin` — whatever
-host the app happens to be running on right now, which on a Vercel
-preview deployment embeds the branch name and isn't something worth a
-client seeing. This is a code-side enabler only; actually getting a
-clean URL still needs the owner to point a real domain (or Vercel's own
-production alias) at the deployment in Vercel's own settings, and set
-this variable to it — see Open questions.
+**An optional `VITE_PUBLIC_SITE_URL`** (`utils/publicUrl.ts`) lets the
+admin Share tab's link use a clean configured domain instead of
+`window.location.origin` — whatever host the app happens to be running
+on right now, which on a Vercel preview deployment embeds the branch
+name and isn't something worth a client seeing. This is a code-side
+enabler only; actually getting a clean URL still needs the owner to
+point a real domain (or Vercel's own production alias) at the
+deployment in Vercel's own settings, and set this variable to it — see
+Open questions.
+
+**The viewer's own share popup (the corner "Share this project" button
++ QR card on `ProjectView.tsx`) was removed entirely** on the owner's
+request, after initially asking to keep it ("the share in view mode can
+stay as itis") in an earlier round of feedback — reversing that. Sharing
+a project now only happens from the admin Share tab; a client looking at
+an already-shared link no longer sees a share button of their own.
+`ProjectShareCard`'s `variant="popup"` styling is now dead code (nothing
+renders it with that variant anymore, only `"embedded"` is still used by
+the Share tab) but was left in place rather than deleted, since removing
+an unused prop value is lower-value cleanup than the actual UI change
+requested.
 
 ## A real regression, found by testing on an actual phone before this shipped
 

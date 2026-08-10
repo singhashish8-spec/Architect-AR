@@ -3,7 +3,6 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
-import { ProjectShareCard } from '../components/ProjectShareCard'
 import { PasscodeGate } from '../components/PasscodeGate'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
@@ -17,9 +16,7 @@ import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { LightingPreset } from '../types/LightingPreset'
 import { getErrorMessage } from '../utils/errorMessage'
-import { getPublicOrigin } from '../utils/publicUrl'
 import styles from './ProjectView.module.css'
-import labelStyles from '../styles/responsiveLabel.module.css'
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -41,7 +38,6 @@ export function ProjectView() {
   // whole-file background parse). Using the whole-file flag here would
   // show the data panel automatically on page load, before any tap.
   const [selecting, setSelecting] = useState(false)
-  const [showQr, setShowQr] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
   // SchedulePanel portals its actual panel content here (see its own
@@ -215,47 +211,6 @@ export function ProjectView() {
               portalContainer={rootEl}
             />
           </>
-        )}
-      </div>
-      <div className={styles.qrCorner}>
-        <button
-          type="button"
-          className={styles.qrToggle}
-          onClick={() => setShowQr((current) => !current)}
-          aria-label={showQr ? 'Hide share options' : 'Share this project'}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <line x1="14" y1="14" x2="14" y2="17" />
-            <line x1="14" y1="14" x2="17" y2="14" />
-            <line x1="21" y1="14" x2="21" y2="14.01" />
-            <line x1="14" y1="21" x2="14" y2="21.01" />
-            <line x1="17" y1="17" x2="21" y2="17" />
-            <line x1="21" y1="21" x2="17" y2="21" />
-            <line x1="21" y1="17" x2="21" y2="21" />
-          </svg>
-          <span className={labelStyles.label}>{showQr ? 'Hide share options' : 'Share this project'}</span>
-        </button>
-        {showQr && (
-          <div className={styles.qrCode}>
-            <ProjectShareCard
-              url={`${getPublicOrigin()}${window.location.pathname}${window.location.search}`}
-              projectName={project.name}
-              description={project.description}
-            />
-          </div>
         )}
       </div>
       <ElementDataPanel
