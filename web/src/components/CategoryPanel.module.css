@@ -14,18 +14,24 @@
 }
 
 .wrapper {
-  position: relative;
+  /* Deliberately NOT position: relative -- see LevelsPanel.module.css's
+     .panel comment. */
 }
 
-/* See LevelsPanel.module.css's .panel comment -- same fix, same reason:
-   this used to be a plain in-flow sibling of the toggle button inside
-   the shared .topRightCorner flex row, so opening it pushed every other
-   corner button to a different spot. */
+/* See LevelsPanel.module.css's .panel comment -- same fixes, same
+   reasons: this used to be a plain in-flow sibling of the toggle button
+   inside the shared .topRightCorner flex row (pushed every other corner
+   button around when opened), and later anchored to this button's own
+   left edge (ran off the right edge of the screen once widened, for
+   whichever buttons aren't first in the row). Anchored to the row's own
+   stable right edge instead. */
 .panel {
   position: absolute;
   top: 100%;
-  left: 0;
-  max-width: min(260px, calc(100vw - 2rem));
+  right: 0;
+  /* width, not max-width, and rem not px -- see LevelsPanel.module.css's
+     .panel comment. */
+  width: min(18rem, calc(100vw - 2rem));
   max-height: 50vh;
   overflow-y: auto;
   margin-top: 0.5rem;

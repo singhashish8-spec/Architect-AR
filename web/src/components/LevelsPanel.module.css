@@ -14,25 +14,54 @@
 }
 
 .wrapper {
-  position: relative;
+  /* Deliberately NOT position: relative -- see .panel's comment below on
+     why its containing block needs to be the shared corner row instead
+     of this button's own tiny box. */
 }
 
-/* Anchored to its own toggle button via the wrapper's position:relative
-   rather than left in normal document flow -- previously this panel was
-   just a plain sibling block under the button inside the shared
-   .topRightCorner flex row (ProjectView.module.css), so opening it grew
-   that flex item tall enough to visibly push every *other* corner button
-   (Categories, Lighting, Search, Schedule) to a different position, and
-   they'd all shift back the moment it closed. An owner report
-   screenshotted this exact reflow across several button combinations.
-   position: absolute takes the open panel out of that flex layout
-   entirely, so sibling buttons never move regardless of which panels are
-   open. */
+/* Positioned out of the shared .topRightCorner flex row (ProjectView.
+   module.css) via position: absolute -- previously this panel was a
+   plain sibling block under the button inside that row, so opening it
+   grew that flex item tall enough to visibly push every *other* corner
+   button to a different position, and they'd all shift back the moment
+   it closed. An owner report screenshotted this exact reflow.
+
+   Anchored to .topRightCorner itself (right: 0, not left: 0, and NOT
+   this button's own .wrapper -- .wrapper has no position: relative of
+   its own, so this panel's containing block resolves up past it to the
+   next positioned ancestor, .topRightCorner) rather than to this one
+   button specifically: .topRightCorner is itself `right: 1rem`
+   positioned, so its right edge sits at a fixed, predictable spot
+   regardless of the panel's own width. Anchoring to *this button's* own
+   left edge instead (the original approach) put the panel's position at
+   the mercy of exactly where in the row that particular button happened
+   to land -- fine for the first button, but Categories/Lighting/Search
+   sit further right, and once this panel was widened (see the width
+   comment below) their dropdowns started running off the right edge of
+   the screen on an actual phone, confirmed via a real bounding-box
+   check (not just a screenshot, which doesn't reveal off-canvas
+   overflow). Anchoring to the row's own stable right edge instead means
+   every panel opens from the same predictable spot and, combined with
+   the width cap below, can never overflow either edge no matter which
+   button triggered it. */
 .panel {
   position: absolute;
   top: 100%;
-  left: 0;
-  max-width: min(240px, calc(100vw - 2rem));
+  right: 0;
+  /* width, not max-width, and rem rather than a raw px value.
+     `position: absolute` with no explicit width shrink-to-fits its own
+     content -- and every row inside is `width: 100%` of *this* box, which
+     gives that shrink-to-fit calculation no real size to anchor on, so it
+     collapsed down to whatever its single narrowest unbreakable bit of
+     content demanded (a chevron icon, "T/FDN") and wrapped everything
+     else around that, including short labels like "Level 1" that should
+     never have needed to wrap at all. An explicit `width` stops the
+     shrink-to-fit collapse outright. rem (not px) on top of that keeps
+     the box scaling in step with its own text at any browser/OS text-size
+     setting, rather than a fixed px guess that stops matching the moment
+     someone's text is set larger than whatever this was eyeballed
+     against. */
+  width: min(17rem, calc(100vw - 2rem));
   max-height: 50vh;
   overflow-y: auto;
   margin-top: 0.5rem;

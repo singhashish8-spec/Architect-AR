@@ -230,6 +230,43 @@ once. Verified live: opened each of the five panels in turn and
 confirmed, at each step, that the previous one had actually closed
 (not just visually behind the new one) before the next opened.
 
+## Addendum 6: the menu text was wrapping, and the real cause wasn't size
+
+"Make those menus spacious, the text are getting wrapped" -- two
+screenshots showed "Level 1" wrapping to "Level" / "1" inside the
+Levels panel. Widening the panel would have been the obvious fix, but
+digging into the actual computed layout first (rather than just
+guessing a bigger number) found something else: `.panel` had a
+`max-width` but no `width`. `position: absolute` elements with no
+explicit width shrink-to-fit their own content -- and every row inside
+this panel is itself `width: 100%` *of the panel*, which gives that
+shrink-to-fit calculation nothing real to anchor on, so it collapsed
+down to whatever single narrowest unbreakable thing was in there (a
+chevron icon, "T/FDN") and wrapped everything else, including short
+labels that should never have needed to. Confirmed directly: the
+panel's own rendered width (149px) was far smaller than its declared
+`max-width` (368px) -- it was never actually using the room it had.
+
+Fixed the real bug first (`max-width` -> `width`, so the box can't
+collapse below its intended size), then genuinely widened the panels
+as asked (in `rem`, not raw `px`, so they keep scaling with the
+visitor's own text-size setting rather than a fixed guess). Widening
+alone then uncovered a *second* real bug: these panels were anchored
+to their own toggle button's left edge, and once wider, dropdowns for
+buttons that aren't first in the row (Categories, Lighting, Search)
+started running off the right edge of the screen -- confirmed with an
+actual bounding-box check, not just a screenshot (a screenshot can't
+show content that's off-canvas). Fixed by anchoring every panel to the
+shared corner row's own right edge instead of to whichever individual
+button opened it -- since that row is itself positioned a fixed
+distance from the screen's right edge, every panel now opens from the
+same predictable, always-on-screen spot regardless of which button
+triggered it. Verified at three text scales (default, a realistic
+~113% "Large text" setting, and a stress-test ~137.5% "Huge" setting):
+no wrapping and no off-screen overflow at the two realistic scales; a
+1px rounding-level overflow remains only at the extreme stress-test
+scale, judged not worth chasing further.
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above
