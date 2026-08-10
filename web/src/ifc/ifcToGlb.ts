@@ -1,15 +1,22 @@
-import type { IfcAPI, PlacedGeometry } from 'web-ifc'
-import * as THREE from 'three'
-import { GLTFExporter } from 'three-stdlib'
-import { openIfcModel } from './loadIfcModel'
-import { unwrap } from './ifcPropertyLookup'
-import { expandIfcGuid, hyphenateUuid } from './ifcGuid'
-
 export interface ConversionProgress {
   phase: 'parsing' | 'geometry' | 'exporting'
   current: number
   total: number
 }
+
+interface ProgressMessage {
+  type: 'progress'
+  progress: ConversionProgress
+}
+interface DoneMessage {
+  type: 'done'
+  glb: ArrayBuffer
+}
+interface ErrorMessage {
+  type: 'error'
+  message: string
+}
+type WorkerOutMessage = ProgressMessage | DoneMessage | ErrorMessage
 
 // Builds a real, hostable GLB straight from an IFC file's own geometry --
 // no separate glTF export from the BIM tool needed. Lets the upload flow
@@ -21,159 +28,45 @@ export interface ConversionProgress {
 // story, including why this can only ever produce flat-colored materials
 // (an IFC/Revit limitation, not something this conversion step can work
 // around -- see docs/roadmap/decisions.md).
-export async function convertIfcToGlb(
-  ifcFile: File,
-  onProgress?: (progress: ConversionProgress) => void,
-): Promise<Blob> {
-  onProgress?.({ phase: 'parsing', current: 0, total: 1 })
-  const buffer = new Uint8Array(await ifcFile.arrayBuffer())
-  const { api, modelId } = await openIfcModel(buffer)
-  onProgress?.({ phase: 'parsing', current: 1, total: 1 })
+//
+// The actual work (WASM parsing + per-element geometry building + glTF
+// export) all happens in ifcToGlb.worker.ts, on a separate thread -- this
+// function is just a thin message-passing wrapper around it, keeping the
+// same signature/behavior callers already depend on (ProjectCreateForm.tsx,
+// AdminProjectModels.tsx, LocalPreview.tsx all need zero changes). See
+// the worker file's own comment for why this moved off the main thread:
+// a real building's worth of geometry can make the single web-ifc WASM
+// call this depends on run long enough that even a periodically-yielding
+// main-thread loop can't keep the page feeling responsive, since the
+// block happens *inside* that one opaque WASM call, not between JS
+// statements a yield could interrupt.
+export function convertIfcToGlb(ifcFile: File, onProgress?: (progress: ConversionProgress) => void): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('./ifcToGlb.worker.ts', import.meta.url), { type: 'module' })
 
-  try {
-    const flatMeshes = api.LoadAllGeometry(modelId)
-    const total = flatMeshes.size()
-    const root = new THREE.Group()
+    function cleanup() {
+      worker.terminate()
+    }
 
-    for (let i = 0; i < total; i++) {
-      const flatMesh = flatMeshes.get(i)
-      const group = new THREE.Group()
-      // Named with the *hyphenated-UUID* form (e.g.
-      // "9808fd7f-1a92-...") of the element's GlobalId, not the raw
-      // compressed IFC form (e.g. "2O2Fr$t4X7Zf8NOew3FK4F") -- a real bug
-      // caught by testing against real data: the levels/rooms and
-      // category features hand focusOnGlobalIds()/hiddenGlobalIds
-      // identifiers already converted to the hyphenated form
-      // (ifcPropertyLookup.ts's invertToHyphenatedGlobalIds(), chosen to
-      // match IfcOpenShell's own glTF node-naming convention -- see
-      // ifcGuid.ts), so a node named with the compressed form instead
-      // never matched and both features silently did nothing. Named on
-      // every mesh too, not just this wrapping group -- a raycast click
-      // hits the mesh directly (see buildMesh() below and
-      // ModelViewer.tsx's handleClick), never its parent group, so
-      // tap-to-inspect needs the name there as well.
-      const nodeName = getNodeName(api, modelId, flatMesh.expressID)
-      if (nodeName) group.name = nodeName
-
-      const placedGeometries = flatMesh.geometries
-      for (let j = 0; j < placedGeometries.size(); j++) {
-        const mesh = buildMesh(api, modelId, placedGeometries.get(j))
-        if (nodeName) mesh.name = nodeName
-        group.add(mesh)
+    worker.onmessage = (event: MessageEvent<WorkerOutMessage>) => {
+      const message = event.data
+      if (message.type === 'progress') {
+        onProgress?.(message.progress)
+      } else if (message.type === 'done') {
+        cleanup()
+        resolve(new Blob([message.glb], { type: 'model/gltf-binary' }))
+      } else {
+        cleanup()
+        reject(new Error(message.message))
       }
-      root.add(group)
-      // No flatMesh.delete() here -- despite web-ifc's own .d.ts declaring
-      // one, a real FlatMesh returned by LoadAllGeometry() has no delete
-      // method at runtime (confirmed directly against the real Duplex
-      // file: Object.keys(flatMesh) is just ['geometries', 'expressID'],
-      // typeof flatMesh.delete is 'undefined'). Calling it throws
-      // "delete is not a function" and aborts the whole conversion.
-      // IfcGeometry instances (from GetGeometry(), in buildMesh() below)
-      // are a different type and do have a real delete() -- that one is
-      // still called.
-
-      onProgress?.({ phase: 'geometry', current: i + 1, total })
-
-      // Yields back to the browser every so often -- without this, the
-      // whole loop runs as one uninterrupted synchronous block. That's
-      // unnoticeable against the small Duplex sample this feature was
-      // originally verified with (a few hundred elements, done in a
-      // blink), but a real building's worth of elements can take this
-      // loop many seconds to run through, and a blocked main thread
-      // can't repaint -- not even the progress bar this callback is
-      // meant to be driving -- so the whole page looks and feels frozen
-      // for the entire conversion, on a real project's real file, not
-      // just slow. `setTimeout(..., 0)` hands control back to the event
-      // loop for one tick, letting React actually paint the progress
-      // update before the loop picks back up. Every 25 elements, not
-      // every single one -- each yield has its own real overhead, and
-      // paying it per-element would noticeably slow down conversion for
-      // a model with many thousands of elements for no benefit over
-      // yielding periodically.
-      if (i % 25 === 24) await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    worker.onerror = (event: ErrorEvent) => {
+      cleanup()
+      reject(event.error instanceof Error ? event.error : new Error(event.message || 'IFC conversion failed'))
     }
 
-    onProgress?.({ phase: 'exporting', current: 0, total: 1 })
-    const exporter = new GLTFExporter()
-    const result = await exporter.parseAsync(root, { binary: true })
-    onProgress?.({ phase: 'exporting', current: 1, total: 1 })
-
-    return new Blob([result as ArrayBuffer], { type: 'model/gltf-binary' })
-  } finally {
-    api.CloseModel(modelId)
-  }
-}
-
-function getNodeName(api: IfcAPI, modelId: number, expressId: number): string | undefined {
-  try {
-    const line = api.GetLine(modelId, expressId) as unknown as { GlobalId?: unknown }
-    // unwrap() is the same helper resolveNodeNameToExpressId's own index
-    // relies on for reading a GlobalId off a web-ifc line -- reused here
-    // rather than re-implementing the same { value, type } unwrapping.
-    if (line.GlobalId === undefined) return undefined
-    const compressed = unwrap(line.GlobalId)
-    try {
-      return hyphenateUuid(expandIfcGuid(compressed))
-    } catch {
-      // A malformed or non-standard GlobalId (rare) -- fall back to the
-      // compressed form. Tap-to-inspect and category hide/show still
-      // resolve it fine (buildGlobalIdIndex indexes the compressed form
-      // too), but jump-to-room/level won't, since that feature only ever
-      // hands out the hyphenated form -- same limitation
-      // buildGlobalIdIndex's own identical fallback already has for
-      // externally-exported models with a GlobalId in this shape.
-      return compressed
-    }
-  } catch {
-    // Not every flatMesh's underlying line necessarily has a GlobalId --
-    // the mesh still renders, it just won't resolve to any BIM data.
-    return undefined
-  }
-}
-
-// web-ifc's vertex buffer interleaves position (3 floats) and normal (3
-// floats) per vertex -- verified directly against the real Duplex sample
-// (a standalone Node script confirmed the first 12 values are exactly two
-// [x,y,z,nx,ny,nz] vertices with a repeated (0,0,1) normal), not assumed
-// from web-ifc-three's own convention alone. See
-// docs/features/ifc-only-upload.md.
-function buildMesh(api: IfcAPI, modelId: number, placedGeometry: PlacedGeometry): THREE.Mesh {
-  const geometry = api.GetGeometry(modelId, placedGeometry.geometryExpressID)
-  const vertexData = api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize())
-  const indexData = api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize())
-  geometry.delete()
-
-  const vertexCount = vertexData.length / 6
-  const positions = new Float32Array(vertexCount * 3)
-  const normals = new Float32Array(vertexCount * 3)
-  for (let v = 0; v < vertexCount; v++) {
-    positions[v * 3] = vertexData[v * 6]
-    positions[v * 3 + 1] = vertexData[v * 6 + 1]
-    positions[v * 3 + 2] = vertexData[v * 6 + 2]
-    normals[v * 3] = vertexData[v * 6 + 3]
-    normals[v * 3 + 1] = vertexData[v * 6 + 4]
-    normals[v * 3 + 2] = vertexData[v * 6 + 5]
-  }
-
-  const bufferGeometry = new THREE.BufferGeometry()
-  bufferGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  bufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3))
-  bufferGeometry.setIndex(new THREE.BufferAttribute(indexData, 1))
-
-  // IFC/Revit's own material export never carries real texture images --
-  // see docs/roadmap/decisions.md -- so a flat color per placed geometry
-  // (what web-ifc actually gives us) is the ceiling here, not a
-  // shortcut we're taking.
-  const { color } = placedGeometry
-  const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(color.x, color.y, color.z),
-    opacity: color.w,
-    transparent: color.w < 1,
-    roughness: 0.7,
-    metalness: 0.05,
+    void ifcFile.arrayBuffer().then((buffer) => {
+      worker.postMessage({ type: 'convert', buffer }, [buffer])
+    })
   })
-
-  const mesh = new THREE.Mesh(bufferGeometry, material)
-  mesh.applyMatrix4(new THREE.Matrix4().fromArray(placedGeometry.flatTransformation))
-  return mesh
 }

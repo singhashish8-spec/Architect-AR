@@ -225,10 +225,57 @@ code either way) that the fix (both the yield and reusing the real
 conversion) still converts and renders correctly, and that
 tap-to-inspect still resolves on the result.
 
-**Still open**: conversion time on a real, large multi-story building
-is still unverified in absolute terms — the fix here stops the page
-from looking frozen while it's happening, it doesn't make a genuinely
-large file convert faster. If a real building's conversion turns out to
-take long enough to be impractical on a phone, that's a separate,
-bigger problem (likely needing a background/server-side conversion
-step instead of in-browser WASM) than what this fix addresses.
+## Addendum 2: the yield fix wasn't enough on the owner's own real file
+
+Tried again against a real project, same day: still froze, and this
+time the owner could confirm exactly how badly — "totally static, no
+movement at all" for a few minutes before it eventually finished on its
+own. The per-element yield above genuinely helps the JS-side geometry
+loop, but it can't do anything about the *other* big cost inside
+`convertIfcToGlb()`: `api.LoadAllGeometry(modelId)` is a single,
+opaque, unyieldable call into web-ifc's WASM binary — for a small file
+this returns instantly, but for a real building's worth of geometry it
+can be the dominant cost, and there is no way to insert a yield *inside*
+one native call. No amount of JS-side pacing around it changes that.
+
+Fixed properly this time by moving the *entire* conversion — parsing,
+geometry, and glTF export — onto a Web Worker
+(`ifc/ifcToGlb.worker.ts`), not just pacing it on the main thread.
+`convertIfcToGlb()` itself is now a thin wrapper: spins up the worker,
+hands it the file's raw bytes (as a transferable `ArrayBuffer`, not a
+copy), relays `progress` messages back as they arrive, and resolves
+with the final GLB (also transferred, not copied) or rejects on error.
+Every existing caller (`ProjectCreateForm.tsx`, `AdminProjectModels.tsx`,
+`LocalPreview.tsx`) needed zero changes — same function signature, same
+behavior, just running somewhere the main thread can't be blocked by it
+at all, no matter how long it takes.
+
+Confirmed worker-compatible before writing this, not assumed: web-ifc's
+own WASM loading (`loadIfcModel.ts`'s `openIfcModel()`) uses plain
+`fetch()`-based loading with no DOM dependency, and `three-stdlib`'s
+`GLTFExporter` already falls back to `OffscreenCanvas` when `document`
+is undefined (confirmed directly in the installed package's own
+source) — this project's models have no real textures to begin with
+(see "Materials" above), so that fallback path is never even
+exercised, but it's reassuring the library was built to work in a
+worker regardless.
+
+Verified live via `/local`'s IFC-only path: polled the main thread
+every 100ms for the whole duration of a conversion and confirmed it
+kept responding throughout (aside from a brief, one-time worker/WASM
+startup blip), then re-confirmed the result still renders correctly
+and tap-to-inspect still resolves — same checks Addendum 1 ran, just
+against the worker version instead of the yield version.
+
+**Still open**: this makes a slow conversion *stop looking frozen*, not
+*fast* — a genuinely huge building will still take however long it
+takes to actually process; the difference is the page (and the rest of
+the phone) stays fully usable meanwhile instead of stalling. Also
+surfaced, but explicitly out of scope here since it wasn't what was
+reported: loading the *finished* model into the actual 3D viewer (a
+model like this can have hundreds of separate small meshes, one per IFC
+element) is its own separate, still fully main-thread-bound cost that
+this change doesn't touch — worth watching for a future "the viewer
+itself feels slow to open" report, but a real GPU on the owner's actual
+phone should handle that far better than this sandbox's software
+rendering does.
