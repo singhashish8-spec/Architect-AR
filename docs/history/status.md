@@ -59,15 +59,20 @@ logo file (deliberately still text-only branding, waiting on the owner).
   bug, not just "too narrow") and widened, and the Share tab's card now
   follows light/dark theme and centers its content instead of always
   being dark (a new `variant="embedded"` on `ProjectShareCard`, the
-  viewer's own popup usage untouched). Also answered two questions
-  outside the code: **why the admin dashboard's share links show
-  "vercel.app"/a branch name** (a Vercel/DNS setup task — the app now
-  supports `VITE_PUBLIC_SITE_URL` to use a clean domain once one
-  exists, but getting that domain is the owner's next step) and
-  **whether AR rotation can pivot around the camera like Twinmotion/
-  Lumion** (confirmed the same hard Scene Viewer/Quick Look limitation
-  already on record for AR-plane-locking — real fix needs Phase 4's
-  custom AR camera). See
+  viewer's own popup usage untouched). Answered one question outside the
+  code: **why the admin dashboard's share links show "vercel.app"/a
+  branch name** (a Vercel/DNS setup task — the app now supports
+  `VITE_PUBLIC_SITE_URL` to use a clean domain once one exists, but
+  getting that domain is the owner's next step). And **fixed a real bug**
+  once the owner clarified a rotation-pivot report was about the
+  in-app 3D preview, not AR mode (initially mistaken for the same
+  Scene Viewer limitation already on record for AR-plane-locking, since
+  the two symptoms sound alike): `OrbitControls` in
+  `viewer/ModelViewer.tsx` had never been given an explicit `target`, so
+  it defaulted to world origin instead of the model's real center — an
+  ordinary, fixable bug in this app's own code, not a native-app limit.
+  Fixed by auto-framing the camera around the whole model on load and on
+  switching models, verified against the real Duplex sample. See
   [`../features/full-admin-dashboard.md`](../features/full-admin-dashboard.md)
   and [`../roadmap/decisions.md`](../roadmap/decisions.md).
 

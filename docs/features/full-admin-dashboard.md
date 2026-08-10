@@ -234,6 +234,41 @@ already exposes, so they appear together, once, instead of trickling in.
 `LightingPresetPanel` doesn't depend on IFC data at all and was left
 outside the gate.
 
+## A different bug hiding behind the AR question
+
+The owner's next message clarified: the rotation-pivot complaint wasn't
+about AR mode at all (that part "works ok") — it was about the in-app
+3D **preview** (before ever tapping "View in AR"), where rotating felt
+like it was pivoting around some point set by Revit, not around the
+camera/model. Unlike the AR handoff, this viewer is this app's own code
+(`viewer/ModelViewer.tsx`, `@react-three/drei`'s `OrbitControls`) —
+fully fixable, not a native-app limitation.
+
+**Root cause, confirmed in the code**: `<OrbitControls ref={controlsRef} />`
+was never given an explicit `target` — it defaults to world origin
+`(0, 0, 0)`. A Revit export is almost never centered exactly at the
+origin (real-world/shared-coordinates survey points routinely put a
+building thousands of units away from it), so every rotation *before*
+ever using "jump to" a level/room (the one existing feature that already
+did move `controls.target`) pivoted around empty space nowhere near the
+visible geometry.
+
+**Fixed** by auto-framing the camera around the whole model's bounding
+box the moment it actually finishes loading — both on first load and on
+switching to a different model within a project. `ModelViewer.tsx` now
+tracks a `sceneVersion` counter (bumped each time a model's glTF
+Suspense boundary actually resolves, not just when `modelUrl` changes —
+`modelUrl` changes immediately on a switch, well before the new file has
+loaded, so keying off it directly would frame based on stale/absent
+scene data); `CameraRig`'s new effect reacts to that counter, computes
+`new THREE.Box3().setFromObject(scene)`, and reuses the same framing
+math "jump to" already had (extracted into a shared `frameCameraOnBox()`
+helper) to move both the camera and `controls.target` there. Verified
+against the real Duplex sample via `/local` (no backend needed) in a
+real production build: the building now loads centered in frame, and
+dragging to rotate keeps it centered and rotating in place instead of
+swinging off toward wherever the old default pivot happened to be.
+
 ## Open questions
 
 - The real storage-plan limit for the progress bar's denominator — still
