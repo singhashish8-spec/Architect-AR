@@ -6,6 +6,12 @@ import labelStyles from '../styles/responsiveLabel.module.css'
 interface LevelsPanelProps {
   levels: Level[]
   onJumpTo: (globalIds: string[]) => void
+  // Controlled rather than local state -- the page owns a single "which
+  // corner panel is open" value shared across all of them, so opening
+  // this one closes whichever other was open instead of stacking. See
+  // types/CornerPanel.ts.
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 // A button that opens a small anchored panel (capped height, its own
@@ -16,8 +22,7 @@ interface LevelsPanelProps {
 // keeps the same compact closed state while keeping the open state
 // small and anchored, matching CategoryPanel's own pattern right next to
 // it. See docs/features/levels-and-rooms-navigation.md.
-export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
-  const [open, setOpen] = useState(false)
+export function LevelsPanel({ levels, onJumpTo, open, onOpenChange }: LevelsPanelProps) {
   // Each level's room list starts collapsed -- a real building's levels
   // can each hold a dozen-plus rooms, and showing all of them for every
   // level at once defeats the point of this being a compact panel.
@@ -27,7 +32,7 @@ export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
 
   function jumpTo(globalIds: string[]) {
     onJumpTo(globalIds)
-    setOpen(false)
+    onOpenChange(false)
   }
 
   function toggleExpanded(expressId: number) {
@@ -44,7 +49,7 @@ export function LevelsPanel({ levels, onJumpTo }: LevelsPanelProps) {
       <button
         type="button"
         className={styles.toggle}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => onOpenChange(!open)}
         aria-label={open ? 'Hide levels & rooms' : 'Levels & rooms'}
       >
         <svg

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import type { ElementCategory } from '../ifc/ifcCategories'
 import { buildSchedule } from '../utils/scheduleData'
@@ -22,6 +22,10 @@ interface SchedulePanelProps {
   // visible symptom fixed alongside this. See
   // docs/features/search-and-schedule.md.
   portalContainer: HTMLElement | null
+  // Controlled rather than local state -- see LevelsPanel.tsx's matching
+  // comment. types/CornerPanel.ts.
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 // A simple quantity takeoff -- "how many of each thing" as a list, not
@@ -30,8 +34,7 @@ interface SchedulePanelProps {
 // don't collide) rather than one of the small anchored corner panels,
 // since a real schedule needs more room than those give. See
 // docs/features/search-and-schedule.md.
-export function SchedulePanel({ categories, onIsolate, onJumpTo, portalContainer }: SchedulePanelProps) {
-  const [open, setOpen] = useState(false)
+export function SchedulePanel({ categories, onIsolate, onJumpTo, portalContainer, open, onOpenChange }: SchedulePanelProps) {
   const schedule = useMemo(() => buildSchedule(categories), [categories])
   const allGlobalIds = useMemo(() => {
     const ids = new Set<string>()
@@ -58,7 +61,7 @@ export function SchedulePanel({ categories, onIsolate, onJumpTo, portalContainer
       <button
         type="button"
         className={styles.toggle}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => onOpenChange(!open)}
         aria-label={open ? 'Hide schedule' : 'Schedule'}
       >
         <svg
@@ -85,7 +88,7 @@ export function SchedulePanel({ categories, onIsolate, onJumpTo, portalContainer
         portalContainer &&
         createPortal(
           <aside className={styles.panel}>
-            <button type="button" className={styles.closeButton} onClick={() => setOpen(false)} aria-label="Close">
+            <button type="button" className={styles.closeButton} onClick={() => onOpenChange(false)} aria-label="Close">
               ×
             </button>
             <h2 className={styles.title}>Schedule</h2>

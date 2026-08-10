@@ -11,6 +11,10 @@ interface CategoryPanelProps {
   // reference here would re-fire that effect (and its parent setState)
   // every render.
   onHiddenGlobalIdsChange: (hidden: Set<string>) => void
+  // Controlled rather than local state -- see LevelsPanel.tsx's matching
+  // comment. types/CornerPanel.ts.
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 interface CategoryGroup {
@@ -41,8 +45,7 @@ function groupByDiscipline(categories: ElementCategory[]): CategoryGroup[] {
 // specific MEP systems, etc.) instead of only being able to look at
 // everything at once. See
 // docs/features/category-and-discipline-visibility.md.
-export function CategoryPanel({ categories, onHiddenGlobalIdsChange }: CategoryPanelProps) {
-  const [open, setOpen] = useState(false)
+export function CategoryPanel({ categories, onHiddenGlobalIdsChange, open, onOpenChange }: CategoryPanelProps) {
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set())
   // Each discipline's category list starts collapsed -- same reasoning
   // as LevelsPanel's per-level collapse: a real building can have a
@@ -88,7 +91,7 @@ export function CategoryPanel({ categories, onHiddenGlobalIdsChange }: CategoryP
       <button
         type="button"
         className={styles.toggle}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => onOpenChange(!open)}
         aria-label={open ? 'Hide categories' : 'Show/hide categories'}
       >
         <svg

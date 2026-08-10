@@ -209,6 +209,27 @@ that little space -- not the reported bug (nothing moves anymore), just
 a tighter-quarters visual overlap when two menus are open
 simultaneously, which is an uncommon thing to do.
 
+## Addendum 5: only one corner panel open at a time
+
+A direct follow-up request after Addendum 4 shipped: "make one menu
+open at once... just like any other app." Each of the five corner
+panels (Levels, Categories, Lighting, Search, Schedule) still kept its
+own independent `open` state even after the positioning fix, so nothing
+stopped several from being open simultaneously -- Addendum 4's own
+screenshots showed exactly that (Levels and Categories open together).
+
+Fixed by moving the "which one is open" state up to the page
+(`ProjectView.tsx`, `LocalPreview.tsx`) as a single `openPanel: CornerPanelKey | null`
+(`types/CornerPanel.ts`), and turning each panel from an uncontrolled
+component (its own `useState<boolean>`) into a controlled one --
+`open`/`onOpenChange` props instead. Opening any panel now sets
+`openPanel` to that one key, which automatically makes every other
+panel's own `open` prop `false` on the next render -- no explicit
+"close the others" logic needed, since only one key can ever match at
+once. Verified live: opened each of the five panels in turn and
+confirmed, at each step, that the previous one had actually closed
+(not just visually behind the new one) before the next opened.
+
 ## Open questions
 
 - **Not yet tested by the owner** through the live app — the check above

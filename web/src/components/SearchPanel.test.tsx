@@ -1,9 +1,19 @@
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { SearchPanel } from './SearchPanel'
 import type { Level } from '../ifc/ifcSpatialTree'
 import type { ElementCategory } from '../ifc/ifcCategories'
+
+// SearchPanel's open/closed state is controlled by its parent page (so
+// only one corner panel can be open at a time -- see types/CornerPanel.ts)
+// rather than kept locally, so tests need their own small stateful
+// wrapper to exercise open/close interactions.
+function ControlledSearchPanel(props: Omit<Parameters<typeof SearchPanel>[0], 'open' | 'onOpenChange'>) {
+  const [open, setOpen] = useState(false)
+  return <SearchPanel {...props} open={open} onOpenChange={setOpen} />
+}
 
 const levels: Level[] = [
   {
@@ -23,7 +33,7 @@ const categories: ElementCategory[] = [
 describe('SearchPanel', () => {
   it('renders nothing when there is no searchable data at all', () => {
     const { container } = render(
-      <SearchPanel levels={[]} categories={[]} onIsolate={vi.fn()} onJumpTo={vi.fn()} />,
+      <ControlledSearchPanel levels={[]} categories={[]} onIsolate={vi.fn()} onJumpTo={vi.fn()} />,
     )
     expect(container).toBeEmptyDOMElement()
   })
@@ -32,7 +42,7 @@ describe('SearchPanel', () => {
     const onIsolate = vi.fn()
     const onJumpTo = vi.fn()
     const user = userEvent.setup()
-    render(<SearchPanel levels={levels} categories={categories} onIsolate={onIsolate} onJumpTo={onJumpTo} />)
+    render(<ControlledSearchPanel levels={levels} categories={categories} onIsolate={onIsolate} onJumpTo={onJumpTo} />)
 
     await user.click(screen.getByRole('button', { name: /search elements/i }))
     await user.type(screen.getByPlaceholderText(/door/i), 'door')

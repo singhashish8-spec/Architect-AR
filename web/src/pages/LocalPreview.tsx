@@ -14,6 +14,7 @@ import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
 import type { LightingPreset } from '../types/LightingPreset'
+import type { CornerPanelKey } from '../types/CornerPanel'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from '../styles/form.module.css'
 
@@ -35,6 +36,9 @@ export function LocalPreview() {
   const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null)
   const [conversionError, setConversionError] = useState<string | null>(null)
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
+  // Which one corner panel is open, at most one at a time -- see
+  // ProjectView.tsx's matching comment.
+  const [openPanel, setOpenPanel] = useState<CornerPanelKey | null>(null)
   // SchedulePanel portals its actual panel content here -- see its own
   // comment for why (the containing-block bug this fixes).
   const [viewerEl, setViewerEl] = useState<HTMLDivElement | null>(null)
@@ -205,11 +209,26 @@ export function LocalPreview() {
                 data becomes ready at a slightly different moment. */}
             {!ifcLoading && (
               <>
-                <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
-                <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+                <LevelsPanel
+                  levels={levels}
+                  onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+                  open={openPanel === 'levels'}
+                  onOpenChange={(open) => setOpenPanel(open ? 'levels' : null)}
+                />
+                <CategoryPanel
+                  categories={categories}
+                  onHiddenGlobalIdsChange={setHiddenGlobalIds}
+                  open={openPanel === 'categories'}
+                  onOpenChange={(open) => setOpenPanel(open ? 'categories' : null)}
+                />
               </>
             )}
-            <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
+            <LightingPresetPanel
+              value={lightingPreset}
+              onChange={setLightingPreset}
+              open={openPanel === 'lighting'}
+              onOpenChange={(open) => setOpenPanel(open ? 'lighting' : null)}
+            />
             {!ifcLoading && (
               <>
                 <SearchPanel
@@ -217,12 +236,16 @@ export function LocalPreview() {
                   categories={categories}
                   onIsolate={setHiddenGlobalIds}
                   onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+                  open={openPanel === 'search'}
+                  onOpenChange={(open) => setOpenPanel(open ? 'search' : null)}
                 />
                 <SchedulePanel
                   categories={categories}
                   onIsolate={setHiddenGlobalIds}
                   onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
                   portalContainer={viewerEl}
+                  open={openPanel === 'schedule'}
+                  onOpenChange={(open) => setOpenPanel(open ? 'schedule' : null)}
                 />
               </>
             )}

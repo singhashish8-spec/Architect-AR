@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
@@ -10,10 +11,21 @@ const categories: ElementCategory[] = [
   { expressId: 3, globalId: 'door-1', type: 'IfcDoor', discipline: 'Architecture', category: 'Doors' },
 ]
 
+// SchedulePanel's open/closed state is controlled by its parent page (so
+// only one corner panel can be open at a time -- see types/CornerPanel.ts)
+// rather than kept locally, so tests need their own small stateful
+// wrapper to exercise open/close interactions.
+function ControlledSchedulePanel(
+  props: Omit<Parameters<typeof SchedulePanel>[0], 'open' | 'onOpenChange'>,
+) {
+  const [open, setOpen] = useState(false)
+  return <SchedulePanel {...props} open={open} onOpenChange={setOpen} />
+}
+
 describe('SchedulePanel', () => {
   it('renders nothing when there is no classified data at all', () => {
     const { container } = render(
-      <SchedulePanel categories={[]} onIsolate={vi.fn()} onJumpTo={vi.fn()} portalContainer={document.body} />,
+      <ControlledSchedulePanel categories={[]} onIsolate={vi.fn()} onJumpTo={vi.fn()} portalContainer={document.body} />,
     )
     expect(container).toBeEmptyDOMElement()
   })
@@ -23,7 +35,7 @@ describe('SchedulePanel', () => {
     const onJumpTo = vi.fn()
     const user = userEvent.setup()
     render(
-      <SchedulePanel
+      <ControlledSchedulePanel
         categories={categories}
         onIsolate={onIsolate}
         onJumpTo={onJumpTo}
@@ -51,7 +63,9 @@ describe('SchedulePanel', () => {
     // in place, since that's exactly the containing-block bug (the panel
     // collapsing to almost no height) this was built to avoid.
     const user = userEvent.setup()
-    render(<SchedulePanel categories={categories} onIsolate={vi.fn()} onJumpTo={vi.fn()} portalContainer={null} />)
+    render(
+      <ControlledSchedulePanel categories={categories} onIsolate={vi.fn()} onJumpTo={vi.fn()} portalContainer={null} />,
+    )
 
     await user.click(screen.getByRole('button', { name: /^schedule$/i }))
 

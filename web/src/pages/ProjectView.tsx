@@ -15,6 +15,7 @@ import { getProject, projectRequiresPasscode } from '../services/projectService'
 import type { Project } from '../types/Project'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { LightingPreset } from '../types/LightingPreset'
+import type { CornerPanelKey } from '../types/CornerPanel'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './ProjectView.module.css'
 
@@ -40,6 +41,14 @@ export function ProjectView() {
   const [selecting, setSelecting] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
+  // Which one of the corner panels (Levels/Categories/Lighting/Search/
+  // Schedule) is open, at most one at a time -- previously each panel
+  // tracked its own open state, so several could be open together,
+  // which (combined with the panels' anchored-dropdown positioning) let
+  // them visually overlap each other on a narrow screen. Owned here
+  // instead of by each panel so opening one always closes whichever
+  // other was open, matching how a normal menu bar behaves.
+  const [openPanel, setOpenPanel] = useState<CornerPanelKey | null>(null)
   // SchedulePanel portals its actual panel content here (see its own
   // comment for why) -- a state, not a plain ref, so the portal target
   // is available by the time anything tries to render into it.
@@ -191,11 +200,26 @@ export function ProjectView() {
             data at all, so it stays outside this gate. */}
         {!ifcLoading && (
           <>
-            <LevelsPanel levels={levels} onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)} />
-            <CategoryPanel categories={categories} onHiddenGlobalIdsChange={setHiddenGlobalIds} />
+            <LevelsPanel
+              levels={levels}
+              onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+              open={openPanel === 'levels'}
+              onOpenChange={(open) => setOpenPanel(open ? 'levels' : null)}
+            />
+            <CategoryPanel
+              categories={categories}
+              onHiddenGlobalIdsChange={setHiddenGlobalIds}
+              open={openPanel === 'categories'}
+              onOpenChange={(open) => setOpenPanel(open ? 'categories' : null)}
+            />
           </>
         )}
-        <LightingPresetPanel value={lightingPreset} onChange={setLightingPreset} />
+        <LightingPresetPanel
+          value={lightingPreset}
+          onChange={setLightingPreset}
+          open={openPanel === 'lighting'}
+          onOpenChange={(open) => setOpenPanel(open ? 'lighting' : null)}
+        />
         {!ifcLoading && (
           <>
             <SearchPanel
@@ -203,12 +227,16 @@ export function ProjectView() {
               categories={categories}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
+              open={openPanel === 'search'}
+              onOpenChange={(open) => setOpenPanel(open ? 'search' : null)}
             />
             <SchedulePanel
               categories={categories}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
               portalContainer={rootEl}
+              open={openPanel === 'schedule'}
+              onOpenChange={(open) => setOpenPanel(open ? 'schedule' : null)}
             />
           </>
         )}

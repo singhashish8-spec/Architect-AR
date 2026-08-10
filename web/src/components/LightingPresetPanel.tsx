@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { LIGHTING_PRESETS, LIGHTING_PRESET_LABELS, type LightingPreset } from '../types/LightingPreset'
 import styles from './LightingPresetPanel.module.css'
 import labelStyles from '../styles/responsiveLabel.module.css'
@@ -6,21 +5,23 @@ import labelStyles from '../styles/responsiveLabel.module.css'
 interface LightingPresetPanelProps {
   value: LightingPreset
   onChange: (preset: LightingPreset) => void
+  // Controlled rather than local state -- see LevelsPanel.tsx's matching
+  // comment. types/CornerPanel.ts.
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 // A small anchored panel matching LevelsPanel/CategoryPanel's own style,
 // letting whoever's looking at the model pick a lighting mood for this
 // viewing session -- see docs/features/lighting-presets.md. Client-side
 // only, not saved anywhere; always starts back at 'daylight' on reload.
-export function LightingPresetPanel({ value, onChange }: LightingPresetPanelProps) {
-  const [open, setOpen] = useState(false)
-
+export function LightingPresetPanel({ value, onChange, open, onOpenChange }: LightingPresetPanelProps) {
   return (
     <div className={styles.wrapper}>
       <button
         type="button"
         className={styles.toggle}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => onOpenChange(!open)}
         aria-label={open ? 'Hide lighting options' : 'Lighting'}
       >
         <svg
@@ -56,7 +57,7 @@ export function LightingPresetPanel({ value, onChange }: LightingPresetPanelProp
                 checked={value === preset}
                 onChange={() => {
                   onChange(preset)
-                  setOpen(false)
+                  onOpenChange(false)
                 }}
               />
               {LIGHTING_PRESET_LABELS[preset]}

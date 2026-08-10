@@ -10,10 +10,13 @@ interface SearchPanelProps {
   categories: ElementCategory[]
   onIsolate: (hiddenGlobalIds: Set<string>) => void
   onJumpTo: (globalIds: string[]) => void
+  // Controlled rather than local state -- see LevelsPanel.tsx's matching
+  // comment. types/CornerPanel.ts.
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function SearchPanel({ levels, categories, onIsolate, onJumpTo }: SearchPanelProps) {
-  const [open, setOpen] = useState(false)
+export function SearchPanel({ levels, categories, onIsolate, onJumpTo, open, onOpenChange }: SearchPanelProps) {
   const [query, setQuery] = useState('')
   const [isolated, setIsolated] = useState<string | null>(null)
 
@@ -41,7 +44,7 @@ export function SearchPanel({ levels, categories, onIsolate, onJumpTo }: SearchP
     onIsolate(hidden)
     onJumpTo(result.globalIds)
     setIsolated(result.label)
-    setOpen(false)
+    onOpenChange(false)
   }
 
   function clearIsolation() {
@@ -55,7 +58,7 @@ export function SearchPanel({ levels, categories, onIsolate, onJumpTo }: SearchP
       <button
         type="button"
         className={styles.toggle}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => onOpenChange(!open)}
         aria-label={open ? 'Hide search' : 'Search elements'}
       >
         <svg
