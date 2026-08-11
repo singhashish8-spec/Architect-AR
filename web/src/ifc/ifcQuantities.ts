@@ -18,8 +18,14 @@ export interface ElementQuantities {
 }
 
 const LENGTH_NAME_PRIORITY = ['Length', 'NominalLength', 'Perimeter']
-const WIDTH_NAMES = ['Width', 'NominalWidth']
-const HEIGHT_NAMES = ['Height', 'NominalHeight']
+// 'b'/'h' -- common shorthand for a structural section's width/depth in
+// engineering drawings and some Revit structural families' own type
+// parameters -- included cautiously (single-letter names are otherwise
+// risky to match blind) since these only ever get treated as a
+// candidate when they show up as a genuinely numeric property value
+// (see the HasProperties fallback below), never just by name alone.
+const WIDTH_NAMES = ['Width', 'NominalWidth', 'b']
+const HEIGHT_NAMES = ['Height', 'NominalHeight', 'h']
 const AREA_NAME_PRIORITY = [
   'NetSideArea',
   'GrossSideArea',
@@ -48,19 +54,40 @@ function scaled(value: number | null, lengthScale: number, power: number): numbe
   return value === null || Number.isNaN(value) ? null : value * lengthScale ** power
 }
 
+// A name this app already treats as a meaningful length/area/volume
+// candidate -- used to decide whether a *regular* Pset property (not a
+// proper Qto quantity) is worth treating as one, see the HasProperties
+// fallback below.
+const KNOWN_LENGTH_NAMES = [...LENGTH_NAME_PRIORITY, ...WIDTH_NAMES, ...HEIGHT_NAMES]
+
 // Pulls length/width/height/area/volume straight out of the same
 // property-set array getElementData() (ifcPropertyLookup.ts) already
-// fetches per element -- that function only reads each pset's
-// `HasProperties` (regular Pset_* values); Qto_* quantity sets come
-// back in the very same array but carry their values under `Quantities`
-// instead, which nothing in this app read until now. An
-// IfcElementQuantity's own `Quantities` array holds
-// IfcQuantityLength/Area/Volume objects, told apart here by which value
-// field is actually present (LengthValue/AreaValue/VolumeValue) rather
-// than a type-code lookup, since these come back as plain nested
-// objects with no expressID of their own to look up.
+// fetches per element. Two sources, in priority order:
 //
-// Width and Height are pulled out of the length-typed quantities by
+// 1. **Qto_* quantity sets** -- an IfcElementQuantity's own `Quantities`
+//    array holds IfcQuantityLength/Area/Volume objects, told apart here
+//    by which value field is actually present (LengthValue/AreaValue/
+//    VolumeValue) rather than a type-code lookup, since these come back
+//    as plain nested objects with no expressID of their own to look up.
+// 2. **Regular Pset properties (`HasProperties`)**, as a fallback for
+//    exactly the names this module already looks for. Not every
+//    exporter puts dimensional data in a proper Qto set -- some carry a
+//    beam/column's own cross-section Width/Height as plain numeric
+//    *parameters* instead (e.g. a family's own "Width"/"Height" or
+//    "b"/"h" type parameters), which getElementData() already reads for
+//    tap-to-inspect but this module never had. Added 2026-08-11 after a
+//    real project's structural elements (beams, footings) showed no
+//    quantities or materials at all in the BOQ despite the model
+//    genuinely having that data -- unverified whether this specific
+//    fallback is the fix (no access to that real file in this sandbox
+//    to confirm against), but it's a real, addressable gap either way.
+//    Only a property whose *name* is already one of
+//    Length/Width/Height/Area/Volume's known names is ever treated as a
+//    quantity candidate here -- this never guesses that some arbitrary
+//    numeric property is secretly a dimension just because it parses as
+//    a number.
+//
+// Width and Height are pulled out of the length-typed candidates by
 // name specifically (IFC stores them as IfcQuantityLength too, just
 // named "Width"/"Height" instead of "Length") and excluded from the
 // pool the generic length lookup picks from below -- otherwise a beam's
@@ -77,14 +104,25 @@ function extractQuantities(propertySets: unknown[], lengthScale: number): Elemen
   const volumes: { name: string; value: number }[] = []
 
   for (const raw of propertySets) {
-    const pset = raw as { Quantities?: unknown[] }
-    if (!pset.Quantities) continue
-    for (const rawQuantity of pset.Quantities) {
+    const pset = raw as { Quantities?: unknown[]; HasProperties?: unknown[] }
+
+    for (const rawQuantity of pset.Quantities ?? []) {
       const q = rawQuantity as Record<string, unknown>
       const name = q.Name !== undefined ? unwrap(q.Name) : ''
       if ('LengthValue' in q) lengths.push({ name, value: Number(unwrap(q.LengthValue)) })
       else if ('AreaValue' in q) areas.push({ name, value: Number(unwrap(q.AreaValue)) })
       else if ('VolumeValue' in q) volumes.push({ name, value: Number(unwrap(q.VolumeValue)) })
+    }
+
+    for (const rawProp of pset.HasProperties ?? []) {
+      const p = rawProp as { Name?: unknown; NominalValue?: unknown }
+      if (p.Name === undefined || p.NominalValue === undefined) continue
+      const name = unwrap(p.Name)
+      const value = Number(unwrap(p.NominalValue))
+      if (Number.isNaN(value)) continue
+      if (KNOWN_LENGTH_NAMES.includes(name)) lengths.push({ name, value })
+      else if (AREA_NAME_PRIORITY.includes(name)) areas.push({ name, value })
+      else if (VOLUME_NAME_PRIORITY.includes(name)) volumes.push({ name, value })
     }
   }
 
@@ -150,7 +188,13 @@ export async function getElementBoqData(
 ): Promise<{ quantities: ElementQuantities; materials: string[] }> {
   let quantities: ElementQuantities = { length: null, width: null, height: null, area: null, volume: null }
   try {
-    const propertySets = (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
+    // includeTypeProperties=true (4th arg) -- some exporters put a
+    // family/type's own quantities and parameters on the *type* object
+    // (IfcElementType, via IfcRelDefinesByType) rather than repeating
+    // them per instance, e.g. a standard steel section's own profile
+    // dimensions defined once on its type. Without this, those never
+    // surface for any instance of that type at all.
+    const propertySets = (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
     quantities = extractQuantities(propertySets, lengthScale)
   } catch {
     // No property/quantity sets for this element -- leave quantities null.

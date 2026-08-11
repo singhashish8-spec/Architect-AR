@@ -13,6 +13,7 @@ const details: BoqElementDetail[] = [
     discipline: 'Architecture',
     category: 'Walls',
     level: 'Level 1',
+    levelIndex: 0,
     materials: ['Brick'],
     quantities: { length: 4, width: null, height: 3, area: 10, volume: 2 },
   },
@@ -24,6 +25,7 @@ const details: BoqElementDetail[] = [
     discipline: 'Architecture',
     category: 'Doors',
     level: 'Level 1',
+    levelIndex: 0,
     materials: ['Oak'],
     quantities: { length: null, width: 0.9, height: 2.1, area: 2, volume: null },
   },
@@ -35,10 +37,17 @@ const details: BoqElementDetail[] = [
     discipline: 'Structure',
     category: 'Beams',
     level: 'Level 1',
+    levelIndex: 0,
     materials: ['Steel'],
     quantities: { length: 6, width: 0.3, height: 0.5, area: null, volume: 0.9 },
   },
 ]
+
+async function expandToTable(user: ReturnType<typeof userEvent.setup>, discipline: string, category: string) {
+  await user.click(screen.getByText(discipline))
+  await user.click(screen.getByText(category))
+  await user.click(screen.getByText('Level 1'))
+}
 
 describe('BoqContent', () => {
   it('shows a progress line while loading', () => {
@@ -55,8 +64,7 @@ describe('BoqContent', () => {
     const user = userEvent.setup()
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
 
-    await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Walls'))
+    await expandToTable(user, 'Architecture', 'Walls')
 
     expect(screen.getByRole('columnheader', { name: 'Area' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Length' })).toBeInTheDocument()
@@ -69,8 +77,7 @@ describe('BoqContent', () => {
     const user = userEvent.setup()
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
 
-    await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Doors'))
+    await expandToTable(user, 'Architecture', 'Doors')
 
     expect(screen.getByText('Door-01')).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: 'Height' })).not.toBeInTheDocument()
@@ -82,8 +89,7 @@ describe('BoqContent', () => {
     const user = userEvent.setup()
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
 
-    await user.click(screen.getByText('Structure'))
-    await user.click(screen.getByText('Beams'))
+    await expandToTable(user, 'Structure', 'Beams')
 
     for (const column of ['Length', 'Width', 'Height', 'Volume']) {
       expect(screen.getByRole('columnheader', { name: column })).toBeInTheDocument()
@@ -96,21 +102,40 @@ describe('BoqContent', () => {
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
 
     await user.click(screen.getByText('Structure'))
+    await user.click(screen.getByText('Beams'))
     // Beams' profile is length/width/height/volume -- only length (6 m)
     // and volume (0.9 m³) are summable, so those two totals should show
-    // as badges alongside the count; width/height never do.
-    expect(screen.getByText(/6 m/)).toBeInTheDocument()
-    expect(screen.getByText(/0.9 m³/)).toBeInTheDocument()
+    // as badges alongside the count; width/height never do. Shown at
+    // both the category header and its (only) level's own header, since
+    // there's just one beam and it's on Level 1.
+    expect(screen.getAllByText(/6 m/)).toHaveLength(2)
+    expect(screen.getAllByText(/0.9 m³/)).toHaveLength(2)
+  })
+
+  it('groups a category\'s elements by level, with its own collapsible header', async () => {
+    const user = userEvent.setup()
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
+
+    await user.click(screen.getByText('Architecture'))
+    await user.click(screen.getByText('Walls'))
+
+    // The level header shows before the element table is expanded.
+    expect(screen.getByText('Level 1')).toBeInTheDocument()
+    expect(screen.queryByText('Wall-01')).not.toBeInTheDocument()
+
+    await user.click(screen.getByText('Level 1'))
+    expect(screen.getByText('Wall-01')).toBeInTheDocument()
   })
 
   it('hides Locate buttons entirely when onIsolate/onJumpTo are not provided (standalone page mode)', async () => {
     const user = userEvent.setup()
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
     await user.click(screen.getByText('Architecture'))
+    await user.click(screen.getByText('Walls'))
     expect(screen.queryByText('Locate')).not.toBeInTheDocument()
   })
 
-  it('isolates and jumps to a whole category via its "Locate" button when callbacks are provided', async () => {
+  it('isolates and jumps to a whole category via its own "Locate" button when callbacks are provided', async () => {
     const onIsolate = vi.fn()
     const onJumpTo = vi.fn()
     const user = userEvent.setup()
@@ -127,12 +152,34 @@ describe('BoqContent', () => {
 
     await user.click(screen.getByText('Architecture'))
     await user.click(screen.getByText('Walls'))
-    await user.click(screen.getByTitle(/Isolate every Walls/))
+    await user.click(screen.getByTitle('Isolate every Walls and frame the camera around them'))
 
     expect(onJumpTo).toHaveBeenCalledWith(['wall-1'])
     const hidden = onIsolate.mock.calls[0][0] as Set<string>
     expect(hidden.has('door-1')).toBe(true)
     expect(hidden.has('beam-1')).toBe(true)
     expect(hidden.has('wall-1')).toBe(false)
+  })
+
+  it('isolates and jumps to just one level of a category via that level\'s own "Locate" button', async () => {
+    const onIsolate = vi.fn()
+    const onJumpTo = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <BoqContent
+        details={details}
+        progress={null}
+        error={null}
+        csvFileName="boq.csv"
+        onIsolate={onIsolate}
+        onJumpTo={onJumpTo}
+      />,
+    )
+
+    await user.click(screen.getByText('Architecture'))
+    await user.click(screen.getByText('Walls'))
+    await user.click(screen.getByTitle('Isolate every Walls on Level 1 and frame the camera around them'))
+
+    expect(onJumpTo).toHaveBeenCalledWith(['wall-1'])
   })
 })

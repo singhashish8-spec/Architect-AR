@@ -33,6 +33,48 @@ collapsed, and easy to dig into or export when it isn't.
 
 ## What's built
 
+**Grouped by level too, not just discipline/category (owner's ask, 2026-08-11)**
+Each category now has a third tier underneath it: its own elements
+broken down by level (e.g. "Walls: 57" → "Level 1: 30", "Level 2: 27"),
+with the same collapsible-header, count-badge, and "Locate" pattern as
+the discipline/category tiers above it. Levels sort by their actual
+position in the building (bottom to top), not alphabetically — level
+*names* like "T/FDN", "Level 1", "Roof" don't sort correctly as plain
+strings, so `ifc/ifcBoqDetails.ts` now also records each element's
+`levelIndex` (its level's position in the same bottom-to-top array
+`ifc/ifcSpatialTree.ts` already produces for the Levels panel) alongside
+its level name, and `utils/boqData.ts` sorts on that instead. An element
+with no containing storey at all groups under "No level", sorted last.
+The per-element table dropped its own "Level" column once level became
+the group header instead — showing it twice would be redundant.
+
+**A real gap in the quantity/material detection (owner's report, 2026-08-11)**
+After the first version shipped, the owner's own structural model
+showed almost nothing — most categories had no length/area/volume and
+no material at all, only the Rooms category correctly showed its area.
+Two real fixes went into `ifc/ifcQuantities.ts`:
+- `getPropertySets()` is now called with `includeTypeProperties: true`
+  (web-ifc's own 4th argument, previously omitted). Some exporters
+  place a family/type's own quantities and parameters on the *type*
+  object (`IfcElementType`, via `IfcRelDefinesByType`) rather than
+  repeating them on every instance — e.g. a standard steel section's
+  profile dimensions defined once on its type — and without this flag
+  those never surfaced for any instance of that type.
+- **A fallback to regular Pset properties**, not just proper `Qto_*`
+  quantity sets. Not every exporter puts dimensional data in a quantity
+  set at all — some carry a beam/column's own cross-section Width/Height
+  as plain numeric *parameters* instead (a family's own "Width"/
+  "Height", or engineering shorthand "b"/"h"). `getElementData()`
+  already read these for tap-to-inspect; this module never had. Only a
+  property whose name is already one of the known
+  Length/Width/Height/Area/Volume names is ever treated as a quantity
+  candidate this way — never a guess that some arbitrary numeric
+  property is secretly a dimension.
+
+Unverified whether this fully resolves the owner's specific report (no
+access to that real file in this sandbox to confirm against directly) —
+flagged in Open questions below pending a live retest.
+
 **Per-category display profiles + Width/Height (owner's correction, 2026-08-11)**
 The first version showed the same Length/Area/Volume columns for every
 category, which the owner pointed out isn't how a real BOQ reads (a
@@ -200,6 +242,14 @@ separate IFC query needed.
 
 ## Open questions / known limitations
 
+- **Pending a live retest**: whether the `includeTypeProperties`/
+  Pset-fallback fix above actually resolves the owner's real report of
+  near-empty quantities/materials. Both changes are real, defensible
+  gaps regardless of whether they're the *whole* explanation — it's also
+  possible the specific file in question simply wasn't exported with
+  base quantities at all for building elements (a Revit IFC export
+  option), which no code change here can invent data for. Needs the
+  owner to reload the BOQ against their real project and report back.
 - **Not verified against a real IFC file's actual unit declaration or
   material structure** — no live IFC sample is available in this
   session's sandbox. Both `ifcUnits.ts` and the material-extraction half

@@ -19,6 +19,7 @@ const details: BoqElementDetail[] = [
     discipline: 'Architecture',
     category: 'Walls',
     level: 'Level 1',
+    levelIndex: 0,
     materials: ['Brick'],
     quantities: { length: 4, width: null, height: null, area: 10, volume: 2 },
   },

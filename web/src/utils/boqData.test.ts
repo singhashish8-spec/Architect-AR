@@ -11,6 +11,7 @@ function detail(overrides: Partial<BoqElementDetail>): BoqElementDetail {
     discipline: 'Architecture',
     category: 'Walls',
     level: 'Level 1',
+    levelIndex: 0,
     materials: [],
     quantities: { length: null, width: null, height: null, area: null, volume: null },
     ...overrides,
@@ -31,6 +32,8 @@ const details: BoqElementDetail[] = [
     globalId: 'wall-2',
     name: 'Wall-02',
     category: 'Walls',
+    level: 'Level 2',
+    levelIndex: 1,
     materials: ['Concrete'],
     quantities: { length: 6, width: null, height: null, area: 15, volume: null },
   }),
@@ -85,6 +88,30 @@ describe('buildBoqTree', () => {
 
   it('returns an empty list for no data', () => {
     expect(buildBoqTree([])).toEqual([])
+  })
+
+  it('further groups each category by level, sorted by the level\'s own position in the building', () => {
+    const tree = buildBoqTree(details)
+    const walls = tree.find((d) => d.discipline === 'Architecture')!.categories.find((c) => c.category === 'Walls')!
+    expect(walls.levels.map((l) => l.level)).toEqual(['Level 1', 'Level 2'])
+    expect(walls.levels[0].count).toBe(1)
+    expect(walls.levels[0].totalArea).toBe(10)
+    expect(walls.levels[1].count).toBe(1)
+    expect(walls.levels[1].totalArea).toBe(15)
+  })
+
+  it('groups elements with no containing level under "No level", sorted last', () => {
+    const noLevelWall = detail({
+      expressId: 5,
+      globalId: 'wall-3',
+      name: 'Wall-03',
+      category: 'Walls',
+      level: null,
+      levelIndex: null,
+    })
+    const tree = buildBoqTree([...details, noLevelWall])
+    const walls = tree.find((d) => d.discipline === 'Architecture')!.categories.find((c) => c.category === 'Walls')!
+    expect(walls.levels.map((l) => l.level)).toEqual(['Level 1', 'Level 2', 'No level'])
   })
 })
 

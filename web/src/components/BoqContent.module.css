@@ -171,6 +171,37 @@
   white-space: nowrap;
 }
 
+/* One tier deeper than .categoryGroup, same visual language (chevron +
+   name + badges) at a smaller size -- a category's own elements broken
+   down by level, e.g. "57 Walls" -> "Level 1: 30", "Level 2: 27". */
+.levelGroup {
+  margin: 0.1rem 0 0.1rem 1.25rem;
+}
+
+.levelHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.3rem 0.25rem;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.levelName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .locateButton {
   flex: none;
   padding: 0.3rem 0.55rem;

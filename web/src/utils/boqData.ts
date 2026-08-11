@@ -1,12 +1,27 @@
 import type { BoqElementDetail } from '../ifc/ifcBoqDetails'
 
+export interface BoqLevelGroup {
+  level: string
+  levelIndex: number | null
+  count: number
+  totalLength: number | null
+  totalArea: number | null
+  totalVolume: number | null
+  elements: BoqElementDetail[]
+}
+
 export interface BoqCategoryGroup {
   category: string
   count: number
   totalLength: number | null
   totalArea: number | null
   totalVolume: number | null
+  // Every element in the category, flat -- used for "Locate this whole
+  // category" and the totals above. `levels` below is the same elements
+  // regrouped by level for display; both exist so neither view has to
+  // be reconstructed from the other.
   elements: BoqElementDetail[]
+  levels: BoqLevelGroup[]
 }
 
 export interface BoqDisciplineGroup {
@@ -16,6 +31,7 @@ export interface BoqDisciplineGroup {
 }
 
 const DISCIPLINE_ORDER = ['Architecture', 'Structure', 'MEP']
+const NO_LEVEL_LABEL = 'No level'
 
 // null (not 0) when none of a category's elements have that quantity at
 // all -- distinguishes "genuinely zero" (can't actually happen for
@@ -27,14 +43,53 @@ function sumOrNull(values: (number | null)[]): number | null {
   return present.length > 0 ? present.reduce((a, b) => a + b, 0) : null
 }
 
-// Discipline > Category > element tree for the BOQ panel -- the same
-// grouping shape utils/scheduleData.ts used for the old count-only
-// Schedule, extended with per-category quantity totals and the full
-// element list (not just a count) underneath. Categories are sorted by
-// element count (highest first, same reasoning as the old schedule: the
-// categories with the most instances are generally what a takeoff cares
-// about first); elements within a category are sorted by name so the
-// list reads predictably rather than in arbitrary IFC file order.
+// One category's elements, regrouped by level -- level *names* ("T/FDN",
+// "Level 1", "Roof") don't sort correctly as plain strings, so this
+// sorts by each level's own position in the building instead
+// (BoqElementDetail.levelIndex, ultimately from ifc/ifcSpatialTree.ts's
+// own bottom-to-top storey order -- see ifc/ifcBoqDetails.ts). Elements
+// with no containing level at all (rare -- most real exports attach
+// everything to a storey) are grouped under "No level", sorted last.
+function groupByLevel(elements: BoqElementDetail[]): BoqLevelGroup[] {
+  const byLevel = new Map<string, BoqElementDetail[]>()
+  for (const element of elements) {
+    const key = element.level ?? NO_LEVEL_LABEL
+    if (!byLevel.has(key)) byLevel.set(key, [])
+    byLevel.get(key)!.push(element)
+  }
+
+  return Array.from(byLevel.entries())
+    .map(([level, levelElements]) => ({
+      level,
+      levelIndex: levelElements[0]?.levelIndex ?? null,
+      count: levelElements.length,
+      totalLength: sumOrNull(levelElements.map((e) => e.quantities.length)),
+      totalArea: sumOrNull(levelElements.map((e) => e.quantities.area)),
+      totalVolume: sumOrNull(levelElements.map((e) => e.quantities.volume)),
+      elements: [...levelElements].sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .sort((a, b) => (a.levelIndex ?? Infinity) - (b.levelIndex ?? Infinity))
+}
+
+function buildCategoryGroup(category: string, elements: BoqElementDetail[]): BoqCategoryGroup {
+  return {
+    category,
+    count: elements.length,
+    totalLength: sumOrNull(elements.map((e) => e.quantities.length)),
+    totalArea: sumOrNull(elements.map((e) => e.quantities.area)),
+    totalVolume: sumOrNull(elements.map((e) => e.quantities.volume)),
+    elements: [...elements].sort((a, b) => a.name.localeCompare(b.name)),
+    levels: groupByLevel(elements),
+  }
+}
+
+// Discipline > Category > Level > element tree for the BOQ panel -- the
+// same grouping shape utils/scheduleData.ts used for the old count-only
+// Schedule, extended with per-category quantity totals, a level
+// breakdown, and the full element list underneath. Categories are
+// sorted by element count (highest first, same reasoning as the old
+// schedule: the categories with the most instances are generally what a
+// takeoff cares about first).
 export function buildBoqTree(details: BoqElementDetail[]): BoqDisciplineGroup[] {
   const byDiscipline = new Map<string, Map<string, BoqElementDetail[]>>()
   for (const detail of details) {
@@ -53,14 +108,7 @@ export function buildBoqTree(details: BoqElementDetail[]): BoqDisciplineGroup[] 
   return orderedDisciplines.map((discipline) => {
     const byCategory = byDiscipline.get(discipline)!
     const categories = Array.from(byCategory.entries())
-      .map(([category, elements]) => ({
-        category,
-        count: elements.length,
-        totalLength: sumOrNull(elements.map((e) => e.quantities.length)),
-        totalArea: sumOrNull(elements.map((e) => e.quantities.area)),
-        totalVolume: sumOrNull(elements.map((e) => e.quantities.volume)),
-        elements: [...elements].sort((a, b) => a.name.localeCompare(b.name)),
-      }))
+      .map(([category, elements]) => buildCategoryGroup(category, elements))
       .sort((a, b) => b.count - a.count)
 
     return {
@@ -97,14 +145,7 @@ export function filterBoqTree(tree: BoqDisciplineGroup[], query: string): BoqDis
       }
       const elements = category.elements.filter((element) => elementMatches(element, trimmed))
       if (elements.length > 0) {
-        categories.push({
-          ...category,
-          elements,
-          count: elements.length,
-          totalLength: sumOrNull(elements.map((e) => e.quantities.length)),
-          totalArea: sumOrNull(elements.map((e) => e.quantities.area)),
-          totalVolume: sumOrNull(elements.map((e) => e.quantities.volume)),
-        })
+        categories.push(buildCategoryGroup(category.category, elements))
       }
     }
     if (categories.length > 0) {

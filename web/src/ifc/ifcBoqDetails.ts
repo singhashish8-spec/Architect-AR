@@ -13,23 +13,31 @@ export interface BoqElementDetail {
   discipline: Discipline
   category: string
   level: string | null
+  // The level's own position in the building (0 = lowest storey IFC's
+  // spatial structure lists), NOT an elevation value -- just enough to
+  // sort level groups bottom-to-top in utils/boqData.ts, since level
+  // *names* ("T/FDN", "Level 1", "Roof") don't sort correctly as plain
+  // strings. null alongside a null `level` (no containing storey found).
+  levelIndex: number | null
   materials: string[]
   quantities: ElementQuantities
 }
 
-// globalId -> level name, built once from the same level/room data the
-// Levels panel already has (ifc/ifcSpatialTree.ts) -- a level's own
-// elementGlobalIds already includes every element on every room on that
-// level (see getLevelsAndRooms()'s own comment on the room-fallback), so
-// a plain "which level's set contains this globalId" scan is enough; no
-// separate IFC query needed.
-function buildLevelLookup(levels: Level[]): Map<string, string> {
-  const lookup = new Map<string, string>()
-  for (const level of levels) {
+// globalId -> {level name, level index}, built once from the same
+// level/room data the Levels panel already has (ifc/ifcSpatialTree.ts) --
+// a level's own elementGlobalIds already includes every element on every
+// room on that level (see getLevelsAndRooms()'s own comment on the
+// room-fallback), so a plain "which level's set contains this globalId"
+// scan is enough; no separate IFC query needed. The index is just this
+// level's position in the `levels` array, which getLevelsAndRooms()
+// already returns in the building's own bottom-to-top storey order.
+function buildLevelLookup(levels: Level[]): Map<string, { name: string; index: number }> {
+  const lookup = new Map<string, { name: string; index: number }>()
+  levels.forEach((level, index) => {
     for (const globalId of level.elementGlobalIds) {
-      if (!lookup.has(globalId)) lookup.set(globalId, level.name)
+      if (!lookup.has(globalId)) lookup.set(globalId, { name: level.name, index })
     }
-  }
+  })
   return lookup
 }
 
@@ -82,6 +90,7 @@ export async function buildBoqDetails(
     }
 
     const { quantities, materials } = await getElementBoqData(api, modelId, element.expressId, lengthScale)
+    const levelEntry = levelLookup.get(element.globalId)
 
     details.push({
       expressId: element.expressId,
@@ -90,7 +99,8 @@ export async function buildBoqDetails(
       type: element.type,
       discipline: element.discipline,
       category: element.category,
-      level: levelLookup.get(element.globalId) ?? null,
+      level: levelEntry?.name ?? null,
+      levelIndex: levelEntry?.index ?? null,
       materials,
       quantities,
     })

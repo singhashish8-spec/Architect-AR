@@ -54,6 +54,7 @@ export function BoqContent({ details, progress, error, csvFileName, onIsolate, o
   const [search, setSearch] = useState('')
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
 
   const tree = useMemo(() => buildBoqTree(details ?? []), [details])
   const visibleTree = useMemo(() => filterBoqTree(tree, search), [tree, search])
@@ -72,6 +73,15 @@ export function BoqContent({ details, progress, error, csvFileName, onIsolate, o
 
   function toggleCategory(key: string) {
     setExpandedCategories((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function toggleLevel(key: string) {
+    setExpandedLevels((current) => {
       const next = new Set(current)
       if (next.has(key)) next.delete(key)
       else next.add(key)
@@ -211,50 +221,98 @@ export function BoqContent({ details, progress, error, csvFileName, onIsolate, o
                       )}
                     </div>
 
-                    {categoryOpen && (
-                      <div className={styles.tableWrap}>
-                        <table className={styles.table}>
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Level</th>
-                              <th>Material</th>
-                              {columns.map((metric) => (
-                                <th key={metric}>{METRIC_LABEL[metric]}</th>
-                              ))}
-                              {canLocate && <th />}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {category.elements.map((element) => (
-                              <tr key={element.globalId}>
-                                <td>{element.name}</td>
-                                <td>{element.level ?? '—'}</td>
-                                <td>{element.materials.length > 0 ? element.materials.join(', ') : '—'}</td>
-                                {columns.map((metric) => (
-                                  <td key={metric} className={styles.numberCell}>
-                                    {formatQuantity(element.quantities[metric], METRIC_UNIT[metric])}
-                                  </td>
-                                ))}
-                                {canLocate && (
-                                  <td>
-                                    <button
-                                      type="button"
-                                      className={styles.rowLocateButton}
-                                      onClick={() => locate([element.globalId])}
-                                      aria-label={`Locate ${element.name}`}
-                                      title="Isolate and frame this element"
-                                    >
-                                      ⌖
-                                    </button>
-                                  </td>
-                                )}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                    {categoryOpen &&
+                      category.levels.map((levelGroup) => {
+                        const lKey = `${key} ${levelGroup.level}`
+                        const levelOpen = searching || expandedLevels.has(lKey)
+                        const levelTotalsByMetric: Partial<Record<QuantityMetric, number | null>> = {
+                          length: levelGroup.totalLength,
+                          area: levelGroup.totalArea,
+                          volume: levelGroup.totalVolume,
+                        }
+
+                        return (
+                          <div key={lKey} className={styles.levelGroup}>
+                            <div className={styles.categoryHeaderRow}>
+                              <button
+                                type="button"
+                                className={styles.levelHeader}
+                                onClick={() => toggleLevel(lKey)}
+                                aria-expanded={levelOpen}
+                              >
+                                <span className={levelOpen ? styles.chevronOpen : styles.chevron}>▸</span>
+                                <span className={styles.levelName}>{levelGroup.level}</span>
+                                <span className={styles.categoryBadges}>
+                                  <span className={styles.badge}>{levelGroup.count}</span>
+                                  {columns
+                                    .filter(
+                                      (metric) =>
+                                        SUMMABLE_METRICS.includes(metric) && levelTotalsByMetric[metric] !== null,
+                                    )
+                                    .map((metric) => (
+                                      <span key={metric} className={styles.badge}>
+                                        {formatQuantity(levelTotalsByMetric[metric] ?? null, METRIC_UNIT[metric])}
+                                      </span>
+                                    ))}
+                                </span>
+                              </button>
+                              {canLocate && (
+                                <button
+                                  type="button"
+                                  className={styles.locateButton}
+                                  onClick={() => locate(levelGroup.elements.map((e) => e.globalId))}
+                                  title={`Isolate every ${category.category} on ${levelGroup.level} and frame the camera around them`}
+                                >
+                                  Locate
+                                </button>
+                              )}
+                            </div>
+
+                            {levelOpen && (
+                              <div className={styles.tableWrap}>
+                                <table className={styles.table}>
+                                  <thead>
+                                    <tr>
+                                      <th>Name</th>
+                                      <th>Material</th>
+                                      {columns.map((metric) => (
+                                        <th key={metric}>{METRIC_LABEL[metric]}</th>
+                                      ))}
+                                      {canLocate && <th />}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {levelGroup.elements.map((element) => (
+                                      <tr key={element.globalId}>
+                                        <td>{element.name}</td>
+                                        <td>{element.materials.length > 0 ? element.materials.join(', ') : '—'}</td>
+                                        {columns.map((metric) => (
+                                          <td key={metric} className={styles.numberCell}>
+                                            {formatQuantity(element.quantities[metric], METRIC_UNIT[metric])}
+                                          </td>
+                                        ))}
+                                        {canLocate && (
+                                          <td>
+                                            <button
+                                              type="button"
+                                              className={styles.rowLocateButton}
+                                              onClick={() => locate([element.globalId])}
+                                              aria-label={`Locate ${element.name}`}
+                                              title="Isolate and frame this element"
+                                            >
+                                              ⌖
+                                            </button>
+                                          </td>
+                                        )}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                   </div>
                 )
               })}
