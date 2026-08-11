@@ -1,7 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { KebabMenu } from '../../components/KebabMenu'
-import { deleteAdminProject, duplicateAdminProject, type AdminProject } from '../../services/adminService'
+import {
+  deleteAdminProject,
+  duplicateAdminProject,
+  getStorageUsage,
+  setStorageLimit,
+  type AdminProject,
+  type StorageUsage,
+} from '../../services/adminService'
 import type { ProjectStatus } from '../../types/Project'
 import { getErrorMessage } from '../../utils/errorMessage'
 import type { AdminContext } from './AdminLayout'
@@ -15,6 +22,129 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
   active: 'Active',
   sent_to_client: 'Sent to client',
   archived: 'Archived',
+}
+
+const BYTES_PER_GIB = 1024 * 1024 * 1024
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  if (bytes < BYTES_PER_GIB) return `${(bytes / (1024 * 1024)).toFixed(0)} MB`
+  return `${(bytes / BYTES_PER_GIB).toFixed(2)} GB`
+}
+
+// Account-wide storage usage panel -- one Storage bucket shared by every
+// project, so this doesn't belong on any single project's own page.
+// Fetched locally here rather than added to the shared AdminContext
+// (AdminLayout.tsx), since nothing else on the dashboard needs it.
+function StorageUsagePanel({ passcode }: { passcode: string }) {
+  const [usage, setUsage] = useState<StorageUsage | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [limitInput, setLimitInput] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const result = await getStorageUsage(passcode)
+        if (!cancelled) setUsage(result)
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err, 'Could not load storage usage.'))
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [passcode])
+
+  async function handleSaveLimit() {
+    const gib = Number(limitInput)
+    if (!Number.isFinite(gib) || gib <= 0) {
+      setError('Enter a positive number of GB.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await setStorageLimit(passcode, Math.round(gib * BYTES_PER_GIB))
+      setEditing(false)
+      setUsage(await getStorageUsage(passcode))
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not update the storage limit.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (error && !usage) {
+    return (
+      <p role="alert" className={formStyles.error}>
+        {error}
+      </p>
+    )
+  }
+
+  if (!usage) {
+    return null
+  }
+
+  const percent = usage.limitBytes > 0 ? Math.min(100, (usage.usedBytes / usage.limitBytes) * 100) : 0
+  const nearLimit = percent >= 90
+
+  return (
+    <div className={styles.storagePanel}>
+      <div className={styles.storageHeader}>
+        <span className={styles.storageLabel}>
+          {formatBytes(usage.usedBytes)} of {formatBytes(usage.limitBytes)} used
+        </span>
+        {editing ? (
+          <div className={styles.storageEditRow}>
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              className={styles.storageLimitInput}
+              placeholder="GB"
+              value={limitInput}
+              onChange={(event) => setLimitInput(event.target.value)}
+              autoFocus
+            />
+            <button type="button" className={styles.storageLinkButton} onClick={() => void handleSaveLimit()} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" className={styles.storageLinkButton} onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={styles.storageLinkButton}
+            onClick={() => {
+              setLimitInput((usage.limitBytes / BYTES_PER_GIB).toFixed(1))
+              setEditing(true)
+            }}
+          >
+            Edit limit
+          </button>
+        )}
+      </div>
+      <div className={styles.storageBarTrack}>
+        <div
+          className={nearLimit ? styles.storageBarFillWarn : styles.storageBarFill}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      {error && (
+        <p role="alert" className={formStyles.error}>
+          {error}
+        </p>
+      )}
+    </div>
+  )
 }
 
 // The admin home -- a minimal, GitHub-repo-style list. Click a row to
@@ -111,6 +241,8 @@ export function AdminProjectList() {
             </button>
           </div>
         </div>
+
+        <StorageUsagePanel passcode={passcode} />
 
         {(loadError || actionError) && (
           <p role="alert" className={formStyles.error}>

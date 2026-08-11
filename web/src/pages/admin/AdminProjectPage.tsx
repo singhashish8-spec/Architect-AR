@@ -22,6 +22,7 @@ const STATUS_LABEL: Record<AdminProject['status'], string> = {
 const TABS = [
   { to: '', label: 'Overview', end: true },
   { to: 'models', label: 'Models' },
+  { to: 'analytics', label: 'Analytics' },
   { to: 'share', label: 'Share' },
   { to: 'settings', label: 'Settings' },
 ]

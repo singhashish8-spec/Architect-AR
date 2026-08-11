@@ -6,8 +6,9 @@
 > owner feedback after using it — see
 > [`analytics-and-admin-dashboard.md`](analytics-and-admin-dashboard.md)
 > for what Phase 2 already had (view analytics, the passcode gate).
-> **Still open**: richer analytics (per-visit history, CSV export, a
-> chart) and the storage-usage tracker — see Open questions below.
+> **Richer analytics (per-visit history, chart, CSV export) and the
+> storage-usage tracker shipped 2026-08-11** — see the dated section
+> near the end of this file for what was built and why.
 
 ## Summary
 
@@ -53,6 +54,8 @@ product (GitHub's repo list → repo page → tabs), not one long page.
     list.
   - `AdminProjectModels.tsx` — add/replace/rename/delete/reorder/note a
     project's models.
+  - `AdminProjectAnalytics.tsx` (added 2026-08-11) — per-visit history
+    table, a views-per-day chart, and a CSV export for one project.
   - `AdminProjectShare.tsx` — the same `ProjectShareCard` a client sees
     (QR code, copy link, copy for email, WhatsApp), reachable directly
     from admin instead of needing to open the project's own link first.
@@ -76,6 +79,11 @@ product (GitHub's repo list → repo page → tabs), not one long page.
   shown).
 - Status tags (Active / Sent to client / Archived), search, sort,
   bulk-select for delete.
+- **A storage usage panel** (added 2026-08-11) at the top of the project
+  list — "X of Y used" with a progress bar, account-wide since Storage
+  is one bucket shared by every project. The "Y" limit is owner-editable
+  right there ("Edit limit") rather than hardcoded, since the real
+  number depends on whichever Supabase plan the owner is on.
 
 **Model management**
 - Add a model, replace its file, rename it, change its scale, edit its
@@ -110,18 +118,11 @@ product (GitHub's repo list → repo page → tabs), not one long page.
 
 ## What's still open (not built)
 
-**Analytics, upgraded**
-- Per-visit history, not just the aggregate numbers already shown — a
-  real list of individual views with timestamp and duration.
-- A simple views-per-day chart per project.
-- Export one project's history, or everything, as CSV.
-
-**Storage tracker**
-- "X GB of Y GB used" with a progress bar. Needs a real number from the
-  owner for the "out of Y GB" denominator — not something this app can
-  know on its own. Not yet provided (owner said "not sure/other" when
-  asked which Supabase plan they're on) — ask again, or point to
-  Supabase's own project settings page, when this gets built.
+Nothing from this feature's original scope remains open — see the
+2026-08-11 section near the end of this file for the analytics/storage
+work that closed out the last two items. Newer, separately-scoped ideas
+(version history on model replace, etc.) are tracked in Open questions
+below instead.
 
 ## Technical approach
 
@@ -281,12 +282,64 @@ real production build: the building now loads centered in frame, and
 dragging to rotate keeps it centered and rotating in place instead of
 swinging off toward wherever the old default pivot happened to be.
 
+## Richer analytics + storage tracker (shipped 2026-08-11)
+
+The two items this file had been carrying as "still open" since it was
+first written. Both closed out in one pass, since they share the same
+shape: a new admin-only read RPC, a service function, and a small UI
+surface — no new tables, no new dependency.
+
+**Analytics tab** (`AdminProjectAnalytics.tsx`) — a new
+`get_project_view_history()` RPC returns the raw `project_views` rows
+for one project (timestamp, duration, model name), newest first, capped
+at 500. The existing `get_admin_projects()` RPC already aggregates this
+into view_count/last_viewed_at/avg_duration_seconds for the Overview
+tab — this is the same table, just not pre-summarized, so the new tab
+can show:
+- A views-per-day bar chart, last 14 days, zero-filled so a quiet
+  project shows a flat baseline instead of compressing to only the days
+  that had a visit. Hand-drawn SVG-style `div`s, not a chart library —
+  matches this codebase's existing no-new-dependency style (the app
+  already hand-draws its own icons rather than pulling in an icon set).
+- A scrollable history table (sticky header, `max-height` + `overflow-y`
+  so a project with hundreds of visits doesn't push the rest of the tab
+  off-screen). The model column only renders when a project actually has
+  more than one model — with just one, "which model" is never
+  interesting.
+- A client-side CSV export (`Blob` + object URL + a hidden, clicked `<a>`
+  download) — no server involvement, since the already-fetched rows are
+  the entire export.
+
+**Storage tracker** (`StorageUsagePanel`, top of `AdminProjectList.tsx`)
+— account-wide, not per-project (Storage is one bucket shared by every
+project), so it lives on the project list rather than inside a single
+project's page, and reads from a new `get_storage_usage()` RPC. That RPC
+sums `storage.objects.metadata->>'size'` directly (Supabase's own
+Postgres-backed object-metadata table, part of the `storage` schema
+every project already has) filtered to the app's `project-files` bucket,
+rather than paginating the client-side Storage `list()` API one folder
+at a time — a single indexed `SUM` is far cheaper. The open question this
+file had been carrying — "what's the real denominator, the owner isn't
+sure which Supabase plan they're on" — got resolved by not guessing:
+`admin_settings` gained a `storage_limit_bytes` column (defaults to 1
+GiB, Supabase's own free-tier allowance, as a starting point, not a
+claim about the owner's actual plan), and the panel has an inline "Edit
+limit" control (new `admin_set_storage_limit()` RPC, `assert_admin()`-
+gated like every other admin write) so the owner can correct it
+themselves from the dashboard the moment they know the real number,
+instead of this being a hardcoded value someone has to come back and
+change in the SQL editor. The bar switches to a warning color at 90%+
+usage.
+
+**Migration**: `web/supabase/migrations/010_richer_analytics_and_storage_usage.sql`,
+mirrored into `schema.sql` for fresh installs per this repo's existing
+convention (additive columns baked directly into their `CREATE TABLE`,
+not left as a separate `ALTER`). **Needs to be run once in the live
+Supabase SQL editor** before the Analytics tab or storage panel will
+work against real data — it wasn't auto-applied.
+
 ## Open questions
 
-- The real storage-plan limit for the progress bar's denominator — still
-  needs a number from the owner.
-- Exact shape of the analytics history view (a table vs. a chart-first
-  layout) — not decided, revisit when that round starts.
 - Whether to keep a version history when a model file is replaced (so a
   bad re-upload can be rolled back) vs. the current simple overwrite —
   flagged as a possible "later" addition, not in scope now.

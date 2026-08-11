@@ -105,8 +105,11 @@
   status tags, search/sort, bulk delete, and full model management (add/
   replace/rename/delete/reorder/note) all from `/admin` — project creation
   moved entirely behind the admin passcode, the public upload form is gone.
-  **Still open**: richer analytics (per-visit history, CSV export) and a
-  storage-usage tracker. Full detail in
+  **Richer analytics and the storage-usage tracker shipped (2026-08-11)**:
+  a per-project Analytics tab (visit history table, views-per-day chart,
+  CSV export) and an account-wide storage usage panel (progress bar,
+  owner-editable limit) on the project list. Nothing from this feature's
+  original scope remains open. Full detail in
   [`features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
 
 ## Phase 4 — Native shell for on-site AR

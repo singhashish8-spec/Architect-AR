@@ -7,6 +7,7 @@ import { AdminNewProject } from './pages/admin/AdminNewProject'
 import { AdminProjectPage } from './pages/admin/AdminProjectPage'
 import { AdminProjectOverview } from './pages/admin/AdminProjectOverview'
 import { AdminProjectModels } from './pages/admin/AdminProjectModels'
+import { AdminProjectAnalytics } from './pages/admin/AdminProjectAnalytics'
 import { AdminProjectShare } from './pages/admin/AdminProjectShare'
 import { AdminProjectSettings } from './pages/admin/AdminProjectSettings'
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="p/:projectId" element={<AdminProjectPage />}>
             <Route index element={<AdminProjectOverview />} />
             <Route path="models" element={<AdminProjectModels />} />
+            <Route path="analytics" element={<AdminProjectAnalytics />} />
             <Route path="share" element={<AdminProjectShare />} />
             <Route path="settings" element={<AdminProjectSettings />} />
           </Route>

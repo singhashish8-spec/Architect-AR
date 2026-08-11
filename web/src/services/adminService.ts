@@ -96,6 +96,65 @@ export async function listAdminProjects(passcode: string): Promise<AdminProject[
   return (result.data ?? []).map(fromRow)
 }
 
+export interface ProjectViewRecord {
+  viewedAt: string
+  durationSeconds: number | null
+  modelId: string | null
+  modelName: string | null
+}
+
+interface ProjectViewRow {
+  viewed_at: string
+  duration_seconds: number | null
+  model_id: string | null
+  model_name: string | null
+}
+
+// Raw per-visit rows behind get_admin_projects()'s own aggregated
+// view_count/last_viewed_at/avg_duration_seconds -- used by the
+// Analytics tab's chart, history table, and CSV export, none of which
+// can be built from the aggregate alone. See migration 010.
+export async function getProjectViewHistory(passcode: string, projectId: string, limit = 500): Promise<ProjectViewRecord[]> {
+  const result = (await getSupabase().rpc('get_project_view_history', {
+    p_admin_passcode: passcode,
+    p_project_id: projectId,
+    p_limit: limit,
+  })) as { data: ProjectViewRow[] | null; error: Error | null }
+  if (result.error) throw result.error
+  return (result.data ?? []).map((row) => ({
+    viewedAt: row.viewed_at,
+    durationSeconds: row.duration_seconds,
+    modelId: row.model_id,
+    modelName: row.model_name,
+  }))
+}
+
+export interface StorageUsage {
+  usedBytes: number
+  limitBytes: number
+}
+
+// Account-wide (one Storage bucket shared by every project), not
+// per-project -- see migration 010's own comment for why this reads
+// storage.objects directly instead of paginating the Storage list() API.
+export async function getStorageUsage(passcode: string): Promise<StorageUsage> {
+  const result = (await getSupabase().rpc('get_storage_usage', { p_admin_passcode: passcode })) as {
+    data: { used_bytes: number; limit_bytes: number }[] | null
+    error: Error | null
+  }
+  if (result.error) throw result.error
+  const row = result.data?.[0]
+  return { usedBytes: row?.used_bytes ?? 0, limitBytes: row?.limit_bytes ?? 0 }
+}
+
+export async function setStorageLimit(passcode: string, limitBytes: number): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_set_storage_limit', {
+    p_admin_passcode: passcode,
+    p_limit_bytes: limitBytes,
+  })
+  if (error) throw error
+}
+
 // Mirrors projectService.ts's old createProject(), now admin-gated --
 // creates the project row, then adds each model one at a time (not a
 // bulk insert) so admin_add_model()'s own sort_order-picking logic gives
