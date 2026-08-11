@@ -46,9 +46,12 @@
 - Optional passcode-per-project.
 - Basic analytics: did the client open the link, how long did they look.
 - **Element data quality-of-life**: search/filter elements by category or
-  property (e.g. "show me every door"), isolate/hide categories, a simple
-  schedule/quantity-takeoff view (list form of the same IFC data, not just
-  tap-to-inspect).
+  property (e.g. "show me every door"), isolate/hide categories, and a
+  full **Bill of Quantities** (list form of the same IFC data, not just
+  tap-to-inspect) — shipped as a simple count-only Schedule view first,
+  then upgraded 2026-08-11 into a genuinely detailed BOQ (per-element
+  material and quantities, collapsible Discipline/Category headers,
+  search, CSV export). See [`features/boq.md`](../features/boq.md).
 - If client-side IFC parsing is too slow on real devices, move to the
   server-side pre-processed JSON + glTF pipeline here (see
   [`features/element-data-inspection.md`](../features/element-data-inspection.md)).

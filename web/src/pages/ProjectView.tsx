@@ -8,7 +8,7 @@ import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { SearchPanel } from '../components/SearchPanel'
-import { SchedulePanel } from '../components/SchedulePanel'
+import { BoqPanel } from '../components/BoqPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { useProjectViewTracking } from '../hooks/useProjectViewTracking'
 import { getProject, projectRequiresPasscode } from '../services/projectService'
@@ -42,16 +42,16 @@ export function ProjectView() {
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
   // Which one of the corner panels (Levels/Categories/Lighting/Search/
-  // Schedule) is open, at most one at a time -- previously each panel
+  // BOQ) is open, at most one at a time -- previously each panel
   // tracked its own open state, so several could be open together,
   // which (combined with the panels' anchored-dropdown positioning) let
   // them visually overlap each other on a narrow screen. Owned here
   // instead of by each panel so opening one always closes whichever
   // other was open, matching how a normal menu bar behaves.
   const [openPanel, setOpenPanel] = useState<CornerPanelKey | null>(null)
-  // SchedulePanel portals its actual panel content here (see its own
-  // comment for why) -- a state, not a plain ref, so the portal target
-  // is available by the time anything tries to render into it.
+  // BoqPanel portals its actual panel content here (see its own comment
+  // for why) -- a state, not a plain ref, so the portal target is
+  // available by the time anything tries to render into it.
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null)
 
   // Derived from the URL on every render rather than its own state --
@@ -69,7 +69,7 @@ export function ProjectView() {
       )
     : 0
   const activeModel = project?.models[selectedModelIndex] ?? null
-  const { getElementDataByGlobalId, levels, categories, loading: ifcLoading } = useIfcElementData(
+  const { getElementDataByGlobalId, levels, categories, getBoqDetails, loading: ifcLoading } = useIfcElementData(
     activeModel?.ifcUrl ?? null,
   )
   const viewerRef = useRef<ModelViewerHandle>(null)
@@ -209,7 +209,7 @@ export function ProjectView() {
         </svg>
       </button>
       <div className={styles.topRightCorner}>
-        {/* Levels/Categories/Search/Schedule all wait for the same
+        {/* Levels/Categories/Search/BOQ all wait for the same
             ifcLoading flag rather than each independently deciding
             they're ready the moment their own slice of IFC data shows
             up -- those slices don't all finish parsing at exactly the
@@ -252,13 +252,14 @@ export function ProjectView() {
               open={openPanel === 'search'}
               onOpenChange={(open) => setOpenPanel(open ? 'search' : null)}
             />
-            <SchedulePanel
+            <BoqPanel
               categories={categories}
+              getBoqDetails={getBoqDetails}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
               portalContainer={rootEl}
-              open={openPanel === 'schedule'}
-              onOpenChange={(open) => setOpenPanel(open ? 'schedule' : null)}
+              open={openPanel === 'boq'}
+              onOpenChange={(open) => setOpenPanel(open ? 'boq' : null)}
             />
           </>
         )}

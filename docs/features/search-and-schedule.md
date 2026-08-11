@@ -6,6 +6,15 @@
 > whole building (all other elements hidden) and framed the camera around
 > all of them together; the schedule panel correctly listed and isolated
 > "Windows: 24" the same way.
+>
+> **The schedule half of this doc describes a panel that no longer
+> exists.** It was superseded 2026-08-11 by a genuinely detailed Bill of
+> Quantities — per-element material and quantities (not just a count),
+> collapsible Discipline/Category headers, search, and CSV export — see
+> [`boq.md`](boq.md) for the current feature. Left in place below as
+> history/context for what came before it, and because the search half of
+> this doc is still exactly how search works today, unchanged by that
+> replacement.
 
 Two closely related features in one doc, since they share the same
 underlying data and the same isolate/jump mechanism — search finds by

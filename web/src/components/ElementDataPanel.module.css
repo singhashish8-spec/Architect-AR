@@ -1,5 +1,5 @@
 .panel {
-  /* Same fix as components/SchedulePanel.module.css's .panel (see its
+  /* Same fix as components/BoqPanel.module.css's .panel (see its
      comment for the full story) -- this panel shares .topRightCorner's
      top-right corner with the Levels/Categories/Lighting/Search button
      row, and starting at top:0 let that row visually sit on top of this
@@ -15,7 +15,7 @@
   background: rgba(20, 20, 24, 0.92);
   color: #fff;
   box-sizing: border-box;
-  /* Same explicit layer as SchedulePanel.module.css's .panel -- keeps
+  /* Same explicit layer as BoqPanel.module.css's .panel -- keeps
      this panel below the corner controls (z-index: 2) instead of
      leaving the ordering to accident of DOM position. */
   z-index: 1;

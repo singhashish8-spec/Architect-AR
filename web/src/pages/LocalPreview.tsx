@@ -7,7 +7,7 @@ import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { SearchPanel } from '../components/SearchPanel'
-import { SchedulePanel } from '../components/SchedulePanel'
+import { BoqPanel } from '../components/BoqPanel'
 import { ConversionProgressBar } from '../components/ConversionProgressBar'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
@@ -39,11 +39,11 @@ export function LocalPreview() {
   // Which one corner panel is open, at most one at a time -- see
   // ProjectView.tsx's matching comment.
   const [openPanel, setOpenPanel] = useState<CornerPanelKey | null>(null)
-  // SchedulePanel portals its actual panel content here -- see its own
+  // BoqPanel portals its actual panel content here -- see its own
   // comment for why (the containing-block bug this fixes).
   const [viewerEl, setViewerEl] = useState<HTMLDivElement | null>(null)
 
-  const { getElementDataByGlobalId, levels, categories, loading: ifcLoading } = useIfcElementData(ifcUrl)
+  const { getElementDataByGlobalId, levels, categories, getBoqDetails, loading: ifcLoading } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Blob URLs must be revoked when no longer needed, or the browser keeps
@@ -261,13 +261,14 @@ export function LocalPreview() {
                   open={openPanel === 'search'}
                   onOpenChange={(open) => setOpenPanel(open ? 'search' : null)}
                 />
-                <SchedulePanel
+                <BoqPanel
                   categories={categories}
+                  getBoqDetails={getBoqDetails}
                   onIsolate={setHiddenGlobalIds}
                   onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
                   portalContainer={viewerEl}
-                  open={openPanel === 'schedule'}
-                  onOpenChange={(open) => setOpenPanel(open ? 'schedule' : null)}
+                  open={openPanel === 'boq'}
+                  onOpenChange={(open) => setOpenPanel(open ? 'boq' : null)}
                 />
               </>
             )}

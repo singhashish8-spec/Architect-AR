@@ -24,9 +24,10 @@
 | [Project share card (QR + link + details, copy/share actions)](project-share-card.md) | 2 | Built, unit-tested; not yet checked against a real live project (no live Supabase credentials in this dev environment) |
 | [Text-only branding](text-branding.md) | 2 | Built, verified visually in light and dark mode; waiting on a real logo file to replace it |
 | [Lighting presets (daylight/evening/studio)](lighting-presets.md) | 2 | Built, verified against real data in a real production build |
-| [Search/filter elements, and schedule/quantity-takeoff view](search-and-schedule.md) | 2 | Built, verified against real data in a real production build |
+| [Search/filter elements, and schedule/quantity-takeoff view](search-and-schedule.md) | 2 | Search built, verified against real data. The schedule half was superseded 2026-08-11 by [Bill of Quantities](boq.md) |
+| [Bill of Quantities (BOQ)](boq.md) | 2/3 | Built (2026-08-11); unit-tested, not yet checked against a real live IFC file's own units/materials |
 | [View analytics + admin dashboard](analytics-and-admin-dashboard.md) | 2 | Built, unit-tested, gate UI checked in a real production build; stats not yet checked against a real live Supabase project |
-| [Full admin dashboard (project/model management, upgraded analytics, storage tracker)](full-admin-dashboard.md) | 3 | Project + model management built and shipped 2026-08-09; upgraded analytics and the storage tracker still not started |
+| [Full admin dashboard (project/model management, upgraded analytics, storage tracker)](full-admin-dashboard.md) | 3 | Built and shipped — project/model management (2026-08-09), then richer analytics + storage tracker (2026-08-11) |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec
