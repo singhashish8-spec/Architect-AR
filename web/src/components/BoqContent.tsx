@@ -25,11 +25,19 @@ export interface BoqContentProps {
   progress: { done: number; total: number } | null
   error: string | null
   csvFileName: string
-  // Both optional -- only used to label the Excel export's title block.
-  // Falls back to generic placeholders when omitted (pages/LocalPreview.tsx
-  // has no real project/model name to give).
+  // All three optional -- only used to label the Excel export's title
+  // block. Falls back to generic placeholders when omitted
+  // (pages/LocalPreview.tsx has no real project/model name to give).
+  // companyName comes from the account-wide setting managed in
+  // pages/admin/AdminLayout.tsx (services/companyService.ts) and is
+  // shown as its own header by the two callers that have room for one
+  // (pages/BoqView.tsx, components/BoqPanel.tsx) -- it used to be a
+  // separate text field typed on this page itself, but the owner's own
+  // ask, 2026-08-11: "I don't want a separate input for company... it
+  // has to be the same company from my dashboard."
   projectName?: string
   modelName?: string
+  companyName?: string | null
   // A raw snapshot of the first element's own IFC data, for a collapsed
   // "Debug info" disclosure at the bottom of the page -- lets the app's
   // owner (or whoever's helping them) see exactly what the source file
@@ -51,29 +59,6 @@ export interface BoqContentProps {
   // nothing when clicked.
   onIsolate?: (hiddenGlobalIds: Set<string>) => void
   onJumpTo?: (globalIds: string[]) => void
-}
-
-// Company name for the Excel export's title block -- there's no such
-// field on the `projects` table (a DB migration felt like overkill for
-// one cosmetic export label), so it's just remembered per-browser. Once
-// typed in, it stays for every future export on this device.
-const COMPANY_NAME_STORAGE_KEY = 'architect-ar:company-name'
-
-function loadCompanyName(): string {
-  try {
-    return window.localStorage.getItem(COMPANY_NAME_STORAGE_KEY) ?? ''
-  } catch {
-    return ''
-  }
-}
-
-function saveCompanyName(value: string) {
-  try {
-    window.localStorage.setItem(COMPANY_NAME_STORAGE_KEY, value)
-  } catch {
-    // Private browsing / storage disabled -- the export still works,
-    // it just won't remember the name for next time.
-  }
 }
 
 function formatQuantity(value: number | null, unit: string): string {
@@ -274,6 +259,7 @@ export function BoqContent({
   csvFileName,
   projectName,
   modelName,
+  companyName,
   debugSample,
   debugBoqElement,
   onIsolate,
@@ -292,7 +278,6 @@ export function BoqContent({
   // or 'error' if debugBoqElement() itself rejected. Absent from the map
   // entirely = never asked for.
   const [rowDebug, setRowDebug] = useState<Map<number, BoqDebugSample | null | 'error'>>(new Map())
-  const [companyName, setCompanyName] = useState(loadCompanyName)
   const [excelBusy, setExcelBusy] = useState(false)
   const [excelError, setExcelError] = useState<string | null>(null)
 
@@ -381,11 +366,6 @@ export function BoqContent({
     }
   }
 
-  function handleCompanyNameChange(value: string) {
-    setCompanyName(value)
-    saveCompanyName(value)
-  }
-
   async function exportExcel() {
     if (!details || details.length === 0) return
     setExcelBusy(true)
@@ -396,7 +376,7 @@ export function BoqContent({
         (key) => groupByLevel.has(key),
         {
           projectName: projectName || 'Untitled project',
-          companyName,
+          companyName: companyName || '',
           modelName: modelName || 'Model',
           generatedOn: new Date().toLocaleDateString(),
         },
@@ -466,16 +446,6 @@ export function BoqContent({
         <button type="button" className={styles.exportButton} onClick={collapseAll} disabled={searching}>
           Collapse all
         </button>
-      </div>
-
-      <div className={styles.toolbar}>
-        <input
-          type="text"
-          className={styles.search}
-          placeholder="Company name (shown on the Excel export)"
-          value={companyName}
-          onChange={(event) => handleCompanyNameChange(event.target.value)}
-        />
         <button
           type="button"
           className={styles.exportButton}

@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { PasscodeGate } from '../../components/PasscodeGate'
 import { verifyAdminPasscode } from '../../services/analyticsService'
 import { listAdminProjects, type AdminProject } from '../../services/adminService'
+import { getCompanyName, setCompanyName as saveCompanyName } from '../../services/companyService'
 import { getErrorMessage } from '../../utils/errorMessage'
+import styles from './AdminLayout.module.css'
 
 // Shared by every /admin/* page via useOutletContext<AdminContext>() --
 // one passcode entry and one project list, held here so navigating
@@ -20,6 +22,84 @@ export interface AdminContext {
   error: string | null
 }
 
+// The account-wide company name, editable right here and shown as a
+// permanent header on every /admin/* page -- owner's own ask,
+// 2026-08-11: "add a permanent header of company branding on all the
+// page of dashboard". Click-to-edit rather than a separate settings
+// page/route: this bar already appears everywhere it needs to, so it's
+// also the most natural place to change the name, and one route is one
+// less thing to navigate to for a single text field.
+function CompanyBrandBar({
+  companyName,
+  onSave,
+}: {
+  companyName: string | null
+  onSave: (value: string) => Promise<void>
+}) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function startEditing() {
+    setDraft(companyName ?? '')
+    setError(null)
+    setEditing(true)
+  }
+
+  async function save() {
+    setSaving(true)
+    setError(null)
+    try {
+      await onSave(draft)
+      setEditing(false)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not save the company name.'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className={styles.brandBar}>
+        <input
+          type="text"
+          className={styles.brandInput}
+          value={draft}
+          placeholder="Company name"
+          autoFocus
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') void save()
+            if (event.key === 'Escape') setEditing(false)
+          }}
+        />
+        <button type="button" className={styles.brandButton} onClick={() => void save()} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" className={styles.brandButton} onClick={() => setEditing(false)} disabled={saving}>
+          Cancel
+        </button>
+        {error && (
+          <span role="alert" className={styles.brandError}>
+            {error}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.brandBar}>
+      <span className={styles.brandName}>{companyName || 'Architect AR'}</span>
+      <button type="button" className={styles.brandEditButton} onClick={startEditing}>
+        Edit
+      </button>
+    </div>
+  )
+}
+
 // The one place the architect manages everything -- projects, their
 // models, and real usage stats -- behind a single shared admin passcode,
 // never on a project's own link. See docs/features/full-admin-dashboard.md.
@@ -28,6 +108,18 @@ export function AdminLayout() {
   const [projects, setProjects] = useState<AdminProject[] | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Fetched unconditionally, even before the passcode gate -- reading it
+  // is public (services/companyService.ts) and this bar is worth showing
+  // on the passcode screen too, not just past it.
+  const [companyName, setCompanyNameState] = useState<string | null>(null)
+
+  useEffect(() => {
+    getCompanyName()
+      .then(setCompanyNameState)
+      .catch(() => {
+        // Falls back to "Architect AR" wherever it's shown.
+      })
+  }, [])
 
   async function handleUnlock(candidate: string): Promise<boolean> {
     const accepted = await verifyAdminPasscode(candidate)
@@ -51,6 +143,12 @@ export function AdminLayout() {
     }
   }
 
+  async function handleSaveCompanyName(value: string) {
+    if (!passcode) return
+    await saveCompanyName(passcode, value)
+    setCompanyNameState(value.trim() || null)
+  }
+
   if (!passcode || !projects) {
     return (
       <PasscodeGate
@@ -63,5 +161,10 @@ export function AdminLayout() {
   }
 
   const context: AdminContext = { passcode, projects, refresh: () => refresh(), refreshing, error }
-  return <Outlet context={context} />
+  return (
+    <>
+      <CompanyBrandBar companyName={companyName} onSave={handleSaveCompanyName} />
+      <Outlet context={context} />
+    </>
+  )
 }

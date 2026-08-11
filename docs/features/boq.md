@@ -377,6 +377,61 @@ reviewing that."
     of having to intercept a `Blob` download through `URL
     .createObjectURL`.
 
+## 2026-08-11 (later still) — Company branding comes from the dashboard, not a per-export text field
+
+The owner's follow-up, verbatim: "I don't want a separate input for
+company... it has to be the same company from my dashboard... also add a
+permanent header of company branding on all the page of dashboard and
+now and that same reflects on now page and Excel too." Read as: one
+company name for the whole account, set once in the admin dashboard, not
+typed per export — and shown as a real header, not just fed silently
+into the Excel file.
+
+- **New account-wide setting**: `admin_settings` (the existing singleton
+  table backing the admin passcode and storage limit) gained a
+  `company_name` column — see
+  `web/supabase/migrations/011_company_branding.sql`, mirrored into
+  `schema.sql` for fresh installs per this repo's existing convention
+  (same pattern `full-admin-dashboard.md` documents for
+  `storage_limit_bytes`). **Needs to be run once in the live Supabase
+  SQL editor** before the branding bar or Excel export will show a real
+  name instead of the "Architect AR" fallback — it wasn't auto-applied.
+  Reading it (`get_company_name()`) is deliberately public, no passcode
+  argument — unlike every other column on `admin_settings`
+  (`passcode_hash`, `storage_limit_bytes`), a company name isn't
+  sensitive, and the client-facing Quantity Takeoff page needs to show
+  it without asking a visitor to unlock anything. Writing it
+  (`admin_set_company_name`) is passcode-gated like every other
+  `admin_*` write.
+- **Removed** the local, per-browser "Company name" text field
+  `BoqContent.tsx` grew in the previous pass (`localStorage`-backed) —
+  that's exactly the "separate input" the owner didn't want.
+  `BoqContent` now just takes `companyName` as a prop from whichever
+  page renders it.
+- **A permanent branding bar on every `/admin/*` page**
+  (`pages/admin/AdminLayout.tsx`, new `AdminLayout.module.css`) — a
+  sticky bar above the routed page content (`AdminLayout` wraps every
+  admin route via `<Outlet/>`, which previously rendered no shared chrome
+  at all; each page built its own `<h1>` independently). Click-to-edit
+  in place (`CompanyBrandBar`) rather than a separate settings
+  page/route: the bar already appears on every admin page, so it's also
+  the most natural place to change the name, and one inline text field
+  didn't seem to justify a whole new route.
+- **Same branding on the client-facing Quantity Takeoff page**
+  (`pages/BoqView.tsx`) and the in-viewer overlay
+  (`components/BoqPanel.tsx`) — both read the same public
+  `get_company_name()` RPC via a new `hooks/useCompanyName.ts` (a
+  read-only counterpart to `AdminLayout`'s own read/write handling,
+  since only the admin dashboard ever needs to change it). The 3D viewer
+  page itself (`pages/ProjectView.tsx`) was deliberately left alone —
+  it's a full-screen immersive viewer with floating corner buttons, not
+  a page with a natural header slot, and the owner's own ask was
+  specifically about the dashboard and the Quantity Takeoff page.
+- **Excel export** (`utils/boqExcel.ts`) needed no changes at all here —
+  it already took `companyName` as part of its `BoqExcelMeta`, sourced
+  from whatever `BoqContent` was given. Only the *source* of that value
+  changed, from a local text field to this shared setting.
+
 ## Open questions / known limitations
 
 - **The Excel export is unverified in a real spreadsheet app** (2026-08-11)

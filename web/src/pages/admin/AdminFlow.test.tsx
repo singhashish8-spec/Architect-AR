@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import App from '../../App'
 import * as analyticsService from '../../services/analyticsService'
 import * as adminService from '../../services/adminService'
+import * as companyService from '../../services/companyService'
 import type { AdminProject } from '../../services/adminService'
 
 // Covers the multi-page admin redesign (Phase 3, 2026-08-09) end to end:
@@ -133,5 +134,37 @@ describe('admin dashboard (multi-page)', () => {
 
     expect(deleteSpy).toHaveBeenCalledWith('correct', expect.objectContaining({ id: 'p1' }))
     await waitFor(() => expect(screen.getByText('Admin dashboard')).toBeInTheDocument())
+  })
+
+  it('shows the account-wide company name as a permanent header, falling back to "Architect AR"', async () => {
+    vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
+    vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([])
+    vi.spyOn(companyService, 'getCompanyName').mockResolvedValue(null)
+    const user = userEvent.setup()
+    render(<App />)
+    await unlock(user)
+
+    expect(await screen.findByText('Architect AR')).toBeInTheDocument()
+  })
+
+  it('shows a real company name once set, and lets it be edited from the same permanent header', async () => {
+    vi.spyOn(analyticsService, 'verifyAdminPasscode').mockResolvedValue(true)
+    vi.spyOn(adminService, 'listAdminProjects').mockResolvedValue([])
+    vi.spyOn(companyService, 'getCompanyName').mockResolvedValue('Acme Architects')
+    const setCompanyNameSpy = vi.spyOn(companyService, 'setCompanyName').mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    render(<App />)
+    await unlock(user)
+
+    expect(await screen.findByText('Acme Architects')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    const input = screen.getByPlaceholderText('Company name')
+    await user.clear(input)
+    await user.type(input, 'New Name Studio')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(setCompanyNameSpy).toHaveBeenCalledWith('correct', 'New Name Studio')
+    expect(await screen.findByText('New Name Studio')).toBeInTheDocument()
   })
 })

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { ElementCategory } from '../ifc/ifcCategories'
 import type { BoqElementDetail, BoqDebugSample, BoqDetailsResult } from '../ifc/ifcBoqDetails'
 import { BoqContent } from './BoqContent'
+import { useCompanyName } from '../hooks/useCompanyName'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './BoqPanel.module.css'
 import labelStyles from '../styles/responsiveLabel.module.css'
@@ -53,6 +54,7 @@ export function BoqPanel({
   const [debugSample, setDebugSample] = useState<BoqDebugSample | null>(null)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const companyName = useCompanyName()
 
   // Lazy: only actually fetches once the panel is opened for the first
   // time, not on every model load -- see useIfcElementData.ts's
@@ -116,6 +118,7 @@ export function BoqPanel({
             <button type="button" className={styles.closeButton} onClick={() => onOpenChange(false)} aria-label="Close">
               ×
             </button>
+            <p className={styles.brand}>{companyName || 'Architect AR'}</p>
             <h2 className={styles.title}>Quantity Takeoff</h2>
             <BoqContent
               details={details}
@@ -124,6 +127,7 @@ export function BoqPanel({
               csvFileName="quantity-takeoff.csv"
               projectName={projectName}
               modelName={modelName}
+              companyName={companyName}
               debugSample={debugSample}
               debugBoqElement={debugBoqElement}
               onIsolate={onIsolate}

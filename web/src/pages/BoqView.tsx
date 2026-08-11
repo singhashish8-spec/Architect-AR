@@ -4,6 +4,7 @@ import { PasscodeGate } from '../components/PasscodeGate'
 import { BoqContent } from '../components/BoqContent'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { useProjectAccess } from '../hooks/useProjectAccess'
+import { useCompanyName } from '../hooks/useCompanyName'
 import type { BoqElementDetail, BoqDebugSample } from '../ifc/ifcBoqDetails'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './BoqView.module.css'
@@ -21,6 +22,7 @@ export function BoqView() {
   const { projectId } = useParams<{ projectId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const { project, loadError, passcodeRequired, handlePasscodeSubmit } = useProjectAccess(projectId)
+  const companyName = useCompanyName()
 
   const requestedModelId = searchParams.get('model')
   const selectedModelIndex = project
@@ -101,6 +103,7 @@ export function BoqView() {
 
   return (
     <main className={styles.page}>
+      <p className={styles.brand}>{companyName || 'Architect AR'}</p>
       <div className={styles.card}>
         <div className={styles.header}>
           <div>
@@ -135,6 +138,7 @@ export function BoqView() {
             csvFileName={`${project.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-quantity-takeoff.csv`}
             projectName={project.name}
             modelName={activeModel.name}
+            companyName={companyName}
             debugSample={debugSample}
             debugBoqElement={debugBoqElement}
           />

@@ -45,6 +45,17 @@
   cursor: pointer;
 }
 
+/* The account-wide company name (services/companyService.ts), shown
+   above the panel's own title -- small and muted since it's context,
+   not the heading. */
+.brand {
+  margin: 0 0 0.15rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
 .title {
   margin: 0 0 0.35rem;
 }

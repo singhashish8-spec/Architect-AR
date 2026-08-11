@@ -2,7 +2,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { BoqContent } from './BoqContent'
+import { buildAndDownloadBoqExcel } from '../utils/boqExcel'
 import type { BoqElementDetail } from '../ifc/ifcBoqDetails'
+
+vi.mock('../utils/boqExcel', () => ({
+  buildAndDownloadBoqExcel: vi.fn().mockResolvedValue(undefined),
+}))
 
 const details: BoqElementDetail[] = [
   {
@@ -338,11 +343,20 @@ describe('BoqContent', () => {
     expect(screen.queryByText('Wall-01')).not.toBeInTheDocument()
   })
 
-  it('remembers a company name typed for the Excel export across renders', async () => {
+  it('does not render its own company name input -- that comes from the dashboard-wide setting instead', () => {
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" companyName="Acme Architects" />)
+    expect(screen.queryByPlaceholderText(/company name/i)).not.toBeInTheDocument()
+  })
+
+  it('passes the companyName prop straight through to the Excel export', async () => {
     const user = userEvent.setup()
-    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
-    const input = screen.getByPlaceholderText('Company name (shown on the Excel export)')
-    await user.type(input, 'Acme Architects')
-    expect(input).toHaveValue('Acme Architects')
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" companyName="Acme Architects" />)
+    await user.click(screen.getByText('Export Excel'))
+    expect(buildAndDownloadBoqExcel).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Function),
+      expect.objectContaining({ companyName: 'Acme Architects' }),
+      expect.any(String),
+    )
   })
 })

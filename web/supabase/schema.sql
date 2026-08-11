@@ -523,6 +523,13 @@ create table if not exists admin_settings (
   -- them correct it from the dashboard instead of it being a hardcoded
   -- value someone has to fix in the SQL editor. See get_storage_usage().
   storage_limit_bytes bigint not null default 1073741824,
+  -- One account-wide company name -- shown as a permanent header across
+  -- the whole admin dashboard, the public Quantity Takeoff page, and the
+  -- Excel export's own title block. Null means nothing's been set yet;
+  -- every place that shows it falls back to "Architect AR". See
+  -- get_company_name()/admin_set_company_name() below -- reading it is
+  -- deliberately public (no passcode), unlike every other column here.
+  company_name text,
   constraint admin_settings_single_row check (id)
 );
 
@@ -729,3 +736,37 @@ end;
 $$;
 
 grant execute on function admin_set_storage_limit(text, bigint) to anon;
+
+-- Deliberately public (no passcode argument) -- the client-facing
+-- Quantity Takeoff page and the in-viewer Excel export both need to show
+-- this same name without asking a visitor to unlock anything, and
+-- unlike every other column on admin_settings (passcode_hash,
+-- storage_limit_bytes), a company name isn't sensitive information.
+create or replace function get_company_name()
+returns text
+language sql
+security definer
+set search_path = public, extensions
+as $$
+  select company_name from admin_settings where id = true;
+$$;
+
+grant execute on function get_company_name() to anon;
+
+create or replace function admin_set_company_name(p_admin_passcode text, p_company_name text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  perform assert_admin(p_admin_passcode);
+
+  -- Blank/whitespace-only clears it back to null (falls back to
+  -- "Architect AR" wherever it's shown) rather than storing an empty
+  -- string as if it were a real name.
+  update admin_settings set company_name = nullif(trim(p_company_name), '') where id = true;
+end;
+$$;
+
+grant execute on function admin_set_company_name(text, text) to anon;

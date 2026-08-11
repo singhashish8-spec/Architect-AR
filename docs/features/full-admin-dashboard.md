@@ -338,6 +338,25 @@ not left as a separate `ALTER`). **Needs to be run once in the live
 Supabase SQL editor** before the Analytics tab or storage panel will
 work against real data — it wasn't auto-applied.
 
+## Company branding bar (shipped 2026-08-11)
+
+`AdminLayout.tsx` previously rendered no shared chrome at all above
+`<Outlet/>` — every `/admin/*` page built its own `<h1>` independently.
+It now wraps every admin route in a slim, sticky `CompanyBrandBar`
+showing an account-wide company name, click-to-edit in place (no
+separate settings page/route — this bar already appears on every admin
+page, so it's also the natural place to change the name). Same
+`admin_settings` singleton table as `storage_limit_bytes` above gained a
+`company_name` column (`get_company_name()` public/no-passcode,
+`admin_set_company_name()` passcode-gated) — see
+[`boq.md`](boq.md)'s own dated section for the full story, since the
+immediate trigger was replacing a local per-browser "Company name" field
+the Quantity Takeoff page's Excel export had grown, with this one
+shared, dashboard-wide setting instead. Same migration-mirroring
+convention as `010_richer_analytics_and_storage_usage.sql` above:
+`web/supabase/migrations/011_company_branding.sql`, needs to be run once
+in the live Supabase SQL editor.
+
 ## Open questions
 
 - Whether to keep a version history when a model file is replaced (so a
