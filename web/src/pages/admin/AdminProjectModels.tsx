@@ -162,6 +162,22 @@ function ModelRow({
           >
             Preview
           </a>
+          {/* Only shown when this model actually has an IFC file -- the
+              BOQ panel needs IFC data to show anything at all (same
+              requirement tap-to-inspect already has), so a model with
+              just a glTF/GLB would open the viewer to a dead ?panel=boq
+              link that never shows a BOQ button to click. See
+              docs/features/boq.md. */}
+          {model.ifcUrl && (
+            <a
+              href={`/p/${projectId}?model=${model.id}&panel=boq`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.smallButton}
+            >
+              BOQ
+            </a>
+          )}
           <button type="button" className={styles.smallButton} onClick={onToggleExpanded}>
             {expanded ? 'Close' : 'Edit'}
           </button>

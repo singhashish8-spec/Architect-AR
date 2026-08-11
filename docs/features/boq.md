@@ -57,6 +57,14 @@ collapsed, and easy to dig into or export when it isn't.
   from the same data already on screen, same `Blob` + object-URL +
   hidden-`<a>`-click pattern the admin Analytics tab's CSV export uses
   (see [`full-admin-dashboard.md`](full-admin-dashboard.md)).
+- **Reachable from the admin Models tab, not just from inside the
+  viewer.** Each model row that has an IFC file gets its own "BOQ" link
+  next to its existing "Preview" link (`AdminProjectModels.tsx`,
+  2026-08-11) — opens straight to `/p/<id>?model=<modelId>&panel=boq`,
+  which lands on that model with the BOQ panel already open, no need to
+  open the viewer first and hunt for the corner button. Reuses the same
+  `?panel=` deep-link `ProjectView.tsx` reads once on mount that
+  `?model=` already established the pattern for.
 - **Lazy-loaded, cached, and paced.** Unlike levels/categories (computed
   automatically the moment a model finishes parsing), the BOQ's detail
   data is only actually fetched the first time the panel is opened — see
