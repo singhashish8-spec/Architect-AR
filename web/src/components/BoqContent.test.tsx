@@ -194,6 +194,48 @@ describe('BoqContent', () => {
     expect(screen.getByText(/includeTypeProperties not supported/)).toBeInTheDocument()
   })
 
+  it('fetches and shows a debug sample for one specific row on demand', async () => {
+    const debugBoqElement = vi.fn().mockResolvedValue({
+      elementName: 'Wall-01',
+      propertySetCount: 0,
+      propertyNamesSeen: [],
+      quantityNamesSeen: [],
+      materialDefCount: 0,
+      propertySetsPrimaryError: null,
+      propertySetsFallbackError: null,
+      materialsPrimaryError: null,
+      materialsFallbackError: null,
+    })
+    const user = userEvent.setup()
+    render(
+      <BoqContent
+        details={details}
+        progress={null}
+        error={null}
+        csvFileName="boq.csv"
+        debugBoqElement={debugBoqElement}
+      />,
+    )
+
+    await expandToTable(user, 'Architecture', 'Walls')
+    await user.click(screen.getByLabelText('Debug Wall-01'))
+
+    expect(debugBoqElement).toHaveBeenCalledWith(1, 'Wall-01')
+    expect(await screen.findByText('Property sets found')).toBeInTheDocument()
+
+    // Clicking again collapses it rather than re-fetching.
+    await user.click(screen.getByLabelText('Debug Wall-01'))
+    expect(screen.queryByText('Property sets found')).not.toBeInTheDocument()
+    expect(debugBoqElement).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show per-row debug buttons when debugBoqElement is not provided', async () => {
+    const user = userEvent.setup()
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
+    await expandToTable(user, 'Architecture', 'Walls')
+    expect(screen.queryByLabelText('Debug Wall-01')).not.toBeInTheDocument()
+  })
+
   it('omits the debug disclosure entirely when no sample was captured', () => {
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" debugSample={null} />)
     expect(screen.queryByText('Debug info')).not.toBeInTheDocument()

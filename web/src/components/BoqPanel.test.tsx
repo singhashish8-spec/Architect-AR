@@ -43,6 +43,7 @@ describe('BoqPanel', () => {
       <ControlledBoqPanel
         categories={[]}
         getBoqDetails={vi.fn().mockResolvedValue({ details: [], debugSample: null })}
+        debugBoqElement={vi.fn()}
         onIsolate={vi.fn()}
         onJumpTo={vi.fn()}
         portalContainer={document.body}
@@ -58,6 +59,7 @@ describe('BoqPanel', () => {
       <ControlledBoqPanel
         categories={categories}
         getBoqDetails={getBoqDetails}
+        debugBoqElement={vi.fn()}
         onIsolate={vi.fn()}
         onJumpTo={vi.fn()}
         portalContainer={document.body}
@@ -79,6 +81,7 @@ describe('BoqPanel', () => {
       <ControlledBoqPanel
         categories={categories}
         getBoqDetails={vi.fn().mockResolvedValue({ details, debugSample: null })}
+        debugBoqElement={vi.fn()}
         onIsolate={vi.fn()}
         onJumpTo={vi.fn()}
         portalContainer={null}

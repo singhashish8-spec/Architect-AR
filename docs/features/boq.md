@@ -277,6 +277,17 @@ separate IFC query needed.
   access — screenshots of tap-to-inspect were the only way to see real
   data at all. This makes the app self-diagnosing for that exact
   situation going forward, not just this one report.
+- **Per-row debug, not just the first element (2026-08-11, same day)**
+  — a live retest showed the top-level debug sample landing on a
+  genuinely-sparse element (a furring wall with zero property sets, not
+  a bug) while a *different*, already-proven-rich wall was still blank
+  in the BOQ. The single "sample the first element" snapshot couldn't
+  answer "why is *this* one still blank" for anyone but the very first
+  row. Added a small 🛈 button on every element row
+  (`ifc/useIfcElementData.ts`'s new `debugBoqElement(expressId, name)`,
+  which reruns `getElementBoqData()` fresh for that one element) that
+  expands the same debug fields inline, for whichever specific element
+  someone is actually confused about.
 - **Not verified against a real IFC file's actual unit declaration or
   material structure** — no live IFC sample is available in this
   session's sandbox. Both `ifcUnits.ts` and the material-extraction half

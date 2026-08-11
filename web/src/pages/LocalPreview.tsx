@@ -43,7 +43,7 @@ export function LocalPreview() {
   // comment for why (the containing-block bug this fixes).
   const [viewerEl, setViewerEl] = useState<HTMLDivElement | null>(null)
 
-  const { getElementDataByGlobalId, levels, categories, getBoqDetails, loading: ifcLoading } = useIfcElementData(ifcUrl)
+  const { getElementDataByGlobalId, levels, categories, getBoqDetails, debugBoqElement, loading: ifcLoading } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
 
   // Blob URLs must be revoked when no longer needed, or the browser keeps
@@ -264,6 +264,7 @@ export function LocalPreview() {
                 <BoqPanel
                   categories={categories}
                   getBoqDetails={getBoqDetails}
+                  debugBoqElement={debugBoqElement}
                   onIsolate={setHiddenGlobalIds}
                   onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
                   portalContainer={viewerEl}

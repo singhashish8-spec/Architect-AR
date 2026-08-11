@@ -14,6 +14,7 @@ interface BoqPanelProps {
   // Schedule panel took directly.
   categories: ElementCategory[]
   getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqDetailsResult>
+  debugBoqElement: (expressId: number, elementName: string) => Promise<BoqDebugSample | null>
   onIsolate: (hiddenGlobalIds: Set<string>) => void
   onJumpTo: (globalIds: string[]) => void
   // See SchedulePanel's original comment on this prop (same containing-
@@ -32,7 +33,16 @@ interface BoqPanelProps {
 // components/BoqContent.tsx, shared with the standalone
 // pages/BoqView.tsx page the admin Models tab's "BOQ" link opens
 // instead of this overlay -- see docs/features/boq.md.
-export function BoqPanel({ categories, getBoqDetails, onIsolate, onJumpTo, portalContainer, open, onOpenChange }: BoqPanelProps) {
+export function BoqPanel({
+  categories,
+  getBoqDetails,
+  debugBoqElement,
+  onIsolate,
+  onJumpTo,
+  portalContainer,
+  open,
+  onOpenChange,
+}: BoqPanelProps) {
   const [details, setDetails] = useState<BoqElementDetail[] | null>(null)
   const [debugSample, setDebugSample] = useState<BoqDebugSample | null>(null)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
@@ -107,6 +117,7 @@ export function BoqPanel({ categories, getBoqDetails, onIsolate, onJumpTo, porta
               error={error}
               csvFileName="boq.csv"
               debugSample={debugSample}
+              debugBoqElement={debugBoqElement}
               onIsolate={onIsolate}
               onJumpTo={onJumpTo}
             />

@@ -9,6 +9,8 @@ import {
 import { getLevelsAndRooms, type Level } from './ifcSpatialTree'
 import { getElementCategories, type ElementCategory } from './ifcCategories'
 import { buildBoqDetails, type BoqDetailsResult } from './ifcBoqDetails'
+import { getElementBoqData, type BoqDebugSample } from './ifcQuantities'
+import { getLengthUnitScaleToMeters } from './ifcUnits'
 import type { IfcElementData } from '../types/IfcElementData'
 
 interface UseIfcElementDataResult {
@@ -42,6 +44,13 @@ interface UseIfcElementDataResult {
   // every call after that, so reopening the BOQ panel later in the same
   // session is instant. See docs/features/boq.md.
   getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqDetailsResult>
+  // On-demand debug snapshot for one specific element, by expressId --
+  // unlike getBoqDetails()'s own debugSample (always whichever element
+  // happened to be processed first, which might genuinely have nothing
+  // to show and tell you little), this lets the BOQ page fetch a fresh
+  // one for whichever row someone is actually confused about. See
+  // components/BoqContent.tsx's per-row debug button.
+  debugBoqElement: (expressId: number, elementName: string) => Promise<BoqDebugSample | null>
 }
 
 export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResult {
@@ -164,5 +173,14 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
     [],
   )
 
-  return { loading, error, getElementDataByGlobalId, levels, categories, getBoqDetails }
+  async function debugBoqElement(expressId: number, elementName: string): Promise<BoqDebugSample | null> {
+    if (readyRef.current) await readyRef.current
+    const model = modelRef.current
+    if (!model) return null
+    const lengthScale = getLengthUnitScaleToMeters(model.api, model.modelId)
+    const { debugSample } = await getElementBoqData(model.api, model.modelId, expressId, lengthScale, elementName)
+    return debugSample ?? null
+  }
+
+  return { loading, error, getElementDataByGlobalId, levels, categories, getBoqDetails, debugBoqElement }
 }

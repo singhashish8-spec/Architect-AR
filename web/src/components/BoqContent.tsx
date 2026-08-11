@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { BoqElementDetail, BoqDebugSample } from '../ifc/ifcBoqDetails'
 import { buildBoqTree, filterBoqTree, boqGrandTotals, buildBoqCsv, type BoqCategoryGroup } from '../utils/boqData'
 import { getCategoryMetrics, SUMMABLE_METRICS, type QuantityMetric } from '../utils/boqQuantityProfiles'
@@ -18,6 +18,12 @@ export interface BoqContentProps {
   // out to need a live retest to diagnose, with no way to see what was
   // actually happening short of relaying screenshots back and forth.
   debugSample?: BoqDebugSample | null
+  // On-demand debug for one specific row, not just whichever element
+  // happened to be sampled first -- see ifc/useIfcElementData.ts's own
+  // comment. Renders a small "Debug" button per element when provided;
+  // omitted entirely hides that button (kept optional mainly so tests
+  // that don't care about it can skip wiring up a mock).
+  debugBoqElement?: (expressId: number, elementName: string) => Promise<BoqDebugSample | null>
   // Both omitted on the standalone BOQ page (pages/BoqView.tsx) -- there's
   // no 3D viewer there to isolate/frame a camera in, so "Locate" buttons
   // simply don't render rather than doing nothing when clicked.
@@ -49,6 +55,44 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url)
 }
 
+// Shared between the top-of-page "Debug info" disclosure and each row's
+// own on-demand debug expansion below -- same fields, same layout,
+// different trigger.
+function DebugSampleFields({ sample }: { sample: BoqDebugSample }) {
+  return (
+    <dl>
+      <dt>Sampled element</dt>
+      <dd>{sample.elementName}</dd>
+      <dt>Property sets found</dt>
+      <dd>{sample.propertySetCount}</dd>
+      <dt>Property names seen</dt>
+      <dd>{sample.propertyNamesSeen.length > 0 ? sample.propertyNamesSeen.join(', ') : '(none)'}</dd>
+      <dt>Quantity names seen</dt>
+      <dd>{sample.quantityNamesSeen.length > 0 ? sample.quantityNamesSeen.join(', ') : '(none)'}</dd>
+      <dt>Material definitions found</dt>
+      <dd>{sample.materialDefCount}</dd>
+      {(sample.propertySetsPrimaryError || sample.propertySetsFallbackError) && (
+        <>
+          <dt>Property lookup errors</dt>
+          <dd>
+            {sample.propertySetsPrimaryError && <div>Primary: {sample.propertySetsPrimaryError}</div>}
+            {sample.propertySetsFallbackError && <div>Fallback: {sample.propertySetsFallbackError}</div>}
+          </dd>
+        </>
+      )}
+      {(sample.materialsPrimaryError || sample.materialsFallbackError) && (
+        <>
+          <dt>Material lookup errors</dt>
+          <dd>
+            {sample.materialsPrimaryError && <div>Primary: {sample.materialsPrimaryError}</div>}
+            {sample.materialsFallbackError && <div>Fallback: {sample.materialsFallbackError}</div>}
+          </dd>
+        </>
+      )}
+    </dl>
+  )
+}
+
 // The actual BOQ content -- loading/error state, whole-model totals,
 // search + CSV export, and the Discipline > Category > element tree,
 // with columns that adapt per category (a beam shows Length/Width/
@@ -59,11 +103,23 @@ function downloadCsv(filename: string, csv: string) {
 // entirely by props; the two callers differ only in how `details` gets
 // loaded and whether a 3D viewer exists to locate elements in. See
 // docs/features/boq.md.
-export function BoqContent({ details, progress, error, csvFileName, debugSample, onIsolate, onJumpTo }: BoqContentProps) {
+export function BoqContent({
+  details,
+  progress,
+  error,
+  csvFileName,
+  debugSample,
+  debugBoqElement,
+  onIsolate,
+  onJumpTo,
+}: BoqContentProps) {
   const [search, setSearch] = useState('')
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
+  // expressId -> sample once fetched, or null while a fetch is in
+  // flight. Absent from the map entirely = never asked for.
+  const [rowDebug, setRowDebug] = useState<Map<number, BoqDebugSample | null>>(new Map())
 
   const tree = useMemo(() => buildBoqTree(details ?? []), [details])
   const visibleTree = useMemo(() => filterBoqTree(tree, search), [tree, search])
@@ -113,6 +169,21 @@ export function BoqContent({ details, progress, error, csvFileName, debugSample,
     return `${discipline} ${category.category}`
   }
 
+  async function toggleRowDebug(expressId: number, name: string) {
+    if (rowDebug.has(expressId)) {
+      setRowDebug((current) => {
+        const next = new Map(current)
+        next.delete(expressId)
+        return next
+      })
+      return
+    }
+    if (!debugBoqElement) return
+    setRowDebug((current) => new Map(current).set(expressId, null))
+    const sample = await debugBoqElement(expressId, name)
+    setRowDebug((current) => new Map(current).set(expressId, sample))
+  }
+
   if (error) {
     return (
       <p role="alert" className={styles.error}>
@@ -152,38 +223,7 @@ export function BoqContent({ details, progress, error, csvFileName, debugSample,
       {debugSample && (
         <details className={styles.debug}>
           <summary>Debug info</summary>
-          <dl>
-            <dt>Sampled element</dt>
-            <dd>{debugSample.elementName}</dd>
-            <dt>Property sets found</dt>
-            <dd>{debugSample.propertySetCount}</dd>
-            <dt>Property names seen</dt>
-            <dd>{debugSample.propertyNamesSeen.length > 0 ? debugSample.propertyNamesSeen.join(', ') : '(none)'}</dd>
-            <dt>Quantity names seen</dt>
-            <dd>{debugSample.quantityNamesSeen.length > 0 ? debugSample.quantityNamesSeen.join(', ') : '(none)'}</dd>
-            <dt>Material definitions found</dt>
-            <dd>{debugSample.materialDefCount}</dd>
-            {(debugSample.propertySetsPrimaryError || debugSample.propertySetsFallbackError) && (
-              <>
-                <dt>Property lookup errors</dt>
-                <dd>
-                  {debugSample.propertySetsPrimaryError && <div>Primary: {debugSample.propertySetsPrimaryError}</div>}
-                  {debugSample.propertySetsFallbackError && (
-                    <div>Fallback: {debugSample.propertySetsFallbackError}</div>
-                  )}
-                </dd>
-              </>
-            )}
-            {(debugSample.materialsPrimaryError || debugSample.materialsFallbackError) && (
-              <>
-                <dt>Material lookup errors</dt>
-                <dd>
-                  {debugSample.materialsPrimaryError && <div>Primary: {debugSample.materialsPrimaryError}</div>}
-                  {debugSample.materialsFallbackError && <div>Fallback: {debugSample.materialsFallbackError}</div>}
-                </dd>
-              </>
-            )}
-          </dl>
+          <DebugSampleFields sample={debugSample} />
         </details>
       )}
 
@@ -326,33 +366,61 @@ export function BoqContent({ details, progress, error, csvFileName, debugSample,
                                         <th key={metric}>{METRIC_LABEL[metric]}</th>
                                       ))}
                                       {canLocate && <th />}
+                                      {debugBoqElement && <th />}
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {levelGroup.elements.map((element) => (
-                                      <tr key={element.globalId}>
-                                        <td>{element.name}</td>
-                                        <td>{element.materials.length > 0 ? element.materials.join(', ') : '—'}</td>
-                                        {columns.map((metric) => (
-                                          <td key={metric} className={styles.numberCell}>
-                                            {formatQuantity(element.quantities[metric], METRIC_UNIT[metric])}
-                                          </td>
-                                        ))}
-                                        {canLocate && (
-                                          <td>
-                                            <button
-                                              type="button"
-                                              className={styles.rowLocateButton}
-                                              onClick={() => locate([element.globalId])}
-                                              aria-label={`Locate ${element.name}`}
-                                              title="Isolate and frame this element"
-                                            >
-                                              ⌖
-                                            </button>
-                                          </td>
-                                        )}
-                                      </tr>
-                                    ))}
+                                    {levelGroup.elements.map((element) => {
+                                      const totalColumns = 2 + columns.length + (canLocate ? 1 : 0) + (debugBoqElement ? 1 : 0)
+                                      const sample = rowDebug.get(element.expressId)
+                                      const debugOpen = rowDebug.has(element.expressId)
+                                      return (
+                                        <Fragment key={element.globalId}>
+                                          <tr>
+                                            <td>{element.name}</td>
+                                            <td>{element.materials.length > 0 ? element.materials.join(', ') : '—'}</td>
+                                            {columns.map((metric) => (
+                                              <td key={metric} className={styles.numberCell}>
+                                                {formatQuantity(element.quantities[metric], METRIC_UNIT[metric])}
+                                              </td>
+                                            ))}
+                                            {canLocate && (
+                                              <td>
+                                                <button
+                                                  type="button"
+                                                  className={styles.rowLocateButton}
+                                                  onClick={() => locate([element.globalId])}
+                                                  aria-label={`Locate ${element.name}`}
+                                                  title="Isolate and frame this element"
+                                                >
+                                                  ⌖
+                                                </button>
+                                              </td>
+                                            )}
+                                            {debugBoqElement && (
+                                              <td>
+                                                <button
+                                                  type="button"
+                                                  className={styles.rowLocateButton}
+                                                  onClick={() => void toggleRowDebug(element.expressId, element.name)}
+                                                  aria-label={`Debug ${element.name}`}
+                                                  title="Show this element's raw IFC data"
+                                                >
+                                                  🛈
+                                                </button>
+                                              </td>
+                                            )}
+                                          </tr>
+                                          {debugOpen && (
+                                            <tr>
+                                              <td colSpan={totalColumns} className={styles.rowDebugCell}>
+                                                {sample ? <DebugSampleFields sample={sample} /> : 'Loading…'}
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </Fragment>
+                                      )
+                                    })}
                                   </tbody>
                                 </table>
                               </div>

@@ -62,7 +62,7 @@ export function ProjectView() {
       )
     : 0
   const activeModel = project?.models[selectedModelIndex] ?? null
-  const { getElementDataByGlobalId, levels, categories, getBoqDetails, loading: ifcLoading } = useIfcElementData(
+  const { getElementDataByGlobalId, levels, categories, getBoqDetails, debugBoqElement, loading: ifcLoading } = useIfcElementData(
     activeModel?.ifcUrl ?? null,
   )
   const viewerRef = useRef<ModelViewerHandle>(null)
@@ -211,6 +211,7 @@ export function ProjectView() {
             <BoqPanel
               categories={categories}
               getBoqDetails={getBoqDetails}
+              debugBoqElement={debugBoqElement}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
               portalContainer={rootEl}

@@ -31,7 +31,7 @@ export function BoqView() {
     : 0
   const activeModel = project?.models[selectedModelIndex] ?? null
 
-  const { getBoqDetails, loading: ifcLoading } = useIfcElementData(activeModel?.ifcUrl ?? null)
+  const { getBoqDetails, debugBoqElement, loading: ifcLoading } = useIfcElementData(activeModel?.ifcUrl ?? null)
 
   const [details, setDetails] = useState<BoqElementDetail[] | null>(null)
   const [debugSample, setDebugSample] = useState<BoqDebugSample | null>(null)
@@ -134,6 +134,7 @@ export function BoqView() {
             error={fetchError}
             csvFileName={`${project.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-boq.csv`}
             debugSample={debugSample}
+            debugBoqElement={debugBoqElement}
           />
         ) : (
           <p className={styles.status}>"{activeModel.name}" doesn't have an IFC file attached, so there's no BOQ data for it.</p>
