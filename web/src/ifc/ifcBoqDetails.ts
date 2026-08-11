@@ -3,7 +3,9 @@ import { unwrap } from './ifcPropertyLookup'
 import type { Discipline, ElementCategory } from './ifcCategories'
 import type { Level } from './ifcSpatialTree'
 import { getLengthUnitScaleToMeters } from './ifcUnits'
-import { getElementBoqData, type ElementQuantities } from './ifcQuantities'
+import { getElementBoqData, type ElementQuantities, type BoqDebugSample } from './ifcQuantities'
+
+export type { BoqDebugSample } from './ifcQuantities'
 
 export interface BoqElementDetail {
   expressId: number
@@ -45,6 +47,14 @@ export interface BuildBoqDetailsOptions {
   onProgress?: (done: number, total: number) => void
 }
 
+export interface BoqDetailsResult {
+  details: BoqElementDetail[]
+  // A raw snapshot of the very first element's own IFC data -- see
+  // ifc/ifcQuantities.ts's BoqDebugSample for why this exists. null only
+  // when there were no classified elements to sample at all.
+  debugSample: BoqDebugSample | null
+}
+
 // Bulk-builds the full BOQ detail list -- one row per classified element,
 // each with its level, material(s), and quantities -- the data the old
 // count-only Schedule panel never needed. Deliberately NOT run
@@ -69,10 +79,11 @@ export async function buildBoqDetails(
   categories: ElementCategory[],
   levels: Level[],
   options: BuildBoqDetailsOptions = {},
-): Promise<BoqElementDetail[]> {
+): Promise<BoqDetailsResult> {
   const levelLookup = buildLevelLookup(levels)
   const lengthScale = getLengthUnitScaleToMeters(api, modelId)
   const details: BoqElementDetail[] = []
+  let debugSample: BoqDebugSample | null = null
 
   for (let i = 0; i < categories.length; i++) {
     const element = categories[i]
@@ -89,7 +100,17 @@ export async function buildBoqDetails(
       // drop it from the BOQ entirely.
     }
 
-    const { quantities, materials } = await getElementBoqData(api, modelId, element.expressId, lengthScale)
+    // Only the very first element gets a debug sample -- capturing this
+    // for every element would be a lot of dead weight for the 99% of
+    // sessions where nothing is actually wrong.
+    const { quantities, materials, debugSample: sample } = await getElementBoqData(
+      api,
+      modelId,
+      element.expressId,
+      lengthScale,
+      i === 0 ? name : undefined,
+    )
+    if (sample) debugSample = sample
     const levelEntry = levelLookup.get(element.globalId)
 
     details.push({
@@ -109,5 +130,5 @@ export async function buildBoqDetails(
     if (i % 25 === 24) await new Promise((resolve) => setTimeout(resolve, 0))
   }
 
-  return details
+  return { details, debugSample }
 }

@@ -161,6 +161,44 @@ describe('BoqContent', () => {
     expect(hidden.has('wall-1')).toBe(false)
   })
 
+  it('shows a collapsed debug disclosure with the raw sample data when provided', async () => {
+    const user = userEvent.setup()
+    render(
+      <BoqContent
+        details={details}
+        progress={null}
+        error={null}
+        csvFileName="boq.csv"
+        debugSample={{
+          elementName: 'Wall-01',
+          propertySetCount: 3,
+          propertyNamesSeen: ['LoadBearing', 'Length', 'Area'],
+          quantityNamesSeen: [],
+          materialDefCount: 0,
+          propertySetsPrimaryError: 'includeTypeProperties not supported',
+          propertySetsFallbackError: null,
+          materialsPrimaryError: null,
+          materialsFallbackError: null,
+        }}
+      />,
+    )
+
+    expect(screen.getByText('Debug info')).toBeInTheDocument()
+
+    // Native <details>/<summary> -- content is collapsed visually in a
+    // real browser without any extra state to manage here; jsdom doesn't
+    // model that visual collapse, so this just confirms the content is
+    // there once expanded, not that it was actually hidden before.
+    await user.click(screen.getByText('Debug info'))
+    expect(screen.getByText('LoadBearing, Length, Area')).toBeInTheDocument()
+    expect(screen.getByText(/includeTypeProperties not supported/)).toBeInTheDocument()
+  })
+
+  it('omits the debug disclosure entirely when no sample was captured', () => {
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" debugSample={null} />)
+    expect(screen.queryByText('Debug info')).not.toBeInTheDocument()
+  })
+
   it('isolates and jumps to just one level of a category via that level\'s own "Locate" button', async () => {
     const onIsolate = vi.fn()
     const onJumpTo = vi.fn()

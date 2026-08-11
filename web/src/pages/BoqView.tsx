@@ -4,7 +4,7 @@ import { PasscodeGate } from '../components/PasscodeGate'
 import { BoqContent } from '../components/BoqContent'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { useProjectAccess } from '../hooks/useProjectAccess'
-import type { BoqElementDetail } from '../ifc/ifcBoqDetails'
+import type { BoqElementDetail, BoqDebugSample } from '../ifc/ifcBoqDetails'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './BoqView.module.css'
 
@@ -34,6 +34,7 @@ export function BoqView() {
   const { getBoqDetails, loading: ifcLoading } = useIfcElementData(activeModel?.ifcUrl ?? null)
 
   const [details, setDetails] = useState<BoqElementDetail[] | null>(null)
+  const [debugSample, setDebugSample] = useState<BoqDebugSample | null>(null)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
@@ -52,7 +53,10 @@ export function BoqView() {
         const result = await getBoqDetails((done, total) => {
           if (!cancelled) setProgress({ done, total })
         })
-        if (!cancelled) setDetails(result)
+        if (!cancelled) {
+          setDetails(result.details)
+          setDebugSample(result.debugSample)
+        }
       } catch (err) {
         if (!cancelled) setFetchError(getErrorMessage(err, 'Could not load quantities for this model.'))
       }
@@ -129,6 +133,7 @@ export function BoqView() {
             progress={progress}
             error={fetchError}
             csvFileName={`${project.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-boq.csv`}
+            debugSample={debugSample}
           />
         ) : (
           <p className={styles.status}>"{activeModel.name}" doesn't have an IFC file attached, so there's no BOQ data for it.</p>

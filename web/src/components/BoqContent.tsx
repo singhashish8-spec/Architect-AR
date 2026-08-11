@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { BoqElementDetail } from '../ifc/ifcBoqDetails'
+import type { BoqElementDetail, BoqDebugSample } from '../ifc/ifcBoqDetails'
 import { buildBoqTree, filterBoqTree, boqGrandTotals, buildBoqCsv, type BoqCategoryGroup } from '../utils/boqData'
 import { getCategoryMetrics, SUMMABLE_METRICS, type QuantityMetric } from '../utils/boqQuantityProfiles'
 import styles from './BoqContent.module.css'
@@ -9,6 +9,15 @@ export interface BoqContentProps {
   progress: { done: number; total: number } | null
   error: string | null
   csvFileName: string
+  // A raw snapshot of the first element's own IFC data, for a collapsed
+  // "Debug info" disclosure at the bottom of the page -- lets the app's
+  // owner (or whoever's helping them) see exactly what the source file
+  // actually contains without needing browser DevTools access, which
+  // isn't practical on a phone. Added 2026-08-11 after exactly that
+  // situation: a real report of blank quantities/materials that turned
+  // out to need a live retest to diagnose, with no way to see what was
+  // actually happening short of relaying screenshots back and forth.
+  debugSample?: BoqDebugSample | null
   // Both omitted on the standalone BOQ page (pages/BoqView.tsx) -- there's
   // no 3D viewer there to isolate/frame a camera in, so "Locate" buttons
   // simply don't render rather than doing nothing when clicked.
@@ -50,7 +59,7 @@ function downloadCsv(filename: string, csv: string) {
 // entirely by props; the two callers differ only in how `details` gets
 // loaded and whether a 3D viewer exists to locate elements in. See
 // docs/features/boq.md.
-export function BoqContent({ details, progress, error, csvFileName, onIsolate, onJumpTo }: BoqContentProps) {
+export function BoqContent({ details, progress, error, csvFileName, debugSample, onIsolate, onJumpTo }: BoqContentProps) {
   const [search, setSearch] = useState('')
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
@@ -139,6 +148,44 @@ export function BoqContent({ details, progress, error, csvFileName, onIsolate, o
         Quantities and materials reflect whatever this file's own export actually recorded — not every element type
         carries them.
       </p>
+
+      {debugSample && (
+        <details className={styles.debug}>
+          <summary>Debug info</summary>
+          <dl>
+            <dt>Sampled element</dt>
+            <dd>{debugSample.elementName}</dd>
+            <dt>Property sets found</dt>
+            <dd>{debugSample.propertySetCount}</dd>
+            <dt>Property names seen</dt>
+            <dd>{debugSample.propertyNamesSeen.length > 0 ? debugSample.propertyNamesSeen.join(', ') : '(none)'}</dd>
+            <dt>Quantity names seen</dt>
+            <dd>{debugSample.quantityNamesSeen.length > 0 ? debugSample.quantityNamesSeen.join(', ') : '(none)'}</dd>
+            <dt>Material definitions found</dt>
+            <dd>{debugSample.materialDefCount}</dd>
+            {(debugSample.propertySetsPrimaryError || debugSample.propertySetsFallbackError) && (
+              <>
+                <dt>Property lookup errors</dt>
+                <dd>
+                  {debugSample.propertySetsPrimaryError && <div>Primary: {debugSample.propertySetsPrimaryError}</div>}
+                  {debugSample.propertySetsFallbackError && (
+                    <div>Fallback: {debugSample.propertySetsFallbackError}</div>
+                  )}
+                </dd>
+              </>
+            )}
+            {(debugSample.materialsPrimaryError || debugSample.materialsFallbackError) && (
+              <>
+                <dt>Material lookup errors</dt>
+                <dd>
+                  {debugSample.materialsPrimaryError && <div>Primary: {debugSample.materialsPrimaryError}</div>}
+                  {debugSample.materialsFallbackError && <div>Fallback: {debugSample.materialsFallbackError}</div>}
+                </dd>
+              </>
+            )}
+          </dl>
+        </details>
+      )}
 
       <div className={styles.toolbar}>
         <input

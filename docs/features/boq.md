@@ -261,8 +261,22 @@ separate IFC query needed.
 - **Still pending a live retest**: the 4-arg/3-arg fallback fix above
   (see the dated section) is a strong, well-evidenced fix for the exact
   failure the owner's live retest surfaced, but hasn't been re-confirmed
-  against their real project since shipping. Needs one more reload to
-  close the loop.
+  against their real project since shipping. If it's *still* blank after
+  reloading, the new "Debug info" disclosure (see below) is the next
+  diagnostic step, not another blind guess.
+- **A "Debug info" disclosure was added to the BOQ page itself**
+  (`BoqContent.tsx`, 2026-08-11) — a collapsed `<details>` block showing
+  the very first element's own raw data: how many property sets were
+  found, every property/quantity name actually seen in them (not just
+  the ones this app recognizes), how many material definitions were
+  found, and the raw error text from the 4-arg/3-arg fallback calls if
+  either one failed. Built specifically because this session's own
+  debugging hit a wall no local tooling could get through: this app's
+  live deployment sits behind Vercel's preview-deployment SSO
+  protection, and the owner is on a phone with no practical DevTools
+  access — screenshots of tap-to-inspect were the only way to see real
+  data at all. This makes the app self-diagnosing for that exact
+  situation going forward, not just this one report.
 - **Not verified against a real IFC file's actual unit declaration or
   material structure** — no live IFC sample is available in this
   session's sandbox. Both `ifcUnits.ts` and the material-extraction half

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ElementCategory } from '../ifc/ifcCategories'
-import type { BoqElementDetail } from '../ifc/ifcBoqDetails'
+import type { BoqElementDetail, BoqDebugSample, BoqDetailsResult } from '../ifc/ifcBoqDetails'
 import { BoqContent } from './BoqContent'
 import { getErrorMessage } from '../utils/errorMessage'
 import styles from './BoqPanel.module.css'
@@ -13,7 +13,7 @@ interface BoqPanelProps {
   // lazily once this panel is actually opened. Same categories the old
   // Schedule panel took directly.
   categories: ElementCategory[]
-  getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqElementDetail[]>
+  getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqDetailsResult>
   onIsolate: (hiddenGlobalIds: Set<string>) => void
   onJumpTo: (globalIds: string[]) => void
   // See SchedulePanel's original comment on this prop (same containing-
@@ -34,6 +34,7 @@ interface BoqPanelProps {
 // instead of this overlay -- see docs/features/boq.md.
 export function BoqPanel({ categories, getBoqDetails, onIsolate, onJumpTo, portalContainer, open, onOpenChange }: BoqPanelProps) {
   const [details, setDetails] = useState<BoqElementDetail[] | null>(null)
+  const [debugSample, setDebugSample] = useState<BoqDebugSample | null>(null)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -50,7 +51,10 @@ export function BoqPanel({ categories, getBoqDetails, onIsolate, onJumpTo, porta
         const result = await getBoqDetails((done, total) => {
           if (!cancelled) setProgress({ done, total })
         })
-        if (!cancelled) setDetails(result)
+        if (!cancelled) {
+          setDetails(result.details)
+          setDebugSample(result.debugSample)
+        }
       } catch (err) {
         if (!cancelled) setError(getErrorMessage(err, 'Could not load quantities for this model.'))
       }
@@ -97,7 +101,15 @@ export function BoqPanel({ categories, getBoqDetails, onIsolate, onJumpTo, porta
               ×
             </button>
             <h2 className={styles.title}>Bill of Quantities</h2>
-            <BoqContent details={details} progress={progress} error={error} csvFileName="boq.csv" onIsolate={onIsolate} onJumpTo={onJumpTo} />
+            <BoqContent
+              details={details}
+              progress={progress}
+              error={error}
+              csvFileName="boq.csv"
+              debugSample={debugSample}
+              onIsolate={onIsolate}
+              onJumpTo={onJumpTo}
+            />
           </aside>,
           portalContainer,
         )}

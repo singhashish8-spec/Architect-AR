@@ -17,6 +17,36 @@
   color: #ff8a8a;
 }
 
+.debug {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.75rem;
+}
+
+.debug summary {
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.debug dl {
+  margin: 0.6rem 0 0;
+}
+
+.debug dt {
+  margin-top: 0.5rem;
+  opacity: 0.55;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.03em;
+}
+
+.debug dd {
+  margin: 0.15rem 0 0;
+  word-break: break-word;
+}
+
 .loading {
   margin: 1rem 0;
 }

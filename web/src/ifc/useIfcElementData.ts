@@ -8,7 +8,7 @@ import {
 } from './ifcPropertyLookup'
 import { getLevelsAndRooms, type Level } from './ifcSpatialTree'
 import { getElementCategories, type ElementCategory } from './ifcCategories'
-import { buildBoqDetails, type BoqElementDetail } from './ifcBoqDetails'
+import { buildBoqDetails, type BoqDetailsResult } from './ifcBoqDetails'
 import type { IfcElementData } from '../types/IfcElementData'
 
 interface UseIfcElementDataResult {
@@ -41,7 +41,7 @@ interface UseIfcElementDataResult {
   // runs the first time it's called; the result is cached (per model) for
   // every call after that, so reopening the BOQ panel later in the same
   // session is instant. See docs/features/boq.md.
-  getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqElementDetail[]>
+  getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqDetailsResult>
 }
 
 export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResult {
@@ -60,7 +60,7 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
   // the time that IIFE's promise resolves, regardless of render timing.
   const levelsRef = useRef<Level[]>([])
   const categoriesRef = useRef<ElementCategory[]>([])
-  const boqRef = useRef<Promise<BoqElementDetail[]> | null>(null)
+  const boqRef = useRef<Promise<BoqDetailsResult> | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -144,10 +144,10 @@ export function useIfcElementData(ifcUrl: string | null): UseIfcElementDataResul
   // docs/features/levels-and-rooms-navigation.md, fixed there the same
   // way.
   const getBoqDetails = useCallback(
-    async (onProgress?: (done: number, total: number) => void): Promise<BoqElementDetail[]> => {
+    async (onProgress?: (done: number, total: number) => void): Promise<BoqDetailsResult> => {
       if (readyRef.current) await readyRef.current
       const model = modelRef.current
-      if (!model) return []
+      if (!model) return { details: [], debugSample: null }
       // onProgress only reaches the call that actually kicks off the
       // build -- a second call issued while the first is still in
       // flight shares its result instead of starting a redundant pass,

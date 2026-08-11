@@ -199,28 +199,68 @@ function collectMaterialNames(node: unknown, names: Set<string>): void {
 // exporters that only ever put quantities on the type); if that throws,
 // falls back to the exact 3-arg call already proven to work, rather
 // than giving up and returning nothing.
-async function getPropertySetsWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<unknown[]> {
+interface FallbackResult {
+  data: unknown[]
+  // Both null when the primary (4-arg) call itself succeeded --
+  // otherwise the raw error message(s), kept for BoqDebugSample below.
+  // Deliberately plain strings, not Error objects: this ends up
+  // serialized into on-screen debug output (see
+  // ifc/ifcBoqDetails.ts/components/BoqContent.tsx), not just logged.
+  primaryError: string | null
+  fallbackError: string | null
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
+
+async function getPropertySetsWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<FallbackResult> {
   try {
-    return (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
-  } catch {
+    const data = (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
+    return { data, primaryError: null, fallbackError: null }
+  } catch (primaryErr) {
     try {
-      return (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
-    } catch {
-      return []
+      const data = (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
+      return { data, primaryError: errorMessage(primaryErr), fallbackError: null }
+    } catch (fallbackErr) {
+      return { data: [], primaryError: errorMessage(primaryErr), fallbackError: errorMessage(fallbackErr) }
     }
   }
 }
 
-async function getMaterialsPropertiesWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<unknown[]> {
+async function getMaterialsPropertiesWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<FallbackResult> {
   try {
-    return (await api.properties.getMaterialsProperties(modelId, expressId, true, true)) as unknown[]
-  } catch {
+    const data = (await api.properties.getMaterialsProperties(modelId, expressId, true, true)) as unknown[]
+    return { data, primaryError: null, fallbackError: null }
+  } catch (primaryErr) {
     try {
-      return (await api.properties.getMaterialsProperties(modelId, expressId, true)) as unknown[]
-    } catch {
-      return []
+      const data = (await api.properties.getMaterialsProperties(modelId, expressId, true)) as unknown[]
+      return { data, primaryError: errorMessage(primaryErr), fallbackError: null }
+    } catch (fallbackErr) {
+      return { data: [], primaryError: errorMessage(primaryErr), fallbackError: errorMessage(fallbackErr) }
     }
   }
+}
+
+// A snapshot of exactly what one element's own raw IFC data looked like
+// -- captured for the very first element only (see
+// ifc/ifcBoqDetails.ts's buildBoqDetails()) and surfaced directly in the
+// BOQ page's own UI (a small collapsed "Debug info" note) rather than
+// only ever going to a browser console. Added 2026-08-11 after a real
+// project showed every quantity/material blank even after the 4-arg/
+// 3-arg fallback fix above, with no way to see *why* short of asking
+// the owner to relay DevTools output from their phone by hand -- this
+// makes the app self-diagnosing for exactly that situation instead.
+export interface BoqDebugSample {
+  elementName: string
+  propertySetCount: number
+  propertyNamesSeen: string[]
+  quantityNamesSeen: string[]
+  materialDefCount: number
+  propertySetsPrimaryError: string | null
+  propertySetsFallbackError: string | null
+  materialsPrimaryError: string | null
+  materialsFallbackError: string | null
 }
 
 export async function getElementBoqData(
@@ -228,25 +268,54 @@ export async function getElementBoqData(
   modelId: number,
   expressId: number,
   lengthScale: number,
-): Promise<{ quantities: ElementQuantities; materials: string[] }> {
+  elementName?: string,
+): Promise<{ quantities: ElementQuantities; materials: string[]; debugSample?: BoqDebugSample }> {
   let quantities: ElementQuantities = { length: null, width: null, height: null, area: null, volume: null }
+  const propertySetsResult = await getPropertySetsWithFallback(api, modelId, expressId)
   try {
-    const propertySets = await getPropertySetsWithFallback(api, modelId, expressId)
-    quantities = extractQuantities(propertySets, lengthScale)
+    quantities = extractQuantities(propertySetsResult.data, lengthScale)
   } catch {
-    // No property/quantity sets for this element -- leave quantities null.
+    // A genuinely malformed pset shape -- leave quantities null rather
+    // than fail this element (or the whole bulk build) over it.
   }
 
   let materials: string[] = []
+  const materialsResult = await getMaterialsPropertiesWithFallback(api, modelId, expressId)
   try {
-    const materialDefs = await getMaterialsPropertiesWithFallback(api, modelId, expressId)
     const names = new Set<string>()
-    for (const def of materialDefs) collectMaterialNames(def, names)
+    for (const def of materialsResult.data) collectMaterialNames(def, names)
     materials = Array.from(names)
   } catch {
-    // No material association for this element -- not an error, just
-    // nothing to show.
+    // A genuinely malformed material shape -- leave materials empty.
   }
 
-  return { quantities, materials }
+  let debugSample: BoqDebugSample | undefined
+  if (elementName !== undefined) {
+    const propertyNamesSeen: string[] = []
+    const quantityNamesSeen: string[] = []
+    for (const raw of propertySetsResult.data) {
+      const pset = raw as { Quantities?: unknown[]; HasProperties?: unknown[] }
+      for (const rawProp of pset.HasProperties ?? []) {
+        const p = rawProp as { Name?: unknown }
+        if (p.Name !== undefined) propertyNamesSeen.push(unwrap(p.Name))
+      }
+      for (const rawQuantity of pset.Quantities ?? []) {
+        const q = rawQuantity as { Name?: unknown }
+        if (q.Name !== undefined) quantityNamesSeen.push(unwrap(q.Name))
+      }
+    }
+    debugSample = {
+      elementName,
+      propertySetCount: propertySetsResult.data.length,
+      propertyNamesSeen: propertyNamesSeen.slice(0, 20),
+      quantityNamesSeen: quantityNamesSeen.slice(0, 20),
+      materialDefCount: materialsResult.data.length,
+      propertySetsPrimaryError: propertySetsResult.primaryError,
+      propertySetsFallbackError: propertySetsResult.fallbackError,
+      materialsPrimaryError: materialsResult.primaryError,
+      materialsFallbackError: materialsResult.fallbackError,
+    }
+  }
+
+  return { quantities, materials, debugSample }
 }

@@ -42,7 +42,7 @@ describe('BoqPanel', () => {
     const { container } = render(
       <ControlledBoqPanel
         categories={[]}
-        getBoqDetails={vi.fn().mockResolvedValue([])}
+        getBoqDetails={vi.fn().mockResolvedValue({ details: [], debugSample: null })}
         onIsolate={vi.fn()}
         onJumpTo={vi.fn()}
         portalContainer={document.body}
@@ -52,7 +52,7 @@ describe('BoqPanel', () => {
   })
 
   it('does not fetch BOQ details until the panel is opened', async () => {
-    const getBoqDetails = vi.fn().mockResolvedValue(details)
+    const getBoqDetails = vi.fn().mockResolvedValue({ details, debugSample: null })
     const user = userEvent.setup()
     render(
       <ControlledBoqPanel
@@ -78,7 +78,7 @@ describe('BoqPanel', () => {
     render(
       <ControlledBoqPanel
         categories={categories}
-        getBoqDetails={vi.fn().mockResolvedValue(details)}
+        getBoqDetails={vi.fn().mockResolvedValue({ details, debugSample: null })}
         onIsolate={vi.fn()}
         onJumpTo={vi.fn()}
         portalContainer={null}
