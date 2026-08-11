@@ -401,12 +401,12 @@ export function BoqContent({
                                               <td>
                                                 <button
                                                   type="button"
-                                                  className={styles.rowLocateButton}
+                                                  className={styles.rowDebugButton}
                                                   onClick={() => void toggleRowDebug(element.expressId, element.name)}
                                                   aria-label={`Debug ${element.name}`}
                                                   title="Show this element's raw IFC data"
                                                 >
-                                                  🛈
+                                                  Debug
                                                 </button>
                                               </td>
                                             )}

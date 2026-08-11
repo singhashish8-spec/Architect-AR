@@ -300,6 +300,29 @@
   opacity: 1;
 }
 
+/* Plain text, not an icon -- an earlier emoji glyph (🛈) didn't render
+   on at least one real Android device (showed as a blank tofu box
+   instead), same class of problem this codebase already avoids by
+   using text for .locateButton/.rowLocateButton's own label rather
+   than an icon-only button. */
+.rowDebugButton {
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.55;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.rowDebugButton:hover {
+  opacity: 1;
+}
+
 /* .table .rowDebugCell (two classes) rather than relying on source
    order to beat .table td's own padding -- that selector is a class +
    type combinator, which already outranks a single class on
