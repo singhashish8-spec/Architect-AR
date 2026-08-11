@@ -75,8 +75,28 @@
   screen. See [`levels-and-rooms-navigation.md`](../features/levels-and-rooms-navigation.md)
   for the existing `centerPivotOnCamera()` "look around from here"
   control this would build alongside.
+- **Camera modes, view presets, and a level slicer** (scoped 2026-08-10,
+  not built yet) — a **perspective/orthographic camera toggle** plus
+  standard **view presets** (Isometric, Plan/Top, Front, Side), matching
+  what an architect already expects from Revit/Forma. Switching camera
+  types needs care: perspective vs orthographic zoom behave differently
+  in Three.js (dolly distance vs view-frustum size), so the swap has to
+  feel seamless, not jarring. A **level slicer** in the Levels panel —
+  toggle a level, everything above it disappears — is a horizontal
+  clipping plane anchored to each level's own elevation (already known
+  from `ifcSpatialTree.ts`'s parsed data), and combines with Plan/Top
+  view to produce an actual Revit-style floor plan, which is the more
+  useful end result than either piece alone. Also **two separate camera
+  sliders**: **zoom** (dolly distance) and **field of view** (wide-angle
+  ↔ telephoto lens feel — genuinely different from zoom, since FOV
+  changes perspective distortion/converging lines, not just how close
+  the camera sits). This is a more specific, scoped version of the
+  generic "section/clipping planes" idea below — the level slicer is
+  that same clipping-plane mechanism, just driven by level data the app
+  already has instead of a freeform draggable plane.
 - Section/clipping planes (cut through the model horizontally/vertically —
-  natural fit once element picking + R3F control exist).
+  natural fit once element picking + R3F control exist; see the level
+  slicer above for the level-driven version of this already scoped).
 - Snapshot/short video export of a view, for sharing outside the link
   (email, WhatsApp).
 - **Full admin dashboard** — turns Phase 2's read-only `/admin` stats page
