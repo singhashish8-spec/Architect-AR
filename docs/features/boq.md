@@ -1,9 +1,18 @@
-# Feature: Bill of Quantities (BOQ)
+# Feature: Quantity Takeoff (formerly "BOQ")
 
 > Part of [`features/`](README.md). Phase 2/3. Status: **built** (2026-08-11).
 > Replaces the earlier count-only Schedule panel outright — see
 > [`search-and-schedule.md`](search-and-schedule.md) for that panel's own
-> history, which this feature supersedes.
+> history, which this feature supersedes. Renamed from "Bill of
+> Quantities (BOQ)" to "Quantity Takeoff" on 2026-08-11 (owner's own ask,
+> after confirming the underlying data was finally working) — see the
+> dated section near the bottom for the full scope of that pass. Internal
+> file/component/route names (`BoqPanel`, `BoqView`, `ifcBoqDetails.ts`,
+> the `/boq` URL segment, `openPanel === 'boq'`, …) were deliberately
+> left as-is: renaming every identifier and the URL itself would have
+> touched a disproportionate amount of the codebase and broken any
+> already-shared `/boq` links, for a rename that's purely user-facing
+> wording. Only strings actually shown on screen changed.
 
 ## Summary
 
@@ -256,8 +265,127 @@ the room-with-no-own-elements fallback already documented there), so a
 plain "which level's set contains this globalId" scan is enough; no
 separate IFC query needed.
 
+## 2026-08-11 (later) — Renamed to Quantity Takeoff; schedule-style redesign; formatted Excel export
+
+Once the underlying data was confirmed working live (previous section),
+the owner asked for a substantial follow-up pass, in their own words:
+rename BOQ to "Quantity Takeoff"; add expand-all/collapse-all; make
+every category "look as a detailed schedule" with its "own dedicated
+table"; add a per-category toggle for whether it's broken down by level;
+make the export mirror whatever that toggle is currently set to; and add
+a properly formatted, color-coded, multi-sheet Excel export with a
+company/project name header, "ready to present as client will be
+reviewing that."
+
+- **Renamed to "Quantity Takeoff" everywhere it's user-visible** — the
+  corner button, both page titles, the passcode-gate submit label, the
+  CSV file name, and the admin Models tab's link (shortened to just
+  "Takeoff" there specifically, matching that link's existing
+  `Preview`/`Edit`-length button convention rather than the full phrase).
+  See the top-of-file note on what was deliberately *not* renamed
+  (internal identifiers, the `/boq` URL) and why.
+
+- **Every category is now its own dedicated schedule table**, titled
+  "`<Category> Schedule`" (e.g. "Walls Schedule", "Beams Schedule") —
+  the previous plain category name read more like a filter label than a
+  real architectural schedule. Each table also gained a running "No."
+  index column, matching the numbered-row convention a real Door/Wall
+  schedule already uses.
+
+- **Default display is now one flat table per category with its own
+  Level column**, not the old always-grouped-by-level accordion. This
+  is what a schedule normally looks like in practice (a "Door Schedule"
+  lists every door with its own Level cell, it doesn't nest into
+  per-level mini-tables) — and it satisfies "every element will have
+  their dedicated table" more literally than the old nested accordion
+  did. A new **per-category "Group by level" checkbox** (next to that
+  category's own Locate button) switches to the old behavior instead —
+  a bolded level-name band before each level's own rows, no Level
+  column since it's now implied by the band. Only rendered when a
+  category actually spans more than one level (`BoqCategoryGroup.levels
+  .length > 1`) — a single-level category has nothing meaningful to
+  toggle. State lives in a `Set<categoryKey>` in `BoqContent.tsx`
+  (`groupByLevel`), keyed by the same `boqCategoryKey(discipline,
+  category)` helper (moved into `utils/boqData.ts` so `BoqContent.tsx`
+  and the new `utils/boqExcel.ts` share one definition instead of
+  keying the same state two different ways by accident). The row
+  markup itself (index/name/level/material/metrics/Locate/Debug, plus
+  the on-demand debug expansion) was factored into a shared
+  `ScheduleTable` component so the flat and grouped renderings never
+  have to duplicate that markup.
+
+- **Expand all / Collapse all** — two buttons in the toolbar that set
+  (or clear) every discipline/category/level's own expand-state `Set`
+  at once, computed from the full tree (`allKeys()` in
+  `BoqContent.tsx`), not just whatever's currently visible under a
+  search filter. Disabled only in the sense that they're a visual no-op
+  while actively searching (search already force-expands everything —
+  see the existing `searching || expanded...has(...)` pattern), same as
+  every other toggle already behaves under search.
+
+- **Export now mirrors the on-screen toggle state, not one fixed
+  shape** — the owner's own ask: "whatever the final changes is seen
+  after all those toggle for each element... the export will look
+  same." The CSV export (`buildBoqCsv`) stays as it was: one flat row
+  per element across the whole model, since CSV has no real way to
+  express a level-grouping band anyway. The new **Excel export**
+  (`utils/boqExcel.ts`) is where this actually shows: each category's
+  worksheet is grouped-by-level or flat depending on that same
+  `groupByLevel` state at the moment "Export Excel" was clicked, passed
+  in as a `(categoryKey) => boolean` lookup rather than copied state.
+
+- **New formatted, multi-sheet Excel export** (`utils/boqExcel.ts`,
+  via [exceljs](https://github.com/exceljs/exceljs) — the only
+  JS library in this ecosystem with real cell styling, fills, merged
+  cells, and multi-sheet support that also has a browser build; SheetJS's
+  free tier doesn't do styling at all). Structure:
+  - A **Summary sheet** first: company/project/model/date title block,
+    then every category's own count + totals in one table, each row
+    tinted with its discipline's own accent color.
+  - **One worksheet per category**, sheet name sanitized (Excel forbids
+    `: \ / ? * [ ]` in a sheet name and caps it at 31 characters) and
+    disambiguated against collisions after truncation
+    (`sheetName()`). Each sheet repeats the same title block, a bold
+    header row filled with that category's discipline color (frozen via
+    `sheet.views`), alternating row banding, right-aligned number cells
+    with real Excel number formats (`0.00`, `0.000` for volume — not
+    just text), and a bold totals row (only for the metrics this app
+    ever sums — see `SUMMABLE_METRICS`) with a top border.
+  - **Discipline color coding**: Architecture (blue), Structure
+    (terracotta/brown), MEP (teal) — used for each sheet's header fill,
+    its Excel tab color, and the Summary sheet's row tint, so flipping
+    between tabs gives the same "which discipline is this" cue a real
+    drawing set's own color-coded sheets would.
+  - **Company name** has no home in the `projects` table — adding one
+    felt like overkill for a single cosmetic export label, so it's a
+    plain text input on the Quantity Takeoff page itself
+    (`localStorage`-backed, key `architect-ar:company-name`), remembered
+    per-browser once typed in rather than requiring a DB migration.
+  - **Lazy-loaded**: exceljs pulls in ~75 npm packages and produces a
+    ~930 KB (256 KB gzipped) chunk on its own — a plain top-level
+    `import` would have put that in every visitor's main bundle whether
+    they ever export anything or not. `buildAndDownloadBoqExcel()` only
+    ever does `await import('exceljs')` inside the click handler, so
+    Vite splits it into its own chunk, fetched only when "Export Excel"
+    is actually clicked (confirmed in the production build output:
+    `exceljs.min-*.js` shows up as a separate chunk, not folded into
+    `index-*.js`).
+  - `buildBoqWorkbook()` is exported separately from
+    `buildAndDownloadBoqExcel()` specifically so tests
+    (`boqExcel.test.ts`) can inspect the resulting `ExcelJS.Workbook`
+    object directly (cell values, sheet names, header contents) instead
+    of having to intercept a `Blob` download through `URL
+    .createObjectURL`.
+
 ## Open questions / known limitations
 
+- **The Excel export is unverified in a real spreadsheet app** (2026-08-11)
+  — built and unit-tested against the `ExcelJS.Workbook` object directly
+  (cell values, sheet names, fills), which confirms the file is
+  structurally correct, but no one has yet opened the actual downloaded
+  `.xlsx` in real Excel/Google Sheets/Numbers to eyeball the formatting,
+  colors, and column widths the way a client actually would. Worth a
+  quick manual check before relying on it for a real client presentation.
 - **Corrected root-cause fix, still pending a live retest (2026-08-11,
   later same day)**: the original 4-arg/3-arg fallback (previous
   paragraph) only ever tried the 3-arg call inside a `catch` block, on
@@ -272,10 +400,10 @@ separate IFC query needed.
   fall back to the proven-working 3-arg call whenever the 4-arg call
   comes back empty, whether or not it threw. Covered by new unit tests
   (`ifcQuantities.test.ts`) for the "succeeds but empty" case
-  specifically, not just the "throws" case already covered. Not yet
-  re-confirmed against the owner's real project since shipping — if
-  wall `143478`'s row still shows nothing after this, the per-row Debug
-  button (below) is the next diagnostic step.
+  specifically, not just the "throws" case already covered. **Confirmed
+  fixed** (2026-08-11, live retest): wall `143478`'s row now shows real
+  Length/Height/Area/Material values, and the whole model totals
+  239 elements, 1,927.04 m² total area, 1,412.46 m³ total volume.
 - **A "Debug info" disclosure was added to the BOQ page itself**
   (`BoqContent.tsx`, 2026-08-11) — a collapsed `<details>` block showing
   the very first element's own raw data: how many property sets were

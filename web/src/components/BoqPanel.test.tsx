@@ -68,10 +68,10 @@ describe('BoqPanel', () => {
 
     expect(getBoqDetails).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole('button', { name: /^boq$/i }))
+    await user.click(screen.getByRole('button', { name: /^quantity takeoff$/i }))
 
     expect(getBoqDetails).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(screen.getByText('Bill of Quantities')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Quantity Takeoff')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByText('Architecture')).toBeInTheDocument())
   })
 
@@ -88,8 +88,8 @@ describe('BoqPanel', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: /^boq$/i }))
+    await user.click(screen.getByRole('button', { name: /^quantity takeoff$/i }))
 
-    expect(screen.queryByText('Bill of Quantities')).not.toBeInTheDocument()
+    expect(screen.queryByText('Quantity Takeoff')).not.toBeInTheDocument()
   })
 })

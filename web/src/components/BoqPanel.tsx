@@ -15,6 +15,10 @@ interface BoqPanelProps {
   categories: ElementCategory[]
   getBoqDetails: (onProgress?: (done: number, total: number) => void) => Promise<BoqDetailsResult>
   debugBoqElement: (expressId: number, elementName: string) => Promise<BoqDebugSample | null>
+  // Only used to label the Excel export's title block -- optional since
+  // pages/LocalPreview.tsx has no real project to name.
+  projectName?: string
+  modelName?: string
   onIsolate: (hiddenGlobalIds: Set<string>) => void
   onJumpTo: (globalIds: string[]) => void
   // See SchedulePanel's original comment on this prop (same containing-
@@ -37,6 +41,8 @@ export function BoqPanel({
   categories,
   getBoqDetails,
   debugBoqElement,
+  projectName,
+  modelName,
   onIsolate,
   onJumpTo,
   portalContainer,
@@ -83,7 +89,7 @@ export function BoqPanel({
         type="button"
         className={styles.toggle}
         onClick={() => onOpenChange(!open)}
-        aria-label={open ? 'Hide BOQ' : 'BOQ'}
+        aria-label={open ? 'Hide Quantity Takeoff' : 'Quantity Takeoff'}
       >
         <svg
           width="18"
@@ -101,7 +107,7 @@ export function BoqPanel({
           <line x1="9" y1="11" x2="15" y2="11" />
           <line x1="9" y1="15" x2="15" y2="15" />
         </svg>
-        <span className={labelStyles.label}>{open ? 'Hide BOQ' : 'BOQ'}</span>
+        <span className={labelStyles.label}>{open ? 'Hide Quantity Takeoff' : 'Quantity Takeoff'}</span>
       </button>
       {open &&
         portalContainer &&
@@ -110,12 +116,14 @@ export function BoqPanel({
             <button type="button" className={styles.closeButton} onClick={() => onOpenChange(false)} aria-label="Close">
               ×
             </button>
-            <h2 className={styles.title}>Bill of Quantities</h2>
+            <h2 className={styles.title}>Quantity Takeoff</h2>
             <BoqContent
               details={details}
               progress={progress}
               error={error}
-              csvFileName="boq.csv"
+              csvFileName="quantity-takeoff.csv"
+              projectName={projectName}
+              modelName={modelName}
               debugSample={debugSample}
               debugBoqElement={debugBoqElement}
               onIsolate={onIsolate}

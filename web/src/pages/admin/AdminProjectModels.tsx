@@ -176,7 +176,7 @@ function ModelRow({
               rel="noopener noreferrer"
               className={styles.smallButton}
             >
-              BOQ
+              Takeoff
             </a>
           )}
           <button type="button" className={styles.smallButton} onClick={onToggleExpanded}>

@@ -212,6 +212,8 @@ export function ProjectView() {
               categories={categories}
               getBoqDetails={getBoqDetails}
               debugBoqElement={debugBoqElement}
+              projectName={project.name}
+              modelName={activeModel.name}
               onIsolate={setHiddenGlobalIds}
               onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
               portalContainer={rootEl}

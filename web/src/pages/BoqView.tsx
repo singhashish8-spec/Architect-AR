@@ -93,7 +93,7 @@ export function BoqView() {
       <PasscodeGate
         onSubmit={handlePasscodeSubmit}
         description="This project is protected. Ask whoever shared this link for the passcode."
-        submitLabel="View BOQ"
+        submitLabel="View Quantity Takeoff"
       />
     )
   }
@@ -105,7 +105,7 @@ export function BoqView() {
         <div className={styles.header}>
           <div>
             <p className={styles.eyebrow}>{project.name}</p>
-            <h1 className={styles.title}>Bill of Quantities</h1>
+            <h1 className={styles.title}>Quantity Takeoff</h1>
           </div>
           <Link to={`/p/${project.id}?model=${activeModel.id}`} className={styles.viewerLink}>
             Open 3D viewer →
@@ -132,12 +132,16 @@ export function BoqView() {
             details={details}
             progress={progress}
             error={fetchError}
-            csvFileName={`${project.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-boq.csv`}
+            csvFileName={`${project.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-quantity-takeoff.csv`}
+            projectName={project.name}
+            modelName={activeModel.name}
             debugSample={debugSample}
             debugBoqElement={debugBoqElement}
           />
         ) : (
-          <p className={styles.status}>"{activeModel.name}" doesn't have an IFC file attached, so there's no BOQ data for it.</p>
+          <p className={styles.status}>
+            "{activeModel.name}" doesn't have an IFC file attached, so there's no quantity takeoff data for it.
+          </p>
         )}
       </div>
     </main>

@@ -265,6 +265,7 @@ export function LocalPreview() {
                   categories={categories}
                   getBoqDetails={getBoqDetails}
                   debugBoqElement={debugBoqElement}
+                  modelName={modelFile?.name}
                   onIsolate={setHiddenGlobalIds}
                   onJumpTo={(globalIds) => viewerRef.current?.focusOnGlobalIds(globalIds)}
                   portalContainer={viewerEl}

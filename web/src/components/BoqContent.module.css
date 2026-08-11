@@ -68,6 +68,7 @@
 
 .toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
@@ -183,6 +184,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
+}
+
+/* Sits between the category header button and its own "Locate" button
+   in .categoryHeaderRow -- a compact checkbox + label, not a full-size
+   control, since it's a minor per-category display switch rather than a
+   primary action. */
+.levelToggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.levelToggle input {
+  cursor: pointer;
 }
 
 .categoryBadges {
@@ -283,6 +304,16 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   opacity: 0.9;
+}
+
+.indexColumn {
+  width: 2.2rem;
+}
+
+.indexCell {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
+  white-space: nowrap;
 }
 
 /* Generous padding + compensating negative margin, same reasoning as

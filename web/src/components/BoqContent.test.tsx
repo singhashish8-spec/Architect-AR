@@ -43,10 +43,45 @@ const details: BoqElementDetail[] = [
   },
 ]
 
+// Two walls across two levels -- the shared `details` fixture above only
+// ever has one element per category, which is deliberately too sparse to
+// exercise the "Group by level" toggle (it only renders once a category
+// actually spans more than one level).
+const twoLevelWalls: BoqElementDetail[] = [
+  {
+    expressId: 1,
+    globalId: 'wall-1',
+    name: 'Wall-01',
+    type: 'IfcWallStandardCase',
+    discipline: 'Architecture',
+    category: 'Walls',
+    level: 'Level 1',
+    levelIndex: 0,
+    materials: ['Brick'],
+    quantities: { length: 4, width: null, height: 3, area: 10, volume: 2 },
+  },
+  {
+    expressId: 4,
+    globalId: 'wall-2',
+    name: 'Wall-02',
+    type: 'IfcWallStandardCase',
+    discipline: 'Architecture',
+    category: 'Walls',
+    level: 'Level 2',
+    levelIndex: 1,
+    materials: ['Concrete'],
+    quantities: { length: 5, width: null, height: 3, area: 15, volume: 3 },
+  },
+]
+
+// Every category now renders as its own dedicated schedule table (the
+// category header's own text is "<Category> Schedule", not just the bare
+// category name) and, by default, that table is a single flat sheet --
+// no separate "open this level" click needed, unlike the old
+// grouped-by-level-only layout.
 async function expandToTable(user: ReturnType<typeof userEvent.setup>, discipline: string, category: string) {
   await user.click(screen.getByText(discipline))
-  await user.click(screen.getByText(category))
-  await user.click(screen.getByText('Level 1'))
+  await user.click(screen.getByText(`${category} Schedule`))
 }
 
 describe('BoqContent', () => {
@@ -102,36 +137,61 @@ describe('BoqContent', () => {
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
 
     await user.click(screen.getByText('Structure'))
-    await user.click(screen.getByText('Beams'))
+    await user.click(screen.getByText('Beams Schedule'))
     // Beams' profile is length/width/height/volume -- only length (6 m)
     // and volume (0.9 m³) are summable, so those two totals should show
-    // as badges alongside the count; width/height never do. Shown at
-    // both the category header and its (only) level's own header, since
-    // there's just one beam and it's on Level 1.
+    // as a badge on the category header. Opening the category also
+    // reveals its (single-beam) flat schedule table immediately, whose
+    // own Length/Volume cells repeat the same text -- two matches each,
+    // not one.
     expect(screen.getAllByText(/6 m/)).toHaveLength(2)
     expect(screen.getAllByText(/0.9 m³/)).toHaveLength(2)
   })
 
-  it('groups a category\'s elements by level, with its own collapsible header', async () => {
+  it('defaults every category to one flat schedule table with a Level column', async () => {
     const user = userEvent.setup()
-    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
+    render(<BoqContent details={twoLevelWalls} progress={null} error={null} csvFileName="boq.csv" />)
 
     await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Walls'))
+    await user.click(screen.getByText('Walls Schedule'))
 
-    // The level header shows before the element table is expanded.
-    expect(screen.getByText('Level 1')).toBeInTheDocument()
-    expect(screen.queryByText('Wall-01')).not.toBeInTheDocument()
-
-    await user.click(screen.getByText('Level 1'))
+    // Both elements show up in one table immediately -- no separate
+    // "open this level" step, and a Level column carries the level name
+    // since nothing is grouped.
+    expect(screen.getByRole('columnheader', { name: 'Level' })).toBeInTheDocument()
     expect(screen.getByText('Wall-01')).toBeInTheDocument()
+    expect(screen.getByText('Wall-02')).toBeInTheDocument()
+    expect(screen.getAllByRole('row')).toHaveLength(3) // header + 2 elements
+  })
+
+  it('switches to a per-level breakdown when "Group by level" is toggled on', async () => {
+    const user = userEvent.setup()
+    render(<BoqContent details={twoLevelWalls} progress={null} error={null} csvFileName="boq.csv" />)
+
+    await user.click(screen.getByText('Architecture'))
+    await user.click(screen.getByText('Walls Schedule'))
+    await user.click(screen.getByLabelText('Group by level'))
+
+    // Grouped mode drops the Level column (implied by each level's own
+    // subheader instead) and shows a level header + Locate button per
+    // level.
+    expect(screen.queryByRole('columnheader', { name: 'Level' })).not.toBeInTheDocument()
+    expect(screen.getByText('Level 1')).toBeInTheDocument()
+    expect(screen.getByText('Level 2')).toBeInTheDocument()
+  })
+
+  it('does not show the "Group by level" toggle for a category that only has one level', async () => {
+    const user = userEvent.setup()
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
+    await expandToTable(user, 'Architecture', 'Walls')
+    expect(screen.queryByLabelText('Group by level')).not.toBeInTheDocument()
   })
 
   it('hides Locate buttons entirely when onIsolate/onJumpTo are not provided (standalone page mode)', async () => {
     const user = userEvent.setup()
     render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
     await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Walls'))
+    await user.click(screen.getByText('Walls Schedule'))
     expect(screen.queryByText('Locate')).not.toBeInTheDocument()
   })
 
@@ -151,7 +211,7 @@ describe('BoqContent', () => {
     )
 
     await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Walls'))
+    await user.click(screen.getByText('Walls Schedule'))
     await user.click(screen.getByTitle('Isolate every Walls and frame the camera around them'))
 
     expect(onJumpTo).toHaveBeenCalledWith(['wall-1'])
@@ -241,13 +301,13 @@ describe('BoqContent', () => {
     expect(screen.queryByText('Debug info')).not.toBeInTheDocument()
   })
 
-  it('isolates and jumps to just one level of a category via that level\'s own "Locate" button', async () => {
+  it('isolates and jumps to just one level of a category via that level\'s own "Locate" button once grouped', async () => {
     const onIsolate = vi.fn()
     const onJumpTo = vi.fn()
     const user = userEvent.setup()
     render(
       <BoqContent
-        details={details}
+        details={twoLevelWalls}
         progress={null}
         error={null}
         csvFileName="boq.csv"
@@ -257,9 +317,32 @@ describe('BoqContent', () => {
     )
 
     await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Walls'))
+    await user.click(screen.getByText('Walls Schedule'))
+    await user.click(screen.getByLabelText('Group by level'))
     await user.click(screen.getByTitle('Isolate every Walls on Level 1 and frame the camera around them'))
 
     expect(onJumpTo).toHaveBeenCalledWith(['wall-1'])
+  })
+
+  it('expands and collapses every discipline/category with the Expand all / Collapse all controls', async () => {
+    const user = userEvent.setup()
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
+
+    expect(screen.queryByText('Wall-01')).not.toBeInTheDocument()
+    await user.click(screen.getByText('Expand all'))
+    expect(screen.getByText('Wall-01')).toBeInTheDocument()
+    expect(screen.getByText('Door-01')).toBeInTheDocument()
+    expect(screen.getByText('Beam-01')).toBeInTheDocument()
+
+    await user.click(screen.getByText('Collapse all'))
+    expect(screen.queryByText('Wall-01')).not.toBeInTheDocument()
+  })
+
+  it('remembers a company name typed for the Excel export across renders', async () => {
+    const user = userEvent.setup()
+    render(<BoqContent details={details} progress={null} error={null} csvFileName="boq.csv" />)
+    const input = screen.getByPlaceholderText('Company name (shown on the Excel export)')
+    await user.type(input, 'Acme Architects')
+    expect(input).toHaveValue('Acme Architects')
   })
 })

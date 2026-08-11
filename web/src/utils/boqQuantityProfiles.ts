@@ -94,3 +94,23 @@ const DEFAULT_METRICS: QuantityMetric[] = ['length', 'area', 'volume']
 export function getCategoryMetrics(category: string): QuantityMetric[] {
   return CATEGORY_METRICS[category] ?? DEFAULT_METRICS
 }
+
+// Shared display metadata for the five metrics -- one source of truth
+// for both the on-screen table (components/BoqContent.tsx) and the
+// Excel export (utils/boqExcel.ts), so the two never drift apart on
+// column order, label wording, or unit suffix.
+export const METRIC_ORDER: QuantityMetric[] = ['length', 'width', 'height', 'area', 'volume']
+export const METRIC_LABEL: Record<QuantityMetric, string> = {
+  length: 'Length',
+  width: 'Width',
+  height: 'Height',
+  area: 'Area',
+  volume: 'Volume',
+}
+export const METRIC_UNIT: Record<QuantityMetric, string> = {
+  length: 'm',
+  width: 'm',
+  height: 'm',
+  area: 'm²',
+  volume: 'm³',
+}

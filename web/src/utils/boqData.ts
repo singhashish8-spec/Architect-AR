@@ -173,6 +173,15 @@ export function boqGrandTotals(tree: BoqDisciplineGroup[]): BoqTotals {
   }
 }
 
+// The same "discipline + category" identity used to key expand/collapse
+// and per-category "group by level" UI state (components/BoqContent.tsx)
+// and to look that state back up when building the Excel export
+// (utils/boqExcel.ts) -- one definition so the two never key it
+// differently by accident.
+export function boqCategoryKey(discipline: string, category: string): string {
+  return `${discipline} ${category}`
+}
+
 function csvCell(value: string): string {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value
 }
