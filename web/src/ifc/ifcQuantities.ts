@@ -3,13 +3,23 @@ import { unwrap } from './ifcPropertyLookup'
 
 // Values already converted to metres/m2/m3 by the caller (see
 // ifcUnits.ts) -- never the model's own raw, possibly-unknown unit.
+// Length/Width/Height are three genuinely separate dimensions an element
+// can carry at once (a beam's own Length/Width/Height, matching how
+// Revit's own schedules break these out) -- NOT three alternate names
+// for the same value, unlike Area/Volume, which are each a single
+// number picked from whichever Qto quantity of that kind the source
+// file happened to use.
 export interface ElementQuantities {
   length: number | null
+  width: number | null
+  height: number | null
   area: number | null
   volume: number | null
 }
 
 const LENGTH_NAME_PRIORITY = ['Length', 'NominalLength', 'Perimeter']
+const WIDTH_NAMES = ['Width', 'NominalWidth']
+const HEIGHT_NAMES = ['Height', 'NominalHeight']
 const AREA_NAME_PRIORITY = [
   'NetSideArea',
   'GrossSideArea',
@@ -29,21 +39,38 @@ function pickByPriority(candidates: { name: string; value: number }[], priority:
   return candidates.length > 0 ? candidates[0].value : null
 }
 
-// Pulls area/volume/length straight out of the same property-set array
-// getElementData() (ifcPropertyLookup.ts) already fetches per element --
-// that function only reads each pset's `HasProperties` (regular Pset_*
-// values); Qto_* quantity sets come back in the very same array but
-// carry their values under `Quantities` instead, which nothing in this
-// app read until now. An IfcElementQuantity's own `Quantities` array
-// holds IfcQuantityLength/Area/Volume objects, told apart here by which
-// value field is actually present (LengthValue/AreaValue/VolumeValue)
-// rather than a type-code lookup, since these come back as plain nested
-// objects with no expressID of their own to look up. A model can carry
-// more than one quantity of the same kind for one element (e.g. a
-// wall's Length vs. its Perimeter) -- picks a well-known Qto name first
-// (the one an architect doing a real takeoff would expect, e.g.
-// NetSideArea over GrossSideArea for a wall) and falls back to
-// whichever was found first if none of the preferred names match.
+function pickNamed(candidates: { name: string; value: number }[], names: string[]): number | null {
+  const match = candidates.find((c) => names.includes(c.name))
+  return match ? match.value : null
+}
+
+function scaled(value: number | null, lengthScale: number, power: number): number | null {
+  return value === null || Number.isNaN(value) ? null : value * lengthScale ** power
+}
+
+// Pulls length/width/height/area/volume straight out of the same
+// property-set array getElementData() (ifcPropertyLookup.ts) already
+// fetches per element -- that function only reads each pset's
+// `HasProperties` (regular Pset_* values); Qto_* quantity sets come
+// back in the very same array but carry their values under `Quantities`
+// instead, which nothing in this app read until now. An
+// IfcElementQuantity's own `Quantities` array holds
+// IfcQuantityLength/Area/Volume objects, told apart here by which value
+// field is actually present (LengthValue/AreaValue/VolumeValue) rather
+// than a type-code lookup, since these come back as plain nested
+// objects with no expressID of their own to look up.
+//
+// Width and Height are pulled out of the length-typed quantities by
+// name specifically (IFC stores them as IfcQuantityLength too, just
+// named "Width"/"Height" instead of "Length") and excluded from the
+// pool the generic length lookup picks from below -- otherwise a beam's
+// own Width/Height entries could accidentally surface as "the" length
+// whenever no quantity literally named "Length" exists. A model can
+// also carry more than one quantity of the same kind for one element
+// (e.g. a wall's Length vs. its Perimeter, or NetArea vs. GrossArea) --
+// picks a well-known Qto name first (the one an architect doing a real
+// takeoff would expect) and falls back to whichever was found first if
+// none of the preferred names match.
 function extractQuantities(propertySets: unknown[], lengthScale: number): ElementQuantities {
   const lengths: { name: string; value: number }[] = []
   const areas: { name: string; value: number }[] = []
@@ -61,14 +88,19 @@ function extractQuantities(propertySets: unknown[], lengthScale: number): Elemen
     }
   }
 
-  const length = pickByPriority(lengths, LENGTH_NAME_PRIORITY)
+  const width = pickNamed(lengths, WIDTH_NAMES)
+  const height = pickNamed(lengths, HEIGHT_NAMES)
+  const genericLengths = lengths.filter((l) => !WIDTH_NAMES.includes(l.name) && !HEIGHT_NAMES.includes(l.name))
+  const length = pickByPriority(genericLengths, LENGTH_NAME_PRIORITY)
   const area = pickByPriority(areas, AREA_NAME_PRIORITY)
   const volume = pickByPriority(volumes, VOLUME_NAME_PRIORITY)
 
   return {
-    length: length === null || Number.isNaN(length) ? null : length * lengthScale,
-    area: area === null || Number.isNaN(area) ? null : area * lengthScale * lengthScale,
-    volume: volume === null || Number.isNaN(volume) ? null : volume * lengthScale * lengthScale * lengthScale,
+    length: scaled(length, lengthScale, 1),
+    width: scaled(width, lengthScale, 1),
+    height: scaled(height, lengthScale, 1),
+    area: scaled(area, lengthScale, 2),
+    volume: scaled(volume, lengthScale, 3),
   }
 }
 
@@ -116,7 +148,7 @@ export async function getElementBoqData(
   expressId: number,
   lengthScale: number,
 ): Promise<{ quantities: ElementQuantities; materials: string[] }> {
-  let quantities: ElementQuantities = { length: null, area: null, volume: null }
+  let quantities: ElementQuantities = { length: null, width: null, height: null, area: null, volume: null }
   try {
     const propertySets = (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
     quantities = extractQuantities(propertySets, lengthScale)

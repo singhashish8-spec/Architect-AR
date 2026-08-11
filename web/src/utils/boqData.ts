@@ -142,7 +142,12 @@ function formatNumber(value: number | null, digits: number): string {
 
 // One row per element, flattened out of the discipline/category tree --
 // a real takeoff spreadsheet wants every instance on its own line, not
-// just the totals shown in the panel itself.
+// just the totals shown in the panel itself. Every dimension this app
+// can detect goes in the export regardless of which columns the panel
+// itself chose to display for that element's category (see
+// utils/boqQuantityProfiles.ts) -- the panel hides columns that aren't
+// usually relevant to keep the screen readable, but a spreadsheet
+// export has no such reason to leave data out.
 export function buildBoqCsv(details: BoqElementDetail[]): string {
   const header = [
     'Discipline',
@@ -152,6 +157,8 @@ export function buildBoqCsv(details: BoqElementDetail[]): string {
     'Level',
     'Material',
     'Length (m)',
+    'Width (m)',
+    'Height (m)',
     'Area (m2)',
     'Volume (m3)',
   ]
@@ -164,6 +171,8 @@ export function buildBoqCsv(details: BoqElementDetail[]): string {
       detail.level ?? '',
       detail.materials.join('; '),
       formatNumber(detail.quantities.length, 2),
+      formatNumber(detail.quantities.width, 2),
+      formatNumber(detail.quantities.height, 2),
       formatNumber(detail.quantities.area, 2),
       formatNumber(detail.quantities.volume, 3),
     ]

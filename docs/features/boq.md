@@ -10,12 +10,17 @@
 A detailed, collapsible Bill of Quantities built straight from the same
 IFC file already loaded for tap-to-inspect, levels/rooms, and categories —
 no separate export, no separate upload. Every classified element gets its
-own row: name, level, material(s), and length/area/volume where the
-source file actually recorded them, grouped Discipline → Category with
-collapsible headers at both levels, a live search, category/element
-"Locate" buttons that isolate and frame the camera (reusing the exact
-mechanism Search and the old Schedule panel already had), and a CSV
-export of every element as its own line.
+own row: name, level, material(s), and whichever of length/width/height/
+area/volume the source file actually recorded and are relevant to its
+category (a wall shows area, a beam shows all four dimensions, a door
+just shows a count — see the per-category display profiles below),
+grouped Discipline → Category with collapsible headers at both levels, a
+live search, category/element "Locate" buttons that isolate and frame
+the camera, and a CSV export of every element as its own line (with
+every detected dimension, regardless of which columns the on-screen
+panel shows). Reachable two ways: the in-viewer "BOQ" corner button, or
+a standalone page straight from the admin dashboard that never loads the
+3D model at all.
 
 ## User story
 
@@ -27,6 +32,49 @@ of how many walls there are — organized the way a real BOQ is organized
 collapsed, and easy to dig into or export when it isn't.
 
 ## What's built
+
+**Per-category display profiles + Width/Height (owner's correction, 2026-08-11)**
+The first version showed the same Length/Area/Volume columns for every
+category, which the owner pointed out isn't how a real BOQ reads (a
+door's volume is never useful; a wall's area matters far more than its
+count). Two changes:
+- **Width and Height are now their own detected dimensions**, not folded
+  into "Length" — `ifc/ifcQuantities.ts` pulls them out of the Qto
+  quantity set by name (IFC stores them as `IfcQuantityLength` too, just
+  named `Width`/`Height` instead of `Length`), the same way Revit's own
+  quantities work.
+- **`utils/boqQuantityProfiles.ts`** maps each category to which
+  quantities actually matter for it, and both the panel and the
+  standalone page only show those columns: Walls → area/length/height,
+  Beams/Columns → length/width/height/volume, Railings → length/height,
+  Doors/Windows/Furniture/most MEP fittings → count only (no dimension
+  columns at all), MEP runs (pipes/ducts/cabling) → length. An
+  unrecognized category falls back to length/area/volume rather than
+  showing nothing. Only length/area/volume are ever *totaled* into a
+  category badge — summing "the total height of 20 doors" isn't a real
+  quantity, matching how Revit's own schedules never total those either.
+  The CSV export is unaffected by this — every detected dimension goes
+  into the spreadsheet regardless of which columns the on-screen panel
+  chose to hide for that category.
+
+**A standalone page, not just the in-viewer panel (owner's correction, 2026-08-11)**
+The admin Models tab's "BOQ" link originally deep-linked into
+`pages/ProjectView.tsx` (the full 3D viewer) with the panel pre-opened.
+The owner's actual ask: clicking it should go straight to the
+quantities, without loading the 3D model at all. Now it opens
+`pages/BoqView.tsx` at `/p/:projectId/boq?model=:modelId` — a page that
+calls `useIfcElementData()` for the model's IFC data only (never
+touches `modelUrl`/the GLB pipeline, so it's genuinely lighter to load,
+not just visually simpler) and renders the BOQ immediately, no
+open/close toggle needed since showing the BOQ is this page's entire
+purpose. A "Open 3D viewer →" link goes the other way for anyone who
+does want to see the model. The two entry points now share their actual
+rendering: `components/BoqContent.tsx` holds the tree/search/CSV-export
+logic, used by both the in-viewer `BoqPanel.tsx` (lazy-loads on open,
+locate buttons isolate+frame the camera) and the standalone
+`BoqView.tsx` (loads immediately, no locate buttons since there's no
+viewer to frame anything in — `BoqContent`'s `onIsolate`/`onJumpTo`
+props are optional for exactly this reason).
 
 - **Two levels of collapsible headers.** Discipline (Architecture /
   Structure / MEP) at the top, Category (Walls, Doors, Windows, …)
@@ -59,12 +107,10 @@ collapsed, and easy to dig into or export when it isn't.
   (see [`full-admin-dashboard.md`](full-admin-dashboard.md)).
 - **Reachable from the admin Models tab, not just from inside the
   viewer.** Each model row that has an IFC file gets its own "BOQ" link
-  next to its existing "Preview" link (`AdminProjectModels.tsx`,
-  2026-08-11) — opens straight to `/p/<id>?model=<modelId>&panel=boq`,
-  which lands on that model with the BOQ panel already open, no need to
-  open the viewer first and hunt for the corner button. Reuses the same
-  `?panel=` deep-link `ProjectView.tsx` reads once on mount that
-  `?model=` already established the pattern for.
+  next to its existing "Preview" link (`AdminProjectModels.tsx`) —
+  opens the standalone `/p/<id>/boq?model=<modelId>` page directly, not
+  the 3D viewer. See the dated section below for how this link's target
+  changed after the owner's own correction.
 - **Lazy-loaded, cached, and paced.** Unlike levels/categories (computed
   automatically the moment a model finishes parsing), the BOQ's detail
   data is only actually fetched the first time the panel is opened — see

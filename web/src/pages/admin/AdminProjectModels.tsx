@@ -163,14 +163,15 @@ function ModelRow({
             Preview
           </a>
           {/* Only shown when this model actually has an IFC file -- the
-              BOQ panel needs IFC data to show anything at all (same
-              requirement tap-to-inspect already has), so a model with
-              just a glTF/GLB would open the viewer to a dead ?panel=boq
-              link that never shows a BOQ button to click. See
+              BOQ page needs IFC data to show anything at all (same
+              requirement tap-to-inspect already has). Goes straight to
+              the standalone BOQ page (pages/BoqView.tsx), NOT the 3D
+              viewer -- the owner's own correction, 2026-08-11, after an
+              earlier version deep-linked into the viewer instead. See
               docs/features/boq.md. */}
           {model.ifcUrl && (
             <a
-              href={`/p/${projectId}?model=${model.id}&panel=boq`}
+              href={`/p/${projectId}/boq?model=${model.id}`}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.smallButton}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
@@ -11,17 +11,11 @@ import { SearchPanel } from '../components/SearchPanel'
 import { BoqPanel } from '../components/BoqPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { useProjectViewTracking } from '../hooks/useProjectViewTracking'
-import { getProject, projectRequiresPasscode } from '../services/projectService'
-import type { Project } from '../types/Project'
+import { useProjectAccess } from '../hooks/useProjectAccess'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { LightingPreset } from '../types/LightingPreset'
-import { type CornerPanelKey, CORNER_PANEL_KEYS } from '../types/CornerPanel'
-import { getErrorMessage } from '../utils/errorMessage'
+import type { CornerPanelKey } from '../types/CornerPanel'
 import styles from './ProjectView.module.css'
-
-function isCornerPanelKey(value: string | null): value is CornerPanelKey {
-  return value !== null && (CORNER_PANEL_KEYS as readonly string[]).includes(value)
-}
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -31,12 +25,7 @@ export function ProjectView() {
   // or unrecognized just falls through to the first model, same as
   // before this existed.
   const [searchParams, setSearchParams] = useSearchParams()
-  const [project, setProject] = useState<Project | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  // null = still checking whether this project needs a passcode at all --
-  // kept distinct from `false` so a passcode-free project renders exactly
-  // as before, with no gate flashing on screen even briefly.
-  const [passcodeRequired, setPasscodeRequired] = useState<boolean | null>(null)
+  const { project, loadError, passcodeRequired, handlePasscodeSubmit } = useProjectAccess(projectId)
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   // Tracks "the user tapped something and we're resolving it" --
   // deliberately separate from useIfcElementData's `loading` (the
@@ -51,18 +40,8 @@ export function ProjectView() {
   // which (combined with the panels' anchored-dropdown positioning) let
   // them visually overlap each other on a narrow screen. Owned here
   // instead of by each panel so opening one always closes whichever
-  // other was open, matching how a normal menu bar behaves. Reads an
-  // optional ?panel= param on first render so a link can deep-link
-  // straight into an already-open panel -- the admin Models tab's "BOQ"
-  // link per model relies on this, same idea as ?model= above. Not kept
-  // in sync afterward (unlike ?model=): once someone starts clicking
-  // around, the URL staying stale is fine, and stripping/rewriting it on
-  // every click would just be noise in the browser history for no
-  // benefit.
-  const [openPanel, setOpenPanel] = useState<CornerPanelKey | null>(() => {
-    const requested = searchParams.get('panel')
-    return isCornerPanelKey(requested) ? requested : null
-  })
+  // other was open, matching how a normal menu bar behaves.
+  const [openPanel, setOpenPanel] = useState<CornerPanelKey | null>(null)
   // BoqPanel portals its actual panel content here (see its own comment
   // for why) -- a state, not a plain ref, so the portal target is
   // available by the time anything tries to render into it.
@@ -93,43 +72,6 @@ export function ProjectView() {
   // so a view only ever gets recorded for someone who actually saw the
   // model. See docs/features/analytics-and-admin-dashboard.md.
   useProjectViewTracking(project?.id ?? null, activeModel?.id ?? null)
-
-  useEffect(() => {
-    if (!projectId) return
-    let cancelled = false
-
-    void (async () => {
-      try {
-        const required = await projectRequiresPasscode(projectId)
-        if (cancelled) return
-        setPasscodeRequired(required)
-        if (required) return // wait for PasscodeGate instead of loading yet
-
-        const result = await getProject(projectId)
-        if (!cancelled) {
-          setProject(result)
-          if (!result) setLoadError('This link doesn’t match a project.')
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setLoadError(getErrorMessage(err, 'Failed to load this project.'))
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [projectId])
-
-  // Returns whether the passcode was accepted -- PasscodeGate shows its
-  // own "incorrect" message on false, nothing else to do here in that case.
-  async function handlePasscodeSubmit(passcode: string): Promise<boolean> {
-    if (!projectId) return false
-    const result = await getProject(projectId, passcode)
-    if (result) setProject(result)
-    return result !== null
-  }
 
   // Switching models should drop any data panel left over from the
   // previous one -- otherwise a tap on model A's wall would stay on

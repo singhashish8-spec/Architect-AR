@@ -46,7 +46,38 @@ describe('getElementBoqData', () => {
     const propertySets = [{ HasProperties: [{ Name: { value: 'Fire Rating' }, NominalValue: { value: '2 HR' } }] }]
     const api = createMockApi(propertySets, [])
     const result = await getElementBoqData(api, 0, 1, 1)
-    expect(result.quantities).toEqual({ length: null, area: null, volume: null })
+    expect(result.quantities).toEqual({ length: null, width: null, height: null, area: null, volume: null })
+  })
+
+  it('extracts Width/Height as their own dimensions, separate from Length', async () => {
+    const propertySets = [
+      {
+        Quantities: [
+          { Name: { value: 'Length' }, LengthValue: { value: 6 } },
+          { Name: { value: 'Width' }, LengthValue: { value: 0.3 } },
+          { Name: { value: 'Height' }, LengthValue: { value: 0.5 } },
+        ],
+      },
+    ]
+    const api = createMockApi(propertySets, [])
+    const result = await getElementBoqData(api, 0, 1, 1)
+    expect(result.quantities).toEqual({ length: 6, width: 0.3, height: 0.5, area: null, volume: null })
+  })
+
+  it('never reports Width/Height back as the generic length when no quantity is literally named "Length"', async () => {
+    const propertySets = [
+      {
+        Quantities: [
+          { Name: { value: 'Width' }, LengthValue: { value: 0.3 } },
+          { Name: { value: 'Height' }, LengthValue: { value: 0.5 } },
+        ],
+      },
+    ]
+    const api = createMockApi(propertySets, [])
+    const result = await getElementBoqData(api, 0, 1, 1)
+    expect(result.quantities.length).toBeNull()
+    expect(result.quantities.width).toBe(0.3)
+    expect(result.quantities.height).toBe(0.5)
   })
 
   it('collects a flat material name directly', async () => {
@@ -79,6 +110,9 @@ describe('getElementBoqData', () => {
       },
     } as unknown as IfcAPI
     const result = await getElementBoqData(api, 0, 1, 1)
-    expect(result).toEqual({ quantities: { length: null, area: null, volume: null }, materials: [] })
+    expect(result).toEqual({
+      quantities: { length: null, width: null, height: null, area: null, volume: null },
+      materials: [],
+    })
   })
 })

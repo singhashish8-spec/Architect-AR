@@ -8,7 +8,6 @@ import type { BoqElementDetail } from '../ifc/ifcBoqDetails'
 
 const categories: ElementCategory[] = [
   { expressId: 1, globalId: 'wall-1', type: 'IfcWallStandardCase', discipline: 'Architecture', category: 'Walls' },
-  { expressId: 2, globalId: 'door-1', type: 'IfcDoor', discipline: 'Architecture', category: 'Doors' },
 ]
 
 const details: BoqElementDetail[] = [
@@ -21,18 +20,7 @@ const details: BoqElementDetail[] = [
     category: 'Walls',
     level: 'Level 1',
     materials: ['Brick'],
-    quantities: { length: 4, area: 10, volume: 2 },
-  },
-  {
-    expressId: 2,
-    globalId: 'door-1',
-    name: 'Door-01',
-    type: 'IfcDoor',
-    discipline: 'Architecture',
-    category: 'Doors',
-    level: 'Level 1',
-    materials: ['Oak'],
-    quantities: { length: null, area: 2, volume: null },
+    quantities: { length: 4, width: null, height: null, area: 10, volume: 2 },
   },
 ]
 
@@ -44,6 +32,10 @@ function ControlledBoqPanel(props: Omit<Parameters<typeof BoqPanel>[0], 'open' |
   return <BoqPanel {...props} open={open} onOpenChange={setOpen} />
 }
 
+// The actual tree/table/search/CSV rendering is covered by
+// BoqContent.test.tsx (what this panel renders once loaded) -- these
+// tests are about the panel wrapper's own job: the toggle button, lazy
+// load-on-open, and the portal.
 describe('BoqPanel', () => {
   it('renders nothing when there is no classified data at all', () => {
     const { container } = render(
@@ -58,7 +50,7 @@ describe('BoqPanel', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('loads details lazily on open, then shows discipline/category headers with totals', async () => {
+  it('does not fetch BOQ details until the panel is opened', async () => {
     const getBoqDetails = vi.fn().mockResolvedValue(details)
     const user = userEvent.setup()
     render(
@@ -76,40 +68,8 @@ describe('BoqPanel', () => {
     await user.click(screen.getByRole('button', { name: /^boq$/i }))
 
     expect(getBoqDetails).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByText('Bill of Quantities')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByText('Architecture')).toBeInTheDocument())
-    expect(screen.getByText(/2 elements/)).toBeInTheDocument()
-  })
-
-  it('expands a category to reveal its elements and isolates+jumps on "Locate"', async () => {
-    const onIsolate = vi.fn()
-    const onJumpTo = vi.fn()
-    const user = userEvent.setup()
-    render(
-      <ControlledBoqPanel
-        categories={categories}
-        getBoqDetails={vi.fn().mockResolvedValue(details)}
-        onIsolate={onIsolate}
-        onJumpTo={onJumpTo}
-        portalContainer={document.body}
-      />,
-    )
-
-    await user.click(screen.getByRole('button', { name: /^boq$/i }))
-    await waitFor(() => expect(screen.getByText('Architecture')).toBeInTheDocument())
-
-    await user.click(screen.getByText('Architecture'))
-    await user.click(screen.getByText('Walls'))
-
-    expect(screen.getByText('Wall-01')).toBeInTheDocument()
-    expect(screen.getByText('Brick')).toBeInTheDocument()
-
-    const locateButtons = screen.getAllByTitle(/Isolate every Walls/)
-    await user.click(locateButtons[0])
-
-    expect(onJumpTo).toHaveBeenCalledWith(['wall-1'])
-    const hidden = onIsolate.mock.calls[0][0] as Set<string>
-    expect(hidden.has('door-1')).toBe(true)
-    expect(hidden.has('wall-1')).toBe(false)
   })
 
   it('does not render the panel content at all without a portal container', async () => {

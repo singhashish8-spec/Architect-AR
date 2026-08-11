@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ProjectView } from './pages/ProjectView'
+import { BoqView } from './pages/BoqView'
 import { LocalPreview } from './pages/LocalPreview'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminProjectList } from './pages/admin/AdminProjectList'
@@ -22,6 +23,7 @@ function App() {
             See docs/features/full-admin-dashboard.md. */}
         <Route path="/" element={<Navigate to="/admin" replace />} />
         <Route path="/p/:projectId" element={<ProjectView />} />
+        <Route path="/p/:projectId/boq" element={<BoqView />} />
         <Route path="/local" element={<LocalPreview />} />
         {/* Multi-page admin, GitHub-repo style (owner's call 2026-08-09):
             a minimal project list, a project's own page reachable by

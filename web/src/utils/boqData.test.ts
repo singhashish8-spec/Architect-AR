@@ -12,7 +12,7 @@ function detail(overrides: Partial<BoqElementDetail>): BoqElementDetail {
     category: 'Walls',
     level: 'Level 1',
     materials: [],
-    quantities: { length: null, area: null, volume: null },
+    quantities: { length: null, width: null, height: null, area: null, volume: null },
     ...overrides,
   }
 }
@@ -24,7 +24,7 @@ const details: BoqElementDetail[] = [
     name: 'Wall-01',
     category: 'Walls',
     materials: ['Brick'],
-    quantities: { length: 4, area: 10, volume: 2 },
+    quantities: { length: 4, width: null, height: null, area: 10, volume: 2 },
   }),
   detail({
     expressId: 2,
@@ -32,7 +32,7 @@ const details: BoqElementDetail[] = [
     name: 'Wall-02',
     category: 'Walls',
     materials: ['Concrete'],
-    quantities: { length: 6, area: 15, volume: null },
+    quantities: { length: 6, width: null, height: null, area: 15, volume: null },
   }),
   detail({
     expressId: 3,
@@ -41,7 +41,7 @@ const details: BoqElementDetail[] = [
     category: 'Doors',
     type: 'IfcDoor',
     materials: ['Oak'],
-    quantities: { length: null, area: 2, volume: null },
+    quantities: { length: null, width: 0.9, height: 2.1, area: 2, volume: null },
   }),
   detail({
     expressId: 4,
@@ -51,7 +51,7 @@ const details: BoqElementDetail[] = [
     discipline: 'Structure',
     type: 'IfcBeam',
     materials: ['Steel'],
-    quantities: { length: 3, area: null, volume: 0.5 },
+    quantities: { length: 3, width: 0.3, height: 0.5, area: null, volume: 0.5 },
   }),
 ]
 
@@ -131,14 +131,26 @@ describe('buildBoqCsv', () => {
   it('includes a header row and one row per element', () => {
     const csv = buildBoqCsv(details)
     const lines = csv.split('\n')
-    expect(lines[0]).toBe('Discipline,Category,Name,Type,Level,Material,Length (m),Area (m2),Volume (m3)')
+    expect(lines[0]).toBe(
+      'Discipline,Category,Name,Type,Level,Material,Length (m),Width (m),Height (m),Area (m2),Volume (m3)',
+    )
     expect(lines).toHaveLength(details.length + 1)
-    expect(lines[1]).toBe('Architecture,Walls,Wall-01,IfcWallStandardCase,Level 1,Brick,4.00,10.00,2.000')
+    expect(lines[1]).toBe('Architecture,Walls,Wall-01,IfcWallStandardCase,Level 1,Brick,4.00,,,10.00,2.000')
   })
 
   it('leaves quantity cells blank rather than "null" when a value is missing', () => {
     const csv = buildBoqCsv(details)
     const doorRow = csv.split('\n').find((line) => line.includes('Door-01'))!
-    expect(doorRow).toBe('Architecture,Doors,Door-01,IfcDoor,Level 1,Oak,,2.00,')
+    expect(doorRow).toBe('Architecture,Doors,Door-01,IfcDoor,Level 1,Oak,,0.90,2.10,2.00,')
+  })
+
+  it('includes Width/Height in the export even for Doors, whose panel view has no quantity columns at all', () => {
+    // Doors' category profile (utils/boqQuantityProfiles.ts) is
+    // count-only -- no columns shown in the panel -- but the CSV export
+    // isn't driven by that profile, so a door's own Width/Height still
+    // makes it into the spreadsheet.
+    const csv = buildBoqCsv(details)
+    const doorRow = csv.split('\n').find((line) => line.includes('Door-01'))!
+    expect(doorRow).toContain('0.90,2.10')
   })
 })
