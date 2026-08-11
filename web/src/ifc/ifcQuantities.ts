@@ -25,7 +25,12 @@ const LENGTH_NAME_PRIORITY = ['Length', 'NominalLength', 'Perimeter']
 // candidate when they show up as a genuinely numeric property value
 // (see the HasProperties fallback below), never just by name alone.
 const WIDTH_NAMES = ['Width', 'NominalWidth', 'b']
-const HEIGHT_NAMES = ['Height', 'NominalHeight', 'h']
+// "Unconnected Height" -- Revit's own name for a wall's working height
+// when its top isn't constrained to bind to another level -- confirmed
+// directly against a real project's wall export (2026-08-11 live
+// retest): Revit's IFC exporter carries this through as a regular
+// Pset property under that exact name, not "Height".
+const HEIGHT_NAMES = ['Height', 'NominalHeight', 'Unconnected Height', 'h']
 const AREA_NAME_PRIORITY = [
   'NetSideArea',
   'GrossSideArea',
@@ -180,6 +185,44 @@ function collectMaterialNames(node: unknown, names: Set<string>): void {
 // all, an unrecognized shape) falls back to empty/null fields rather
 // than dropping that element from the BOQ or failing the whole bulk
 // build in useIfcElementData.ts's getBoqDetails().
+// getElementData() (ifcPropertyLookup.ts, tap-to-inspect) has always
+// called getPropertySets(modelId, expressId, true) -- 3 args, no
+// includeTypeProperties -- and, confirmed directly against a real
+// project's own wall (2026-08-11 live retest), that 3-arg call already
+// returns instance-level Length/Width/Area/Volume properties just fine.
+// The BOQ's own 4-arg version (added to also reach type-level
+// quantities) was silently returning nothing for that same element --
+// most likely the 4th argument isn't safe against every build of
+// web-ifc this app might run against, and the try/catch this function
+// already had was swallowing whatever it threw without a trace. Tries
+// the fuller 4-arg call first (still worth having when it works, for
+// exporters that only ever put quantities on the type); if that throws,
+// falls back to the exact 3-arg call already proven to work, rather
+// than giving up and returning nothing.
+async function getPropertySetsWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<unknown[]> {
+  try {
+    return (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
+  } catch {
+    try {
+      return (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
+    } catch {
+      return []
+    }
+  }
+}
+
+async function getMaterialsPropertiesWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<unknown[]> {
+  try {
+    return (await api.properties.getMaterialsProperties(modelId, expressId, true, true)) as unknown[]
+  } catch {
+    try {
+      return (await api.properties.getMaterialsProperties(modelId, expressId, true)) as unknown[]
+    } catch {
+      return []
+    }
+  }
+}
+
 export async function getElementBoqData(
   api: IfcAPI,
   modelId: number,
@@ -188,13 +231,7 @@ export async function getElementBoqData(
 ): Promise<{ quantities: ElementQuantities; materials: string[] }> {
   let quantities: ElementQuantities = { length: null, width: null, height: null, area: null, volume: null }
   try {
-    // includeTypeProperties=true (4th arg) -- some exporters put a
-    // family/type's own quantities and parameters on the *type* object
-    // (IfcElementType, via IfcRelDefinesByType) rather than repeating
-    // them per instance, e.g. a standard steel section's own profile
-    // dimensions defined once on its type. Without this, those never
-    // surface for any instance of that type at all.
-    const propertySets = (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
+    const propertySets = await getPropertySetsWithFallback(api, modelId, expressId)
     quantities = extractQuantities(propertySets, lengthScale)
   } catch {
     // No property/quantity sets for this element -- leave quantities null.
@@ -202,7 +239,7 @@ export async function getElementBoqData(
 
   let materials: string[] = []
   try {
-    const materialDefs = (await api.properties.getMaterialsProperties(modelId, expressId, true, true)) as unknown[]
+    const materialDefs = await getMaterialsPropertiesWithFallback(api, modelId, expressId)
     const names = new Set<string>()
     for (const def of materialDefs) collectMaterialNames(def, names)
     materials = Array.from(names)

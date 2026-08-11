@@ -71,9 +71,25 @@ Two real fixes went into `ifc/ifcQuantities.ts`:
   candidate this way — never a guess that some arbitrary numeric
   property is secretly a dimension.
 
-Unverified whether this fully resolves the owner's specific report (no
-access to that real file in this sandbox to confirm against directly) —
-flagged in Open questions below pending a live retest.
+**The actual root cause, found via a live retest (2026-08-11)** — the
+owner tapped a real wall directly in the 3D viewer (tap-to-inspect, a
+completely different code path from the BOQ) and its property panel
+showed `Length`, `Width`, `Area`, `Volume`, and `Unconnected Height` all
+present with real values. That proved the data genuinely exists and is
+named exactly what this module already looks for — so the BOQ's own
+extraction had a real bug, not a source-data gap. The likely cause:
+`getElementData()` (tap-to-inspect) has always called
+`getPropertySets(modelId, expressId, true)` — 3 args — and that call
+demonstrably works; the BOQ's own 4-arg version (`includeTypeProperties`,
+added above) was silently returning nothing, most likely because that
+argument isn't safe against every build of web-ifc this app runs
+against, and the existing `try`/`catch` swallowed whatever it threw
+without a trace. Fixed by trying the fuller 4-arg call first (still
+useful when it works) and falling back to the exact 3-arg call already
+proven to work if it throws, for both `getPropertySets()` and
+`getMaterialsProperties()`. Also added `Unconnected Height` — Revit's
+own name for a wall's height parameter, not "Height" — to the known
+height names, found from that same real property list.
 
 **Per-category display profiles + Width/Height (owner's correction, 2026-08-11)**
 The first version showed the same Length/Area/Volume columns for every
@@ -242,14 +258,11 @@ separate IFC query needed.
 
 ## Open questions / known limitations
 
-- **Pending a live retest**: whether the `includeTypeProperties`/
-  Pset-fallback fix above actually resolves the owner's real report of
-  near-empty quantities/materials. Both changes are real, defensible
-  gaps regardless of whether they're the *whole* explanation — it's also
-  possible the specific file in question simply wasn't exported with
-  base quantities at all for building elements (a Revit IFC export
-  option), which no code change here can invent data for. Needs the
-  owner to reload the BOQ against their real project and report back.
+- **Still pending a live retest**: the 4-arg/3-arg fallback fix above
+  (see the dated section) is a strong, well-evidenced fix for the exact
+  failure the owner's live retest surfaced, but hasn't been re-confirmed
+  against their real project since shipping. Needs one more reload to
+  close the loop.
 - **Not verified against a real IFC file's actual unit declaration or
   material structure** — no live IFC sample is available in this
   session's sandbox. Both `ifcUnits.ts` and the material-extraction half

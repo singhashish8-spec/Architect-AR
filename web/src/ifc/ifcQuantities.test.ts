@@ -102,6 +102,31 @@ describe('getElementBoqData', () => {
     expect(result.materials.sort()).toEqual(['Brick', 'Insulation'])
   })
 
+  it('falls back to the 3-arg getPropertySets call if the 4-arg (includeTypeProperties) call throws', async () => {
+    // Confirmed live against a real project (2026-08-11): the 4-arg
+    // call was silently returning nothing for a real wall, while the
+    // exact 3-arg call ifcPropertyLookup.ts's own tap-to-inspect already
+    // uses returned its Length/Width/Area/Volume properties correctly.
+    const propertySets = [{ HasProperties: [{ Name: { value: 'Length' }, NominalValue: { value: 5 } }] }]
+    let sawFourArgCall = false
+    const api = {
+      properties: {
+        getPropertySets: (...args: unknown[]) => {
+          if (args.length >= 4) {
+            sawFourArgCall = true
+            return Promise.reject(new Error('4-arg call not supported'))
+          }
+          return Promise.resolve(propertySets)
+        },
+        getMaterialsProperties: () => Promise.resolve([]),
+      },
+    } as unknown as IfcAPI
+
+    const result = await getElementBoqData(api, 0, 1, 1)
+    expect(sawFourArgCall).toBe(true)
+    expect(result.quantities.length).toBe(5)
+  })
+
   it('never throws when getPropertySets/getMaterialsProperties reject', async () => {
     const api = {
       properties: {
