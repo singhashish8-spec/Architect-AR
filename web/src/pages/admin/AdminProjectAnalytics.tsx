@@ -19,28 +19,42 @@ function formatDuration(seconds: number | null): string {
   return minutes > 0 ? `${minutes}m ${remaining}s` : `${remaining}s`
 }
 
-function dayKey(iso: string): string {
-  return iso.slice(0, 10)
+function padTwo(n: number): string {
+  return n < 10 ? `0${n}` : `${n}`
+}
+
+// A local-calendar-day key, deliberately NOT going through
+// toISOString()/slice(0, 10) -- Postgres returns UTC timestamps, and
+// doing that conversion buckets every view by its UTC day instead of
+// the viewer's own local day, silently shifting the whole chart by a
+// day for any positive-UTC-offset timezone (e.g. IST, UTC+5:30: local
+// midnight is still the previous UTC day).
+function localDayKey(date: Date): string {
+  return `${date.getFullYear()}-${padTwo(date.getMonth() + 1)}-${padTwo(date.getDate())}`
 }
 
 // Last CHART_DAYS calendar days ending today, oldest first -- filled in
 // with zero-view days so a quiet project shows a flat baseline instead
 // of the bars silently compressing to only the days that had a visit.
-function buildDailyCounts(views: ProjectViewRecord[]): { date: string; count: number }[] {
+// Keeps each bucket's own Date object (not just its string key) so the
+// day-of-month label can be read directly off it instead of
+// re-parsing a date-only string, which Date treats as UTC midnight and
+// would shift the displayed day again on the way back through
+// toLocaleDateString().
+function buildDailyCounts(views: ProjectViewRecord[]): { key: string; date: Date; count: number }[] {
   const counts = new Map<string, number>()
   for (const view of views) {
-    const key = dayKey(view.viewedAt)
+    const key = localDayKey(new Date(view.viewedAt))
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
 
-  const days: { date: string; count: number }[] = []
+  const days: { key: string; date: Date; count: number }[] = []
   const cursor = new Date()
   cursor.setHours(0, 0, 0, 0)
   for (let i = CHART_DAYS - 1; i >= 0; i--) {
     const d = new Date(cursor)
     d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
-    days.push({ date: key, count: counts.get(key) ?? 0 })
+    days.push({ key: localDayKey(d), date: d, count: counts.get(localDayKey(d)) ?? 0 })
   }
   return days
 }
@@ -125,9 +139,13 @@ export function AdminProjectAnalytics() {
 
       <div className={styles.chart} role="img" aria-label={`Views per day over the last ${CHART_DAYS} days`}>
         {dailyCounts.map((day) => (
-          <div key={day.date} className={styles.chartBar}>
-            <span className={styles.chartBarFill} style={{ height: `${(day.count / maxCount) * 100}%` }} title={`${day.count} view${day.count === 1 ? '' : 's'} on ${day.date}`} />
-            <span className={styles.chartBarLabel}>{new Date(day.date).toLocaleDateString(undefined, { day: 'numeric' })}</span>
+          <div key={day.key} className={styles.chartBar}>
+            <span
+              className={styles.chartBarFill}
+              style={{ height: `${(day.count / maxCount) * 100}%` }}
+              title={`${day.count} view${day.count === 1 ? '' : 's'} on ${day.date.toLocaleDateString(undefined, { dateStyle: 'medium' })}`}
+            />
+            <span className={styles.chartBarLabel}>{day.date.getDate()}</span>
           </div>
         ))}
       </div>
