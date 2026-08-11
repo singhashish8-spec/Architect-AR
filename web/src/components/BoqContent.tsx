@@ -117,9 +117,10 @@ export function BoqContent({
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set())
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
-  // expressId -> sample once fetched, or null while a fetch is in
-  // flight. Absent from the map entirely = never asked for.
-  const [rowDebug, setRowDebug] = useState<Map<number, BoqDebugSample | null>>(new Map())
+  // expressId -> sample once fetched, null while a fetch is in flight,
+  // or 'error' if debugBoqElement() itself rejected. Absent from the map
+  // entirely = never asked for.
+  const [rowDebug, setRowDebug] = useState<Map<number, BoqDebugSample | null | 'error'>>(new Map())
 
   const tree = useMemo(() => buildBoqTree(details ?? []), [details])
   const visibleTree = useMemo(() => filterBoqTree(tree, search), [tree, search])
@@ -180,8 +181,12 @@ export function BoqContent({
     }
     if (!debugBoqElement) return
     setRowDebug((current) => new Map(current).set(expressId, null))
-    const sample = await debugBoqElement(expressId, name)
-    setRowDebug((current) => new Map(current).set(expressId, sample))
+    try {
+      const sample = await debugBoqElement(expressId, name)
+      setRowDebug((current) => new Map(current).set(expressId, sample))
+    } catch {
+      setRowDebug((current) => new Map(current).set(expressId, 'error'))
+    }
   }
 
   if (error) {
@@ -414,7 +419,9 @@ export function BoqContent({
                                           {debugOpen && (
                                             <tr>
                                               <td colSpan={totalColumns} className={styles.rowDebugCell}>
-                                                {sample ? <DebugSampleFields sample={sample} /> : 'Loading…'}
+                                                {sample === null && 'Loading…'}
+                                                {sample === 'error' && 'Could not load debug data for this element.'}
+                                                {sample && sample !== 'error' && <DebugSampleFields sample={sample} />}
                                               </td>
                                             </tr>
                                           )}

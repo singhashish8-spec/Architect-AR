@@ -191,21 +191,30 @@ function collectMaterialNames(node: unknown, names: Set<string>): void {
 // project's own wall (2026-08-11 live retest), that 3-arg call already
 // returns instance-level Length/Width/Area/Volume properties just fine.
 // The BOQ's own 4-arg version (added to also reach type-level
-// quantities) was silently returning nothing for that same element --
-// most likely the 4th argument isn't safe against every build of
-// web-ifc this app might run against, and the try/catch this function
-// already had was swallowing whatever it threw without a trace. Tries
-// the fuller 4-arg call first (still worth having when it works, for
-// exporters that only ever put quantities on the type); if that throws,
-// falls back to the exact 3-arg call already proven to work, rather
-// than giving up and returning nothing.
+// quantities) was silently returning nothing for that same element.
+// Originally assumed this meant the 4th argument was throwing and the
+// try/catch was swallowing it -- confirmed WRONG by a live per-row debug
+// sample (2026-08-11) against a real wall known (via tap-to-inspect) to
+// carry real property data: the debug output showed zero property sets
+// found and, critically, NO primary/fallback error at all. Both the
+// 4-arg call and (since the old code only ever tried it inside a catch
+// block) the 3-arg call never even ran. The 4-arg call was simply
+// resolving successfully with an empty array for that build of web-ifc --
+// not every environment's web-ifc build honors includeTypeProperties/
+// includeTypeMaterials, and an unsupported flag apparently degrades to
+// "no results" rather than a thrown error or an ignored flag. Falls back
+// to the proven-working 3-arg call whenever the 4-arg call comes back
+// empty, not only when it throws.
 interface FallbackResult {
   data: unknown[]
-  // Both null when the primary (4-arg) call itself succeeded --
-  // otherwise the raw error message(s), kept for BoqDebugSample below.
-  // Deliberately plain strings, not Error objects: this ends up
-  // serialized into on-screen debug output (see
+  // Both null when the primary (4-arg) call returned data and never
+  // threw -- otherwise the raw error message(s), kept for
+  // BoqDebugSample below. Deliberately plain strings, not Error
+  // objects: this ends up serialized into on-screen debug output (see
   // ifc/ifcBoqDetails.ts/components/BoqContent.tsx), not just logged.
+  // Note an empty `data` with both errors null is a real, valid outcome
+  // now: it means both the 4-arg and 3-arg calls succeeded without
+  // throwing but genuinely found nothing for this element.
   primaryError: string | null
   fallbackError: string | null
 }
@@ -215,30 +224,38 @@ function errorMessage(err: unknown): string {
 }
 
 async function getPropertySetsWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<FallbackResult> {
+  let primaryData: unknown[] = []
+  let primaryError: string | null = null
   try {
-    const data = (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
-    return { data, primaryError: null, fallbackError: null }
-  } catch (primaryErr) {
-    try {
-      const data = (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
-      return { data, primaryError: errorMessage(primaryErr), fallbackError: null }
-    } catch (fallbackErr) {
-      return { data: [], primaryError: errorMessage(primaryErr), fallbackError: errorMessage(fallbackErr) }
-    }
+    primaryData = (await api.properties.getPropertySets(modelId, expressId, true, true)) as unknown[]
+  } catch (err) {
+    primaryError = errorMessage(err)
+  }
+  if (primaryData.length > 0) return { data: primaryData, primaryError: null, fallbackError: null }
+
+  try {
+    const fallbackData = (await api.properties.getPropertySets(modelId, expressId, true)) as unknown[]
+    return { data: fallbackData, primaryError, fallbackError: null }
+  } catch (fallbackErr) {
+    return { data: [], primaryError, fallbackError: errorMessage(fallbackErr) }
   }
 }
 
 async function getMaterialsPropertiesWithFallback(api: IfcAPI, modelId: number, expressId: number): Promise<FallbackResult> {
+  let primaryData: unknown[] = []
+  let primaryError: string | null = null
   try {
-    const data = (await api.properties.getMaterialsProperties(modelId, expressId, true, true)) as unknown[]
-    return { data, primaryError: null, fallbackError: null }
-  } catch (primaryErr) {
-    try {
-      const data = (await api.properties.getMaterialsProperties(modelId, expressId, true)) as unknown[]
-      return { data, primaryError: errorMessage(primaryErr), fallbackError: null }
-    } catch (fallbackErr) {
-      return { data: [], primaryError: errorMessage(primaryErr), fallbackError: errorMessage(fallbackErr) }
-    }
+    primaryData = (await api.properties.getMaterialsProperties(modelId, expressId, true, true)) as unknown[]
+  } catch (err) {
+    primaryError = errorMessage(err)
+  }
+  if (primaryData.length > 0) return { data: primaryData, primaryError: null, fallbackError: null }
+
+  try {
+    const fallbackData = (await api.properties.getMaterialsProperties(modelId, expressId, true)) as unknown[]
+    return { data: fallbackData, primaryError, fallbackError: null }
+  } catch (fallbackErr) {
+    return { data: [], primaryError, fallbackError: errorMessage(fallbackErr) }
   }
 }
 

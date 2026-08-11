@@ -285,6 +285,9 @@
   opacity: 0.9;
 }
 
+/* Generous padding + compensating negative margin, same reasoning as
+   .rowDebugButton above: a zero-padding text/icon button in a dense
+   table row is effectively untappable on a real phone. */
 .rowLocateButton {
   border: none;
   background: none;
@@ -293,7 +296,8 @@
   line-height: 1;
   cursor: pointer;
   opacity: 0.6;
-  padding: 0;
+  padding: 0.55rem;
+  margin: -0.55rem;
 }
 
 .rowLocateButton:hover {
@@ -306,6 +310,12 @@
    using text for .locateButton/.rowLocateButton's own label rather
    than an icon-only button. */
 .rowDebugButton {
+  /* Generous padding on purpose -- a real phone test (2026-08-11) showed
+     a zero-padding text button in a dense table is effectively
+     untappable, since its hit area was just the text's own thin
+     bounding box. Negative margin claws the extra padding back so the
+     table itself doesn't visibly grow, but the actual tap target is
+     comfortably sized. */
   border: none;
   background: none;
   color: inherit;
@@ -315,7 +325,8 @@
   line-height: 1;
   cursor: pointer;
   opacity: 0.55;
-  padding: 0;
+  padding: 0.6rem 0.5rem;
+  margin: -0.6rem -0.5rem;
   white-space: nowrap;
 }
 

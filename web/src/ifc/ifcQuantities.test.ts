@@ -127,6 +127,62 @@ describe('getElementBoqData', () => {
     expect(result.quantities.length).toBe(5)
   })
 
+  it('falls back to the 3-arg getPropertySets call if the 4-arg call resolves empty without throwing', async () => {
+    // Confirmed live against a real project (2026-08-11): a per-row
+    // debug sample for a wall known (via tap-to-inspect) to carry real
+    // property data showed zero property sets found AND no primary/
+    // fallback error at all -- proving the 4-arg call can resolve
+    // successfully with an empty array, no exception involved. The old
+    // fallback-on-catch-only logic never engaged the 3-arg call in this
+    // case.
+    const propertySets = [{ HasProperties: [{ Name: { value: 'Length' }, NominalValue: { value: 5 } }] }]
+    let sawFourArgCall = false
+    const api = {
+      properties: {
+        getPropertySets: (...args: unknown[]) => {
+          if (args.length >= 4) {
+            sawFourArgCall = true
+            return Promise.resolve([])
+          }
+          return Promise.resolve(propertySets)
+        },
+        getMaterialsProperties: () => Promise.resolve([]),
+      },
+    } as unknown as IfcAPI
+
+    const result = await getElementBoqData(api, 0, 1, 1)
+    expect(sawFourArgCall).toBe(true)
+    expect(result.quantities.length).toBe(5)
+  })
+
+  it('falls back to the 3-arg getMaterialsProperties call if the 4-arg call resolves empty without throwing', async () => {
+    let sawFourArgCall = false
+    const api = {
+      properties: {
+        getPropertySets: () => Promise.resolve([]),
+        getMaterialsProperties: (...args: unknown[]) => {
+          if (args.length >= 4) {
+            sawFourArgCall = true
+            return Promise.resolve([])
+          }
+          return Promise.resolve([{ Name: { value: 'Brick' } }])
+        },
+      },
+    } as unknown as IfcAPI
+
+    const result = await getElementBoqData(api, 0, 1, 1)
+    expect(sawFourArgCall).toBe(true)
+    expect(result.materials).toEqual(['Brick'])
+  })
+
+  it('reports no primary/fallback error when both the 4-arg and 3-arg calls succeed but find nothing', async () => {
+    const api = createMockApi([], [])
+    const result = await getElementBoqData(api, 0, 1, 1, 'Empty Wall')
+    expect(result.debugSample?.propertySetsPrimaryError).toBeNull()
+    expect(result.debugSample?.propertySetsFallbackError).toBeNull()
+    expect(result.debugSample?.propertySetCount).toBe(0)
+  })
+
   it('never throws when getPropertySets/getMaterialsProperties reject', async () => {
     const api = {
       properties: {

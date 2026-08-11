@@ -258,12 +258,24 @@ separate IFC query needed.
 
 ## Open questions / known limitations
 
-- **Still pending a live retest**: the 4-arg/3-arg fallback fix above
-  (see the dated section) is a strong, well-evidenced fix for the exact
-  failure the owner's live retest surfaced, but hasn't been re-confirmed
-  against their real project since shipping. If it's *still* blank after
-  reloading, the new "Debug info" disclosure (see below) is the next
-  diagnostic step, not another blind guess.
+- **Corrected root-cause fix, still pending a live retest (2026-08-11,
+  later same day)**: the original 4-arg/3-arg fallback (previous
+  paragraph) only ever tried the 3-arg call inside a `catch` block, on
+  the assumption that a bad `includeTypeProperties`/`includeTypeMaterials`
+  argument would throw. A per-row debug sample against a real wall
+  (`143478`, already proven via tap-to-inspect to carry real Length/
+  Width/Area/Material data) disproved that: the debug output showed zero
+  property sets and zero materials found, with **no primary or fallback
+  error at all** — proving the 4-arg call was resolving successfully with
+  an empty array, not throwing. `getPropertySetsWithFallback()`/
+  `getMaterialsPropertiesWithFallback()` in `ifc/ifcQuantities.ts` now
+  fall back to the proven-working 3-arg call whenever the 4-arg call
+  comes back empty, whether or not it threw. Covered by new unit tests
+  (`ifcQuantities.test.ts`) for the "succeeds but empty" case
+  specifically, not just the "throws" case already covered. Not yet
+  re-confirmed against the owner's real project since shipping — if
+  wall `143478`'s row still shows nothing after this, the per-row Debug
+  button (below) is the next diagnostic step.
 - **A "Debug info" disclosure was added to the BOQ page itself**
   (`BoqContent.tsx`, 2026-08-11) — a collapsed `<details>` block showing
   the very first element's own raw data: how many property sets were
@@ -283,11 +295,24 @@ separate IFC query needed.
   a bug) while a *different*, already-proven-rich wall was still blank
   in the BOQ. The single "sample the first element" snapshot couldn't
   answer "why is *this* one still blank" for anyone but the very first
-  row. Added a small 🛈 button on every element row
+  row. Added a small "Debug" button on every element row
   (`ifc/useIfcElementData.ts`'s new `debugBoqElement(expressId, name)`,
   which reruns `getElementBoqData()` fresh for that one element) that
   expands the same debug fields inline, for whichever specific element
-  someone is actually confused about.
+  someone is actually confused about. Originally an 🛈 icon glyph, but a
+  real Android phone test the same day showed it rendering as a blank
+  "tofu" box, so it was switched to a plain text label — matching this
+  codebase's existing convention (`.locateButton`) of text over
+  icon-only buttons. That same phone test also caught the button being
+  effectively untappable (`padding: 0` on a small-font text button in a
+  dense table row gives it a hit area no bigger than the text's own thin
+  bounding box) — fixed with generous padding and a compensating
+  negative margin so the tap target grows without visibly growing the
+  row; the existing per-row Locate button had the identical risk and got
+  the same fix for consistency. `toggleRowDebug()` also gained a
+  try/catch around the fetch so a rejected `debugBoqElement()` call
+  leaves the row showing "Could not load debug data for this element."
+  instead of stuck on "Loading…" forever.
 - **Not verified against a real IFC file's actual unit declaration or
   material structure** — no live IFC sample is available in this
   session's sandbox. Both `ifcUnits.ts` and the material-extraction half
