@@ -1,13 +1,18 @@
 import { getSupabase } from './supabaseClient'
+import { uploadToR2 } from './r2Service'
 import type { Project } from '../types/Project'
 import type { ProjectModel } from '../types/ProjectModel'
 import { isScalePreset } from '../types/ScalePreset'
 
-// Only files under services/ talk to Supabase directly -- see
+// Only files under services/ talk to Supabase (or R2) directly -- see
 // docs/engineering/folder-structure.md.
 
-// Exported for services/adminService.ts, which uploads/deletes/copies
-// files in this same bucket for project and model management (Phase 3).
+// Exported for services/adminService.ts, which still needs this to
+// delete/copy files uploaded before 2026-08-12 (see extractStorageRef()
+// below) -- every *new* upload goes to R2 instead (see
+// docs/features/large-file-storage.md), since Supabase's Free plan caps
+// every upload at a fixed, non-configurable 50 MB, well under what a
+// real IFC export needs.
 export const MODEL_BUCKET = 'project-files'
 
 interface ProjectModelJson {
@@ -49,38 +54,52 @@ function fromRow(row: ProjectRow): Project {
   }
 }
 
-// Exported for services/adminService.ts -- model/IFC files are still
-// uploaded the same way whether the project is brand new or an existing
-// one being edited.
-export async function uploadFile(assetId: string, file: File): Promise<string> {
-  const supabase = getSupabase()
-  const path = `${assetId}/${file.name}`
-  const { error } = await supabase.storage.from(MODEL_BUCKET).upload(path, file)
-  if (error) throw error
-  const { data } = supabase.storage.from(MODEL_BUCKET).getPublicUrl(path)
-  return data.publicUrl
-}
-
+// Model/IFC files now upload to R2 (see services/r2Service.ts), not
+// Supabase Storage -- kept as one function (rather than inlining
+// uploadToR2() at each call site) so callers don't need to know or care
+// which storage backend is actually behind it.
 export async function uploadModelFile(file: File): Promise<string> {
-  return uploadFile(crypto.randomUUID(), file)
+  return uploadToR2(file)
 }
 
 export async function uploadIfcFile(file: File): Promise<string> {
-  return uploadFile(crypto.randomUUID(), file)
+  return uploadToR2(file)
 }
 
-// A model/IFC url is always this bucket's own getPublicUrl() output --
-// pulls the storage path back out of it so services/adminService.ts can
-// delete or copy the underlying file (the Storage API needs the path,
-// not the public url). Returns null for anything that isn't actually a
-// url in this bucket (defensive -- shouldn't happen for data this app
-// wrote itself, but a null return is a safer failure mode than deleting
-// the wrong thing from a malformed split).
-export function extractStoragePath(publicUrl: string): string | null {
-  const marker = `/${MODEL_BUCKET}/`
-  const index = publicUrl.indexOf(marker)
-  if (index === -1) return null
-  return publicUrl.slice(index + marker.length)
+export type StorageProvider = 'supabase' | 'r2'
+
+export interface StorageRef {
+  provider: StorageProvider
+  // Supabase's own Storage path, or an R2 object key -- same shape
+  // either way ("<uuid>/<filename>"), just needed by a different API
+  // depending on which provider actually holds the file.
+  path: string
+}
+
+// A model/IFC url this app wrote itself is always either Supabase
+// Storage's own getPublicUrl() output (every file uploaded before
+// 2026-08-12) or R2's public-bucket URL (every file uploaded since --
+// see services/r2Service.ts). services/adminService.ts's delete/copy
+// need to know which, since each provider needs its own API call. No
+// project ever stores a mix of markers to detect against for R2 (unlike
+// Supabase's own `/project-files/` path segment) -- R2's public base
+// URL is only known server-side (api/_lib/r2.ts's R2_PUBLIC_URL), so
+// this treats "not a Supabase Storage url" as "must be R2" rather than
+// pattern-matching a second known prefix. Returns null only for a url
+// that isn't in this bucket at all (defensive -- shouldn't happen for
+// data this app wrote itself, but a null return is a safer failure mode
+// than deleting or copying the wrong thing from a malformed split).
+export function extractStorageRef(url: string): StorageRef | null {
+  const supabaseMarker = `/${MODEL_BUCKET}/`
+  const supabaseIndex = url.indexOf(supabaseMarker)
+  if (supabaseIndex !== -1) {
+    return { provider: 'supabase', path: url.slice(supabaseIndex + supabaseMarker.length) }
+  }
+
+  if (!/^https?:\/\//.test(url)) return null
+  const afterHost = url.replace(/^https?:\/\/[^/]+\//, '')
+  if (!afterHost || afterHost === url) return null
+  return { provider: 'r2', path: afterHost }
 }
 
 // Checked before ever calling getProject(), so a project with no passcode

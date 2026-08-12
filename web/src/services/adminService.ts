@@ -1,5 +1,6 @@
 import { getSupabase } from './supabaseClient'
-import { MODEL_BUCKET, extractStoragePath } from './projectService'
+import { MODEL_BUCKET, extractStorageRef } from './projectService'
+import { deleteFromR2, copyOnR2 } from './r2Service'
 import type { NewProject, ProjectStatus } from '../types/Project'
 import type { AdminProjectModel, NewProjectModel } from '../types/ProjectModel'
 import { isScalePreset } from '../types/ScalePreset'
@@ -310,34 +311,50 @@ export async function reorderAdminModels(passcode: string, projectId: string, or
 }
 
 // Shared by deleteAdminProject/deleteAdminModel -- collects every real
-// Storage path referenced by the given models (both the model file and,
-// if present, the IFC file) and removes them in one batched call.
-// extractStoragePath() returning null (shouldn't happen for urls this
-// app wrote itself) is skipped rather than thrown on, so one malformed
-// entry can't block deleting the rest.
+// storage reference held by the given models (both the model file and,
+// if present, the IFC file) and removes them, split by which provider
+// actually holds each one (see projectService.ts's extractStorageRef()
+// -- everything uploaded before 2026-08-12 is still on Supabase
+// Storage; everything since is on R2, see
+// docs/features/large-file-storage.md). extractStorageRef() returning
+// null (shouldn't happen for urls this app wrote itself) is skipped
+// rather than thrown on, so one malformed entry can't block deleting
+// the rest.
 async function removeModelFiles(models: AdminProjectModel[]): Promise<void> {
-  const paths = models
+  const refs = models
     .flatMap((model) => [model.modelUrl, model.ifcUrl])
     .filter((url): url is string => url !== null)
-    .map(extractStoragePath)
-    .filter((path): path is string => path !== null)
-  if (paths.length === 0) return
-  const { error } = await getSupabase().storage.from(MODEL_BUCKET).remove(paths)
-  if (error) throw error
+    .map(extractStorageRef)
+    .filter((ref): ref is NonNullable<typeof ref> => ref !== null)
+
+  const supabasePaths = refs.filter((ref) => ref.provider === 'supabase').map((ref) => ref.path)
+  const r2Keys = refs.filter((ref) => ref.provider === 'r2').map((ref) => ref.path)
+
+  if (supabasePaths.length > 0) {
+    const { error } = await getSupabase().storage.from(MODEL_BUCKET).remove(supabasePaths)
+    if (error) throw error
+  }
+  if (r2Keys.length > 0) {
+    await deleteFromR2(r2Keys)
+  }
 }
 
-// Copies a model/IFC file to a fresh Storage path (new random asset id,
-// same filename) and returns its public url -- used by
+// Copies a model/IFC file to a fresh storage location (new random asset
+// id, same filename) and returns its public url -- used by
 // duplicateAdminProject() so a duplicate owns independent files rather
 // than sharing the original's, which would break if the original is
-// later deleted.
+// later deleted. Dispatches to whichever provider actually holds the
+// source file -- see removeModelFiles()'s own comment above.
 async function copyStorageFile(sourceUrl: string): Promise<string> {
-  const sourcePath = extractStoragePath(sourceUrl)
-  if (!sourcePath) throw new Error(`Could not determine the storage path for ${sourceUrl}`)
-  const filename = sourcePath.split('/').pop() ?? sourcePath
+  const ref = extractStorageRef(sourceUrl)
+  if (!ref) throw new Error(`Could not determine the storage location for ${sourceUrl}`)
+
+  if (ref.provider === 'r2') return copyOnR2(ref.path)
+
+  const filename = ref.path.split('/').pop() ?? ref.path
   const destPath = `${crypto.randomUUID()}/${filename}`
   const supabase = getSupabase()
-  const { error } = await supabase.storage.from(MODEL_BUCKET).copy(sourcePath, destPath)
+  const { error } = await supabase.storage.from(MODEL_BUCKET).copy(ref.path, destPath)
   if (error) throw error
   const { data } = supabase.storage.from(MODEL_BUCKET).getPublicUrl(destPath)
   return data.publicUrl

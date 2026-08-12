@@ -450,6 +450,12 @@ grant execute on function get_project(uuid, text) to anon;
 -- avoid above. Note this bucket's contents (the model/IFC files
 -- themselves) are NOT passcode-gated even when a project is -- only the
 -- get_project() lookup is. See docs/features/passcode-protected-links.md.
+-- This 500 MB bucket-level limit was never the real ceiling: Supabase's
+-- Free plan enforces its own fixed, non-configurable 50 MB global upload
+-- limit regardless of it (confirmed live, 2026-08-12). New model/IFC
+-- uploads go to Cloudflare R2 instead as a result -- see
+-- docs/features/large-file-storage.md. This bucket is kept (not
+-- dropped) so every file uploaded before that change keeps working.
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('project-files', 'project-files', true, 524288000) -- 500 MB
 on conflict (id) do nothing;

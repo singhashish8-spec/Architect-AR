@@ -29,4 +29,13 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
     },
   },
+  // Vercel serverless functions (api/_lib/r2.ts and friends) run in
+  // Node, not the browser -- `process`, `Buffer`, etc. are real globals
+  // here, not typos, and there's no React to lint against.
+  {
+    files: ['api/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 )
