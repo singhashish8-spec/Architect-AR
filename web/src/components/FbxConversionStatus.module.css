@@ -1,0 +1,51 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+}
+
+.label {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+/* No real percentage to show (FBXLoader doesn't report per-item
+   progress the way IFC's own per-mesh loop does -- see
+   ConversionProgressBar.tsx for that one) -- an indeterminate sliding
+   fill signals "still working" without claiming a completion percent
+   this component doesn't actually have. */
+.fill {
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-primary);
+  animation: slide 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}

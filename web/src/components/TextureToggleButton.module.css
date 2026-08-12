@@ -1,0 +1,23 @@
+/* Same visual language as LightingPresetPanel.module.css's own .toggle
+   -- this sits in the same corner row, but is a plain on/off switch, not
+   a panel-opening button, so it has no .wrapper/.panel counterpart. */
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.toggleActive {
+  composes: toggle;
+  background: var(--color-primary);
+  color: #fff;
+}

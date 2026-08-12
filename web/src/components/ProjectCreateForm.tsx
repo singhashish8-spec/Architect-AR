@@ -1,9 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { ScalePresetSelect } from './ScalePresetSelect'
 import { ConversionProgressBar } from './ConversionProgressBar'
+import { FbxConversionStatus } from './FbxConversionStatus'
 import { createAdminProject } from '../services/adminService'
 import { uploadIfcFile, uploadModelFile } from '../services/projectService'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
+import { isFbxFile } from '../viewer/isFbxFile'
+import type { FbxConversionProgress } from '../viewer/fbxToGlb'
 import type { NewProjectModel } from '../types/ProjectModel'
 import type { ScalePreset } from '../types/ScalePreset'
 import { getErrorMessage } from '../utils/errorMessage'
@@ -21,10 +24,16 @@ interface ModelDraft {
   modelFile: File | null
   ifcFile: File | null
   scalePreset: ScalePreset | ''
+  // Only meaningful when modelFile is an FBX (see viewer/fbxToGlb.ts) --
+  // ignored entirely for a plain GLB/glTF upload, which never goes
+  // through conversion at all. Defaults to true: the whole reason to
+  // prefer FBX over IFC is real materials, so textures should be on by
+  // default, not something someone has to remember to opt into.
+  includeTextures: boolean
 }
 
 function emptyModel(): ModelDraft {
-  return { name: '', modelFile: null, ifcFile: null, scalePreset: '' }
+  return { name: '', modelFile: null, ifcFile: null, scalePreset: '', includeTextures: true }
 }
 
 interface ProjectCreateFormProps {
@@ -40,6 +49,9 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [conversion, setConversion] = useState<{ modelIndex: number; progress: ConversionProgress } | null>(
+    null,
+  )
+  const [fbxConversion, setFbxConversion] = useState<{ modelIndex: number; progress: FbxConversionProgress } | null>(
     null,
   )
 
@@ -77,7 +89,18 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
 
         let modelUrl: string
         if (draft.modelFile) {
-          modelUrl = await uploadModelFile(draft.modelFile)
+          // Dynamically imported -- three-stdlib's FBXLoader/GLTFExporter
+          // add a real, measurable chunk to the main bundle (confirmed via
+          // a production build, 2026-08-12), so this only ever loads for
+          // someone who actually submits a model file, not every visitor
+          // of this form.
+          const { uploadModelFileWithConversion } = await import('../viewer/fbxToGlb')
+          modelUrl = await uploadModelFileWithConversion(
+            draft.modelFile,
+            { includeTextures: draft.includeTextures },
+            (progress) => setFbxConversion({ modelIndex: index, progress }),
+          )
+          setFbxConversion(null)
         } else {
           const glbBlob = await convertIfcToGlb(draft.ifcFile!, (progress) => {
             setConversion({ modelIndex: index, progress })
@@ -108,6 +131,7 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
       setError(getErrorMessage(err, 'Could not create this project. Please try again.'))
     } finally {
       setConversion(null)
+      setFbxConversion(null)
       setSubmitting(false)
     }
   }
@@ -168,15 +192,25 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
 
           <div className={styles.field}>
             <label htmlFor={`new-model-file-${index}`} className={styles.label}>
-              Model file (glTF / GLB) — optional
+              Model file (glTF / GLB / FBX) — optional
             </label>
             <input
               id={`new-model-file-${index}`}
               type="file"
-              accept=".glb,.gltf"
+              accept=".glb,.gltf,.fbx"
               className={styles.fileInput}
               onChange={(event) => updateModel(index, { modelFile: event.target.files?.[0] ?? null })}
             />
+            {model.modelFile && isFbxFile(model.modelFile) && (
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={model.includeTextures}
+                  onChange={(event) => updateModel(index, { includeTextures: event.target.checked })}
+                />
+                Include textures and materials from this FBX file
+              </label>
+            )}
           </div>
 
           <div className={styles.field}>
@@ -211,6 +245,7 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
           </div>
 
           {conversion?.modelIndex === index && <ConversionProgressBar progress={conversion.progress} />}
+          {fbxConversion?.modelIndex === index && <FbxConversionStatus progress={fbxConversion.progress} />}
         </div>
       ))}
 
@@ -239,7 +274,7 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
       )}
 
       <button type="submit" className={styles.button} disabled={submitting || !canSubmit}>
-        {submitting ? (conversion ? 'Converting…' : 'Creating…') : 'Create project'}
+        {submitting ? (conversion || fbxConversion ? 'Converting…' : 'Creating…') : 'Create project'}
       </button>
     </form>
   )

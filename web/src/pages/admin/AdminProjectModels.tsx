@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { ScalePresetSelect } from '../../components/ScalePresetSelect'
 import { ConversionProgressBar } from '../../components/ConversionProgressBar'
+import { FbxConversionStatus } from '../../components/FbxConversionStatus'
 import {
   addAdminModel,
   deleteAdminModel,
@@ -10,6 +11,8 @@ import {
 } from '../../services/adminService'
 import { uploadIfcFile, uploadModelFile } from '../../services/projectService'
 import { convertIfcToGlb, type ConversionProgress } from '../../ifc/ifcToGlb'
+import { isFbxFile } from '../../viewer/isFbxFile'
+import type { FbxConversionProgress } from '../../viewer/fbxToGlb'
 import type { AdminProjectModel } from '../../types/ProjectModel'
 import type { ScalePreset } from '../../types/ScalePreset'
 import { getErrorMessage } from '../../utils/errorMessage'
@@ -320,9 +323,11 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
   const [name, setName] = useState('')
   const [modelFile, setModelFile] = useState<File | null>(null)
   const [ifcFile, setIfcFile] = useState<File | null>(null)
+  const [includeTextures, setIncludeTextures] = useState(true)
   const [scalePreset, setScalePreset] = useState<ScalePreset | ''>('')
   const [submitting, setSubmitting] = useState(false)
   const [conversion, setConversion] = useState<ConversionProgress | null>(null)
+  const [fbxConversion, setFbxConversion] = useState<FbxConversionProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const canSubmit = (modelFile || ifcFile) && scalePreset
@@ -334,7 +339,13 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
     try {
       let modelUrl: string
       if (modelFile) {
-        modelUrl = await uploadModelFile(modelFile)
+        // Dynamically imported -- see ProjectCreateForm.tsx's matching
+        // comment (three-stdlib's FBXLoader/GLTFExporter shouldn't load
+        // for every admin who opens this form, only one who actually
+        // submits a model file).
+        const { uploadModelFileWithConversion } = await import('../../viewer/fbxToGlb')
+        modelUrl = await uploadModelFileWithConversion(modelFile, { includeTextures }, setFbxConversion)
+        setFbxConversion(null)
       } else {
         // No GLB given, only an IFC file -- build one from the IFC's own
         // geometry, same as ProjectCreateForm.tsx does for the same
@@ -364,6 +375,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       setError(getErrorMessage(err, 'Could not add this model.'))
     } finally {
       setConversion(null)
+      setFbxConversion(null)
       setSubmitting(false)
     }
   }
@@ -384,15 +396,21 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       </div>
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor={`add-model-file-${projectId}`}>
-          Model file (glTF / GLB) — optional
+          Model file (glTF / GLB / FBX) — optional
         </label>
         <input
           id={`add-model-file-${projectId}`}
           type="file"
-          accept=".glb,.gltf"
+          accept=".glb,.gltf,.fbx"
           className={formStyles.fileInput}
           onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
         />
+        {modelFile && isFbxFile(modelFile) && (
+          <label className={formStyles.checkboxLabel}>
+            <input type="checkbox" checked={includeTextures} onChange={(event) => setIncludeTextures(event.target.checked)} />
+            Include textures and materials from this FBX file
+          </label>
+        )}
       </div>
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor={`add-model-ifc-${projectId}`}>
@@ -424,6 +442,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
         />
       </div>
       {conversion && <ConversionProgressBar progress={conversion} />}
+      {fbxConversion && <FbxConversionStatus progress={fbxConversion} />}
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -431,7 +450,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       )}
       <div className={styles.modelRowActions}>
         <button type="button" className={styles.saveButton} onClick={() => void handleAdd()} disabled={submitting || !canSubmit}>
-          {submitting ? (conversion ? 'Converting…' : 'Adding…') : 'Add model'}
+          {submitting ? (conversion || fbxConversion ? 'Converting…' : 'Adding…') : 'Add model'}
         </button>
         <button type="button" className={styles.smallButton} onClick={onCancel} disabled={submitting}>
           Cancel

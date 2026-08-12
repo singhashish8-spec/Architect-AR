@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
@@ -7,6 +7,7 @@ import { PasscodeGate } from '../components/PasscodeGate'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
+import { TextureToggleButton } from '../components/TextureToggleButton'
 import { SearchPanel } from '../components/SearchPanel'
 import { BoqPanel } from '../components/BoqPanel'
 import { useIfcElementData } from '../ifc/useIfcElementData'
@@ -34,6 +35,21 @@ export function ProjectView() {
   const [selecting, setSelecting] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
+  // On by default -- only meaningful (and only shown as a control at
+  // all) once modelHasTextures below is true, which most models never
+  // are (IFC-derived models never carry any). See viewer/fbxToGlb.ts and
+  // docs/features/fbx-upload.md.
+  const [texturesVisible, setTexturesVisible] = useState(true)
+  const [modelHasTextures, setModelHasTextures] = useState(false)
+  // Stable identity (useCallback, no deps) for the same reason
+  // handleSceneReady in viewer/ModelViewer.tsx has to be: this gets
+  // called from inside an effect there keyed partly on this callback's
+  // own identity, and it also calls setState here -- a fresh function
+  // every render would re-fire that effect every render, which calls
+  // this again, which re-renders, forever. Real regression this
+  // codebase already hit once for a near-identical shape (see
+  // docs/features/levels-and-rooms-navigation.md's Addendum 2).
+  const handleTexturesDetected = useCallback((hasTextures: boolean) => setModelHasTextures(hasTextures), [])
   // Which one of the corner panels (Levels/Categories/Lighting/Search/
   // BOQ) is open, at most one at a time -- previously each panel
   // tracked its own open state, so several could be open together,
@@ -82,6 +98,7 @@ export function ProjectView() {
   function selectModel(index: number) {
     setSelectedElement(null)
     setHiddenGlobalIds(new Set())
+    setTexturesVisible(true)
     const model = project?.models[index]
     if (model) {
       setSearchParams(
@@ -124,6 +141,8 @@ export function ProjectView() {
         onElementSelect={activeModel.ifcUrl ? (id) => void handleElementSelect(id) : undefined}
         hiddenGlobalIds={hiddenGlobalIds}
         lightingPreset={lightingPreset}
+        texturesVisible={texturesVisible}
+        onTexturesDetected={handleTexturesDetected}
       />
       {project.models.length > 1 && (
         <div className={styles.modelSwitcher}>
@@ -198,6 +217,7 @@ export function ProjectView() {
           open={openPanel === 'lighting'}
           onOpenChange={(open) => setOpenPanel(open ? 'lighting' : null)}
         />
+        {modelHasTextures && <TextureToggleButton visible={texturesVisible} onChange={setTexturesVisible} />}
         {!ifcLoading && (
           <>
             <SearchPanel

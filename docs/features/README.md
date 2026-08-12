@@ -29,6 +29,7 @@
 | [View analytics + admin dashboard](analytics-and-admin-dashboard.md) | 2 | Built, unit-tested, gate UI checked in a real production build; stats not yet checked against a real live Supabase project |
 | [Full admin dashboard (project/model management, upgraded analytics, storage tracker)](full-admin-dashboard.md) | 3 | Built and shipped — project/model management (2026-08-09), then richer analytics + storage tracker (2026-08-11) |
 | [Large file storage (Cloudflare R2)](large-file-storage.md) | 2/3 | Built (2026-08-12); quality-gate-clean, not yet confirmed with a real end-to-end upload (owner's Cloudflare setup still in progress) |
+| [FBX upload with real textures/materials](fbx-upload.md) | 2/3 | Built (2026-08-12); unit-tested against mocked loaders, not yet verified against a real browser or a real textured FBX file (no browser automation available in this session's sandbox) |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 
 ## Template for a new feature spec

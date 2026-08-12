@@ -48,6 +48,31 @@ interface ModelViewerProps {
   // Client-side-only viewing preference, not persisted anywhere -- see
   // docs/features/lighting-presets.md. Defaults to 'daylight'.
   lightingPreset?: LightingPreset
+  // Whether to show real textures/materials on a model that has them
+  // (an FBX uploaded with "Include textures" on -- see
+  // viewer/fbxToGlb.ts) -- ignored entirely for a model with no textures
+  // at all, which is most of them (IFC-derived models never have any).
+  // Defaults to true. See docs/features/fbx-upload.md.
+  texturesVisible?: boolean
+  // Tells the caller whether this specific model actually has any
+  // textures to toggle, so a "Textures" control only ever shows up when
+  // it would do something -- same "don't show a control that would be a
+  // no-op" discipline as the Quantity Takeoff page's own per-category
+  // "Group by level" toggle (docs/features/boq.md).
+  onTexturesDetected?: (hasTextures: boolean) => void
+}
+
+// object.material's declared type resolves through THREE.Mesh's own
+// generics, which -- as installed in this project -- don't survive a
+// plain `instanceof THREE.Mesh` narrowing cleanly (ends up `any` rather
+// than `Material | Material[]`, confirmed by ESLint's own
+// no-unsafe-assignment flagging it). One explicit, manually-typed cast
+// here rather than scattering the same workaround across every call
+// site that needs a mesh's materials.
+function meshMaterials(object: THREE.Object3D): THREE.Material[] {
+  if (!(object instanceof THREE.Mesh)) return []
+  const material = object.material as THREE.Material | THREE.Material[]
+  return Array.isArray(material) ? material : [material]
 }
 
 function Model({
@@ -56,14 +81,24 @@ function Model({
   onElementSelect,
   onSceneReady,
   hiddenGlobalIds,
+  texturesVisible = true,
+  onTexturesDetected,
 }: {
   modelUrl: string
   scalePreset: ScalePreset
   onElementSelect?: (globalId: string) => void
   onSceneReady: (scene: THREE.Object3D) => void
   hiddenGlobalIds?: Set<string>
+  texturesVisible?: boolean
+  onTexturesDetected?: (hasTextures: boolean) => void
 }) {
   const { scene } = useGLTF(modelUrl)
+  // Keyed by material rather than mesh -- glTF exports commonly share
+  // one material across many meshes, so this only needs to remember
+  // each texture once no matter how many meshes reference it. Reset
+  // (new Map) whenever the scene itself changes -- switching to a
+  // different model shouldn't carry another model's textures over.
+  const originalMapsRef = useRef<Map<THREE.Material, THREE.Texture | null>>(new Map())
 
   useEffect(() => {
     onSceneReady(scene)
@@ -80,6 +115,42 @@ function Model({
       object.visible = resolveNodeNameToExpressId(object.name, targetIndex) === undefined
     })
   }, [scene, hiddenGlobalIds])
+
+  // Records each material's own original texture (if any) the first
+  // time this scene is seen, and reports upward whether there was
+  // anything to record at all -- runs once per scene, independent of
+  // texturesVisible, so toggling back on always has the real texture to
+  // restore rather than whatever happened to be there when the toggle
+  // was last flipped.
+  useEffect(() => {
+    originalMapsRef.current = new Map()
+    let hasTextures = false
+    scene.traverse((object) => {
+      for (const material of meshMaterials(object)) {
+        const withMap = material as THREE.Material & { map?: THREE.Texture | null }
+        if (!('map' in withMap)) continue
+        if (!originalMapsRef.current.has(material)) {
+          originalMapsRef.current.set(material, withMap.map ?? null)
+        }
+        if (withMap.map) hasTextures = true
+      }
+    })
+    onTexturesDetected?.(hasTextures)
+  }, [scene, onTexturesDetected])
+
+  useEffect(() => {
+    scene.traverse((object) => {
+      for (const material of meshMaterials(object)) {
+        const withMap = material as THREE.Material & { map?: THREE.Texture | null }
+        if (!('map' in withMap)) continue
+        const original = originalMapsRef.current.get(material) ?? null
+        if (withMap.map !== (texturesVisible ? original : null)) {
+          withMap.map = texturesVisible ? original : null
+          withMap.needsUpdate = true
+        }
+      }
+    })
+  }, [scene, texturesVisible])
 
   function handleClick(event: ThreeEvent<MouseEvent>) {
     event.stopPropagation()
@@ -229,7 +300,15 @@ function CameraRig({
 }
 
 export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(function ModelViewer(
-  { modelUrl, scalePreset, onElementSelect, hiddenGlobalIds, lightingPreset = 'daylight' },
+  {
+    modelUrl,
+    scalePreset,
+    onElementSelect,
+    hiddenGlobalIds,
+    lightingPreset = 'daylight',
+    texturesVisible = true,
+    onTexturesDetected,
+  },
   ref,
 ) {
   const sceneRef = useRef<THREE.Object3D | null>(null)
@@ -315,6 +394,8 @@ export const ModelViewer = forwardRef<ModelViewerHandle, ModelViewerProps>(funct
           onElementSelect={onElementSelect}
           hiddenGlobalIds={hiddenGlobalIds}
           onSceneReady={handleSceneReady}
+          texturesVisible={texturesVisible}
+          onTexturesDetected={onTexturesDetected}
         />
       </Suspense>
       <CameraRig

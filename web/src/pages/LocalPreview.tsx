@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ElementDataPanel } from '../components/ElementDataPanel'
@@ -6,11 +6,15 @@ import { ScalePresetSelect } from '../components/ScalePresetSelect'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
+import { TextureToggleButton } from '../components/TextureToggleButton'
 import { SearchPanel } from '../components/SearchPanel'
 import { BoqPanel } from '../components/BoqPanel'
 import { ConversionProgressBar } from '../components/ConversionProgressBar'
+import { FbxConversionStatus } from '../components/FbxConversionStatus'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
+import { isFbxFile } from '../viewer/isFbxFile'
+import type { FbxConversionProgress } from '../viewer/fbxToGlb'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
 import type { LightingPreset } from '../types/LightingPreset'
@@ -34,7 +38,9 @@ export function LocalPreview() {
   const [selecting, setSelecting] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
   const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null)
+  const [fbxConversionProgress, setFbxConversionProgress] = useState<FbxConversionProgress | null>(null)
   const [conversionError, setConversionError] = useState<string | null>(null)
+  const [includeTextures, setIncludeTextures] = useState(true)
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
   // Which one corner panel is open, at most one at a time -- see
   // ProjectView.tsx's matching comment.
@@ -42,6 +48,11 @@ export function LocalPreview() {
   // BoqPanel portals its actual panel content here -- see its own
   // comment for why (the containing-block bug this fixes).
   const [viewerEl, setViewerEl] = useState<HTMLDivElement | null>(null)
+  // See ProjectView.tsx's matching pair for why these exist and why
+  // handleTexturesDetected has to be useCallback-stable.
+  const [texturesVisible, setTexturesVisible] = useState(true)
+  const [modelHasTextures, setModelHasTextures] = useState(false)
+  const handleTexturesDetected = useCallback((hasTextures: boolean) => setModelHasTextures(hasTextures), [])
 
   const { getElementDataByGlobalId, levels, categories, getBoqDetails, debugBoqElement, loading: ifcLoading } = useIfcElementData(ifcUrl)
   const viewerRef = useRef<ModelViewerHandle>(null)
@@ -54,16 +65,55 @@ export function LocalPreview() {
   // When only an IFC file is given (no GLB), there's nothing to point a
   // blob URL at yet -- build one ourselves from the IFC's own geometry
   // (ifc/ifcToGlb.ts) instead of requiring a separately-exported model
-  // file. See docs/features/ifc-only-upload.md.
+  // file. See docs/features/ifc-only-upload.md. An FBX model file needs
+  // the same "convert first" treatment (viewer/fbxToGlb.ts) -- unlike a
+  // real GLB/glTF, the browser can't just point a blob URL straight at
+  // raw FBX bytes and have the viewer's own glTF loader make sense of
+  // them. See docs/features/fbx-upload.md.
   useEffect(() => {
-    if (modelFile) {
+    if (modelFile && !isFbxFile(modelFile)) {
       const url = URL.createObjectURL(modelFile)
       ;(() => {
         setConversionProgress(null)
+        setFbxConversionProgress(null)
         setConversionError(null)
         setModelUrl(url)
       })()
       return () => URL.revokeObjectURL(url)
+    }
+
+    if (modelFile) {
+      // isFbxFile(modelFile) is true here (the branch above already
+      // ruled out every other case).
+      let cancelled = false
+      let generatedUrl: string | null = null
+
+      void (async () => {
+        setModelUrl(null)
+        setConversionError(null)
+        try {
+          // Dynamically imported -- see ProjectCreateForm.tsx's matching
+          // comment.
+          const { convertFbxToGlb } = await import('../viewer/fbxToGlb')
+          const blob = await convertFbxToGlb(modelFile, { includeTextures }, (progress) => {
+            if (!cancelled) setFbxConversionProgress(progress)
+          })
+          if (cancelled) return
+          generatedUrl = URL.createObjectURL(blob)
+          setModelUrl(generatedUrl)
+        } catch (err) {
+          if (!cancelled) {
+            setConversionError(getErrorMessage(err, 'Could not build a 3D view from this FBX file.'))
+          }
+        } finally {
+          if (!cancelled) setFbxConversionProgress(null)
+        }
+      })()
+
+      return () => {
+        cancelled = true
+        if (generatedUrl) URL.revokeObjectURL(generatedUrl)
+      }
     }
 
     if (!ifcFile) {
@@ -102,7 +152,7 @@ export function LocalPreview() {
       cancelled = true
       if (generatedUrl) URL.revokeObjectURL(generatedUrl)
     }
-  }, [modelFile, ifcFile])
+  }, [modelFile, ifcFile, includeTextures])
 
   useEffect(() => {
     if (!ifcFile) {
@@ -142,15 +192,21 @@ export function LocalPreview() {
 
         <div className={styles.field}>
           <label htmlFor="local-model-file" className={styles.label}>
-            Model file (glTF / GLB) — optional
+            Model file (glTF / GLB / FBX) — optional
           </label>
           <input
             id="local-model-file"
             type="file"
-            accept=".glb,.gltf"
+            accept=".glb,.gltf,.fbx"
             className={styles.fileInput}
             onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
           />
+          {modelFile && isFbxFile(modelFile) && (
+            <label className={styles.checkboxLabel}>
+              <input type="checkbox" checked={includeTextures} onChange={(event) => setIncludeTextures(event.target.checked)} />
+              Include textures and materials from this FBX file
+            </label>
+          )}
         </div>
 
         <div className={styles.field}>
@@ -173,6 +229,7 @@ export function LocalPreview() {
         </div>
 
         {conversionProgress && <ConversionProgressBar progress={conversionProgress} />}
+        {fbxConversionProgress && <FbxConversionStatus progress={fbxConversionProgress} />}
         {conversionError && (
           <p role="alert" className={styles.error}>
             {conversionError}
@@ -201,6 +258,8 @@ export function LocalPreview() {
             onElementSelect={ifcUrl ? (id) => void handleElementSelect(id) : undefined}
             hiddenGlobalIds={hiddenGlobalIds}
             lightingPreset={lightingPreset}
+            texturesVisible={texturesVisible}
+            onTexturesDetected={handleTexturesDetected}
           />
           <button
             type="button"
@@ -251,6 +310,7 @@ export function LocalPreview() {
               open={openPanel === 'lighting'}
               onOpenChange={(open) => setOpenPanel(open ? 'lighting' : null)}
             />
+            {modelHasTextures && <TextureToggleButton visible={texturesVisible} onChange={setTexturesVisible} />}
             {!ifcLoading && (
               <>
                 <SearchPanel
