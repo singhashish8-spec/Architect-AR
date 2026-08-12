@@ -59,6 +59,24 @@ describe('uploadToR2', () => {
 
     await expect(uploadToR2(file)).rejects.toThrow(/403/)
   })
+
+  it('says which step failed when the presigned-URL request itself throws (e.g. offline)', async () => {
+    const file = new File(['hello'], 'model.glb')
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    await expect(uploadToR2(file)).rejects.toThrow(/upload-URL endpoint/)
+  })
+
+  it('says which step failed when the direct PUT to R2 itself throws (e.g. CORS)', async () => {
+    const file = new File(['hello'], 'model.glb')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ uploadUrl: 'https://r2.example/put', publicUrl: 'https://pub.example/x' }))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(uploadToR2(file)).rejects.toThrow(/upload the file directly to storage/)
+  })
 })
 
 describe('deleteFromR2', () => {
