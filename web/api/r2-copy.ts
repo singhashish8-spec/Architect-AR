@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'node:crypto'
 import { CopyObjectCommand } from '@aws-sdk/client-s3'
-import { getR2Client, r2Bucket, r2PublicUrl } from './_lib/r2'
+import { getR2Client, r2Bucket, r2PublicUrl } from './_lib/r2.js'
 
 // The R2 counterpart to services/adminService.ts's old
 // `supabase.storage.from(bucket).copy()` call, used by "Duplicate

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { DeleteObjectCommand } from '@aws-sdk/client-s3'
-import { getR2Client, r2Bucket } from './_lib/r2'
+import { getR2Client, r2Bucket } from './_lib/r2.js'
 
 // Deletes one or more R2 objects by key -- the R2 counterpart to
 // services/adminService.ts's old direct

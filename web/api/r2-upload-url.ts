@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { randomUUID } from 'node:crypto'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { getR2Client, r2Bucket, r2PublicUrl } from './_lib/r2'
+import { getR2Client, r2Bucket, r2PublicUrl } from './_lib/r2.js'
 
 // Mints a short-lived, single-object presigned PUT URL so the browser
 // can upload a model/IFC file straight to R2 -- the file's bytes never
