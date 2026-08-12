@@ -84,3 +84,97 @@ concrete, evidence-based (not hypothetical) quirk found in the same
 sample file this session, after the node-naming convention. Any future
 work reading IFC property values should expect placeholder/junk patterns
 like this rather than assuming every populated field is meaningful.
+
+## Finding: web-ifc's `includeTypeProperties`/`includeTypeMaterials` argument can fail silently (Session 7)
+
+**What was found:** `getPropertySets()`/`getMaterialsProperties()`'s
+4-arg form (passing `includeTypeProperties`/`includeTypeMaterials=true`
+to also reach type-level data, not just instance-level) was added to fix
+a real report of blank quantities on the owner's own project. The first
+fix wrapped it in a `try/catch` falling back to the proven-working 3-arg
+form on any thrown error — a reasonable design *if* an unsupported
+argument throws. A live per-row debug sample against a real element
+(already proven via tap-to-inspect to carry real data) proved that
+assumption wrong: the 4-arg call was resolving **successfully with an
+empty array**, no exception at all, so the catch-based fallback never
+engaged.
+
+**Why it wasn't caught immediately:** "fails" and "succeeds but returns
+nothing" look identical from a caller's perspective unless something
+specifically distinguishes them — a `try/catch` alone only ever handles
+the first. The bug wasn't in the fallback *logic* so much as in which
+condition it was watching for.
+
+**Fix:** `ifc/ifcQuantities.ts`'s fallback helpers now retry the 3-arg
+call whenever the 4-arg result is **empty**, independent of whether it
+threw. Covered by unit tests for the "succeeds but empty" case
+specifically, not just the "throws" case the original fix already had.
+
+**Standing lesson:** any fallback wrapped around a `web-ifc` (or, more
+generally, any WASM-backed) API call whose exact failure behavior for an
+argument combination hasn't been directly confirmed should treat "empty/
+falsy successful result" as a fallback trigger alongside "threw," not
+instead of it — assuming a library will throw on something it doesn't
+support is not itself confirmed behavior. See
+[`boq.md`](../features/boq.md) and
+[Session 7](sessions/2026-08-11-session-07.md) for the full arc.
+
+## Finding: this sandboxed environment cannot run headless browser automation at all (Session 7)
+
+**What was found:** attempting to self-verify a live report by driving a
+real headless Chromium (Playwright, pre-installed at
+`/opt/pw-browsers/chromium`) against the deployed app failed with
+`net::ERR_CONNECTION_RESET` on every attempt — with and without an
+explicit proxy configuration, with `--no-sandbox`/
+`--disable-dev-shm-usage`, and even with the sandbox disabled at the
+tool level. The same failure happened navigating to a completely
+unrelated domain (`example.com`), while a plain `curl` through the same
+proxy to the same domains succeeded.
+
+**Why:** the network path itself is reachable (confirmed by `curl`
+working) — only the browser-launched socket path is blocked. This points
+at a hard constraint of the sandboxed execution environment itself
+(browser processes can't open outbound sockets the way `curl` can), not
+a proxy misconfiguration or anything specific to this app.
+
+**Impact on the plan:** any future session that needs to visually verify
+a live deployment cannot do so via headless browser automation from
+inside this environment — full stop, not worth re-attempting with a
+different flag combination. The workaround used this session (and worth
+reaching for first next time) was making the *app itself*
+self-diagnosing — an in-app "Debug info" disclosure that puts real
+diagnostic data directly in front of whoever's looking at a real device,
+since a phone screenshot is the actual available channel.
+
+**Standing lesson:** don't spend session time re-proving this limitation
+again — treat it as confirmed, and design around it (self-diagnosing UI,
+asking for specific screenshots, reasoning from commit/build history)
+rather than attempting live browser verification from this sandbox.
+
+## Finding: a Vercel per-commit preview URL never updates; only the branch-alias URL does (Session 7)
+
+**What was found:** several rounds of "still not fixed" reports during
+the BOQ debugging arc turned out to be the owner reloading a per-commit
+Vercel preview URL (`architect-7d1pjdq29-...`) — an immutable snapshot
+of whatever the app looked like at that specific commit, which does not
+change on later pushes no matter how many times it's reloaded. The
+actual current build was live at a separate, stable **git-branch alias**
+(`architect-ar-git-claude-app-9ec6df-...`) that auto-updates on every
+push to the branch.
+
+**Why it wasn't obvious:** both URLs look equally "real" and load the
+app successfully — nothing about a stale per-commit URL signals that
+it's frozen; it just quietly stops reflecting new pushes. The stable
+alias URL was found by reading GitHub PR #2's own Vercel commit status
+(`get_status`'s `target_url`), not by guessing at a URL pattern.
+
+**Impact:** several genuine fixes were reported as "still broken" purely
+because the owner was retesting stale state, not because anything was
+actually wrong — wasted rounds that a URL check upfront would have
+avoided.
+
+**Standing lesson:** when a live retest keeps failing after a fix that
+should have worked, check *which* URL is being tested before assuming
+the fix itself is wrong — prefer sharing the stable branch-alias URL
+(found via the PR's own commit status) over a per-commit snapshot URL
+whenever asking someone to retest something across multiple pushes.
