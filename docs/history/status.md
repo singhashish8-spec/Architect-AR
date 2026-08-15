@@ -6,15 +6,16 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-11**, end of [Session 7](sessions/2026-08-11-session-07.md).
+Last updated: **2026-08-14**, mid-[Session 9](sessions/2026-08-14-session-09.md)
+(paused for a docs update before the next piece of work starts).
 The app runs against a live Supabase backend and has been used for real,
 by the owner, against their own real project files — not just sample
 data. Phase 2 is fully shipped. Phase 3's admin dashboard is fully
-built, including analytics and a storage tracker. The Bill of
-Quantities (now renamed **Quantity Takeoff**) went through a full real
-debugging arc this session and is confirmed working live, then was
-redesigned into real per-category schedule tables with a formatted
-Excel export and one dashboard-wide company name.
+built. Large-file (R2) upload plumbing is now confirmed working
+end-to-end via a full round trip, after a long three-failures-deep live
+debugging arc — but a real upload from an actual mobile browser still
+failed for a separate, unresolved reliability reason, and that's the
+active work right now.
 
 ## Right now, in one paragraph
 
@@ -41,9 +42,55 @@ environment limits while trying to self-verify, then correctly
 diagnosed and fixed, confirmed live, and finally renamed to "Quantity
 Takeoff" with a full schedule-style redesign, a formatted multi-sheet
 Excel export, and one dashboard-wide company name.
+[Session 8](sessions/2026-08-12-session-08.md) migrated model/IFC
+uploads to Cloudflare R2 after finding Supabase Free's fixed 50 MB
+upload cap, fixed a real Vercel deploy-time ESM bug along the way, and
+built full FBX upload support with real textures/materials after an FBX
+file crashed the IFC parser mid-testing.
+[Session 9](sessions/2026-08-14-session-09.md), so far, has been a long
+live-debugging arc getting that R2 upload actually working on the real
+deployed app — three unrelated failures deep (Vercel Deployment
+Protection blocking the app's own API route; a placeholder credential
+that survived four "fixed it" rounds because every redeploy targeted the
+wrong branch; a real mobile upload failing at the direct-PUT step for a
+still-unresolved reason after CORS was explicitly ruled out) — ending
+with the owner proposing a background server-side conversion service,
+agreeing to fix upload reliability (resumable multipart) first.
 
 ## What's still pending / open
 
+- **The R2 direct-to-storage upload is not yet reliable from a real
+  mobile browser** — the presign/PUT/GET flow itself is confirmed
+  correct (round-trip tested, CORS confirmed correctly configured), but
+  a real upload attempt on a phone still failed with a generic
+  "Failed to fetch" at the direct-PUT step, most likely a dropped
+  mobile connection on a large (~200 MB) transfer with no progress
+  indicator to show how far it got. **Planned, agreed, not yet built**:
+  switch to R2's native chunked/resumable multipart upload. This is the
+  active next step. See
+  [`../features/large-file-storage.md`](../features/large-file-storage.md)
+  and [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md).
+- **A background, server-side conversion service is proposed but not
+  designed or built** — owner's idea: upload raw files to R2, convert
+  in the background on a server (not the client) with live progress/ETA
+  on the dashboard, then pick a ready processed file from a catalog UI.
+  Needs new infrastructure (a persistent worker; Oracle Cloud's
+  "Always Free" VM flagged as the likely host). Scoped as a follow-up
+  after the upload-reliability fix above. See
+  [`../roadmap/decisions.md`](../roadmap/decisions.md).
+- **A temporary Vercel API token was used this session** to diagnose and
+  fix the redeploy/credential issue (checking env var metadata and
+  deployment history, triggering one correct redeploy) — the owner was
+  asked to revoke it after use; not confirmed whether that happened yet.
+- **A handful of small test objects were written to the real R2 bucket**
+  during diagnosis (`connectivity-test.txt` through
+  `connectivity-test-6.txt`, `cors-test.txt`) — harmless, worth deleting
+  from the `archar` bucket whenever convenient.
+- **FBX upload has never run in a real browser** — built and reasoned
+  through against the installed `three`/`three-stdlib` source, and
+  unit-tested against mocked loaders, but this environment cannot run
+  headless browser automation. See
+  [`../features/fbx-upload.md`](../features/fbx-upload.md).
 - **Run `supabase/migrations/011_company_branding.sql`** on the live
   Supabase project — the new company-branding header and the Excel
   export's title block will show the "Architect AR" fallback everywhere
@@ -111,6 +158,11 @@ Excel export, and one dashboard-wide company name.
   session. See [`boq.md`](../features/boq.md).
 - **CI**: confirmed genuinely working, including live Vercel preview
   deployments on every push.
+- **Large file storage (Cloudflare R2)**: presigned-URL upload flow
+  confirmed working end-to-end via a full presign → PUT → GET round
+  trip (2026-08-14), including real R2 credentials and a correctly
+  configured CORS policy. Not yet confirmed via a real browser upload —
+  see "What's still pending" above.
 
 ## Every session's own record
 
@@ -123,6 +175,8 @@ Excel export, and one dashboard-wide company name.
 | 5 | 2026-08-09 | [`sessions/2026-08-09-session-05.md`](sessions/2026-08-09-session-05.md) — Supabase live, rest of Phase 2, first admin dashboard |
 | 6 | 2026-08-10 | [`sessions/2026-08-10-session-06.md`](sessions/2026-08-10-session-06.md) — corner-panel bug fixes, Web Worker move, roadmap scoping |
 | 7 | 2026-08-11 | [`sessions/2026-08-11-session-07.md`](sessions/2026-08-11-session-07.md) — Quantity Takeoff debugging arc, redesign, Excel export, company branding |
+| 8 | 2026-08-12 | [`sessions/2026-08-12-session-08.md`](sessions/2026-08-12-session-08.md) — Cloudflare R2 migration, FBX upload with real textures |
+| 9 | 2026-08-14 | [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md) — R2 live-debugging arc, mobile upload reliability, background-processing decision |
 
 See [`findings.md`](findings.md) for cross-session findings worth
 remembering beyond the session they happened in.

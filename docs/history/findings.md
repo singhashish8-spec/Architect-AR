@@ -178,3 +178,111 @@ should have worked, check *which* URL is being tested before assuming
 the fix itself is wrong — prefer sharing the stable branch-alias URL
 (found via the PR's own commit status) over a per-commit snapshot URL
 whenever asking someone to retest something across multiple pushes.
+
+## Finding: Supabase Free enforces a fixed 50 MB upload cap regardless of any bucket's own settings (Session 8)
+
+**What was found:** a real 169 MB IFC upload failed with "The object
+exceeded the maximum allowed size," despite this app's own
+`project-files` bucket being configured for a 500 MB `file_size_limit`
+in `schema.sql`. Checking the live Supabase project's own Storage
+dashboard directly (not guessing) confirmed the real ceiling: Supabase's
+**Free plan enforces a fixed, non-configurable 50 MB global upload
+limit**, which overrides any individual bucket's own setting. Only
+upgrading to Pro removes it.
+
+**Impact on the plan:** since the owner needed 200-300 MB files on a
+free tier — which Supabase Free structurally cannot do no matter what
+this app's own code or bucket config says — new model/IFC uploads moved
+to Cloudflare R2 instead. See
+[`features/large-file-storage.md`](../features/large-file-storage.md).
+
+**Standing lesson:** a storage provider's own *account-tier* limits can
+silently override a bucket-level setting that looks authoritative in
+this app's own schema — when a size/quota error doesn't match what the
+app's own config says it should allow, check the provider's dashboard
+settings directly before assuming the app's config is wrong.
+
+## Finding: Vercel Deployment Protection can block an app's own same-origin API calls (Session 9)
+
+**What was found:** a real upload attempt failed with "Could not reach
+this app's own upload-URL endpoint (network error: 'Failed to
+fetch')" — initially assumed to be an R2 CORS problem, since that was
+the only cross-origin request in the flow. Direct `curl -D -` testing
+against `/api/r2-upload-url` (this sandbox can reach the internet
+directly via `curl`, even though it cannot run headless browser
+automation — see this file's Session 7 entry) returned a `401` with
+`{"protection":{"vercel_auth_enabled":true}}` — **Vercel's own
+"Vercel Authentication" (Deployment Protection) setting**, not CORS or
+any app code, was blocking the request. This blocks *all* unauthenticated
+requests to a Preview deployment, including same-origin requests the
+app makes to its own API routes — a same-origin fetch failing is not
+proof the failure is CORS-related.
+
+**Why the first fix attempt didn't land:** Deployment Protection has
+both a **team-level** default (only affects *new* projects going
+forward) and a separate **project-level** setting (governs the actual
+existing project). The owner initially checked and reported the
+team-level toggle as already off, which was true but irrelevant — the
+project's own setting, on a different settings page, was still active.
+
+**Standing lesson:** when a same-origin `fetch()` from an app to its own
+API route fails with a generic network error on a Vercel Preview
+deployment, check Deployment Protection (at the *project* level
+specifically, not just the team default) before assuming it's a CORS or
+backend-code issue — CORS cannot explain a same-origin request failing
+at all.
+
+## Finding: a Vercel env var edit only takes effect on the next deployment of that specific branch/environment (Session 9)
+
+**What was found:** after discovering a presigned URL contained a
+literal placeholder credential (`your_access_key_id_here`), the owner
+edited the real `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY` values,
+redeployed, and re-tested — the placeholder was still there. This
+repeated **four times**, including a full delete-and-recreate of both
+variables scoped to all environments. Direct inspection via the Vercel
+API (deployment history for the project) found the actual cause: every
+redeploy the owner triggered was of **`main`** (the production branch),
+while the URL being tested the whole time was the **Preview** deployment
+for a different branch (`claude/app-crash-camera-access-y74pyp`), which
+had not been rebuilt in three days — since before any of the credential
+edits. An env var edit only reaches a deployment that gets *rebuilt*
+after the edit; redeploying an unrelated branch/environment does nothing
+for it, no matter how many times it's repeated.
+
+**Why it wasn't obvious sooner:** both `main` and the feature branch
+deploy to the same Vercel project, and "Redeploy" is available from
+multiple places in the dashboard without always making the target
+branch obvious in the UI flow the owner was using.
+
+**Standing lesson:** if a Vercel env var change doesn't appear to take
+effect after a reported redeploy, check *which deployment* (branch,
+target environment, and timestamp relative to the edit) was actually
+redeployed before re-testing again — don't assume a change was saved
+incorrectly when it may simply never have reached the deployment under
+test. The Vercel API's own deployment-history endpoint is a fast,
+unambiguous way to check this directly instead of guessing from
+dashboard screenshots.
+
+## Finding: a successful curl PUT to a presigned URL does not prove the browser's CORS preflight will succeed (Session 9)
+
+**What was found:** after fixing the credential issue, `curl`-based
+testing of the full presign → PUT → GET flow succeeded completely (`200`
+at every step), which was treated as confirming the upload path worked.
+A real upload from an actual mobile browser then failed at exactly the
+PUT step, with a generic "Failed to fetch." Simulating the browser's
+actual preflight `OPTIONS` request (`Access-Control-Request-Method`,
+`Access-Control-Request-Headers`, a real `Origin` header) showed R2's
+CORS configuration was in fact correct — so CORS wasn't this particular
+failure's cause either — but the deeper issue is that **`curl` never
+sends or enforces a CORS preflight at all**, so the earlier "confirmed
+working" curl round trip could never have caught a CORS problem even if
+one had existed. It only proved the credentials, signature, and object
+storage itself worked.
+
+**Standing lesson:** a `curl`-based test of a presigned-URL upload flow
+validates credentials/signing/storage, not CORS — it is not a substitute
+for testing (or explicitly simulating, via an `OPTIONS` request with the
+right `Access-Control-Request-*` headers) what a real browser will do
+for any endpoint involved in a cross-origin request. Don't report a
+browser-facing upload flow as "confirmed working" from `curl` results
+alone.

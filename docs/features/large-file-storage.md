@@ -1,7 +1,10 @@
 # Feature: large file storage (Cloudflare R2)
 
 > Part of [`features/`](README.md). Phase 2/3. Status: **built** (2026-08-12),
-> not yet confirmed with a real end-to-end upload — see Open questions.
+> **confirmed working end-to-end via a full presign → PUT → GET round trip**
+> (2026-08-14, see [`../history/sessions/2026-08-14-session-09.md`](../history/sessions/2026-08-14-session-09.md)),
+> but a real upload attempt from an actual mobile browser through the app UI
+> still failed — see Open questions.
 
 ## Summary
 
@@ -126,12 +129,50 @@ do:
    R2's perspective, and R2 rejects it without an explicit CORS rule,
    independent of anything this app's own code does.
 
+## What went wrong getting here, and how it was diagnosed (2026-08-14)
+
+Three unrelated failures stacked on top of each other before this
+actually worked live — full detail in
+[`../history/sessions/2026-08-14-session-09.md`](../history/sessions/2026-08-14-session-09.md)
+and [`../history/findings.md`](../history/findings.md):
+
+1. **Vercel's own Deployment Protection** was blocking the app's own
+   same-origin `/api/r2-upload-url` call on the Preview deployment — not
+   CORS, not app code. Fixed by disabling "Vercel Authentication" at the
+   *project* level (a team-level default toggle doesn't govern existing
+   projects, which caused one round of "already turned off" that wasn't).
+2. **The R2 access key was still the literal placeholder text** from
+   setup instructions, and stayed that way through four rounds of
+   "edited and redeployed" — because every redeploy targeted `main`
+   while the URL under test was a different branch's Preview deployment
+   that hadn't rebuilt in days. Root-caused via the Vercel API and fixed
+   by redeploying the correct branch directly.
+3. **A real upload from a real mobile browser still failed**, at the
+   direct-PUT-to-R2 step specifically. CORS was explicitly simulated
+   (a real preflight `OPTIONS` request) and confirmed correctly
+   configured — this also surfaced that a `curl`-based PUT test alone
+   can never validate CORS at all, since `curl` doesn't send or enforce
+   a preflight. With CORS ruled out, a dropped mobile connection on a
+   large (~200 MB) transfer is the leading suspect — see the next
+   section.
+
 ## Open questions
 
-- **Not yet confirmed with a real end-to-end upload** — built and
-  quality-gate-clean (typecheck/lint/unit tests/production build), but
-  no live upload has been attempted yet since it depends on the owner
-  finishing the Cloudflare setup above (API token, env vars, CORS).
+- **A real upload from an actual mobile browser has not yet succeeded**
+  — it failed with a generic "Failed to fetch" at the direct-PUT-to-R2
+  step, with CORS ruled out (see above). The app currently has no real
+  progress indicator during that PUT (just a spinner), so there's no way
+  to tell how far a failed upload got. **Planned fix, not yet built**:
+  switch to R2's native chunked/resumable multipart upload, so a dropped
+  connection only has to retry the failed chunk instead of the whole
+  file. See [`../roadmap/decisions.md`](../roadmap/decisions.md).
+- **A separate, bigger idea is being considered as a follow-up, not a
+  substitute for the fix above**: move IFC/FBX conversion server-side
+  entirely, with background processing and live progress/ETA on the
+  dashboard instead of converting in the browser. Needs real new
+  infrastructure (a persistent worker, not a Vercel serverless
+  function) — scoped in conversation, not yet designed or built. See
+  [`../roadmap/decisions.md`](../roadmap/decisions.md).
 - **No `R2_PUBLIC_URL` reachability check anywhere** — if it's
   misconfigured (wrong bucket, public access not actually enabled),
   uploads would still succeed (the presigned PUT only needs valid
