@@ -15,17 +15,18 @@
   color: #fff;
 }
 
-/* The account-wide company name (services/companyService.ts) -- a
-   permanent header above the card, same on every model/project this
-   page is ever opened for, not something typed per export. */
+/* BrandMark (components/BrandingHeader.tsx) -- a permanent header above
+   the card, same on every model/project this page is ever opened for.
+   This page's own background is always dark (see .page's own comment
+   above), so pin BrandMark's --color-brand accent to its dark-theme
+   value the same way BrandingHeader.module.css's own .overlay does --
+   otherwise the light/dark media query could hand it the deep-navy
+   light-mode value, illegible against this always-dark background. */
 .brand {
   width: 100%;
   max-width: 960px;
   margin: 0 auto 0.75rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.55;
+  --color-brand: #818cf8;
 }
 
 .card {

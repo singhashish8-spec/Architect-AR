@@ -2,47 +2,59 @@
 
 > Part of [`features/`](README.md). Phase 2. Status: **built, verified
 > visually in both light and dark mode against a real production build**
-> (`components/BrandMark.tsx`).
+> (`components/BrandMark.tsx`); extended 2026-08-15 to every page's
+> permanent header, including the 3D viewer — see below.
 
 ## Summary
 
 "Hiten Sethi & Associates" / "HSA" rendered as styled text (navy/indigo
-accent), shown on the upload form and the project share card — a
-stand-in for a real logo file, which isn't available yet (a blurry chat
+accent), shown on the project share card and, as of 2026-08-15, every
+page's permanent header (`components/BrandingHeader.tsx`) — a stand-in
+for a real logo file, which isn't available yet (a blurry chat
 screenshot isn't a usable PNG/SVG). Swap `BrandMark.tsx`'s markup for a
 real `<img>` the moment a real logo file exists; every caller already
-just renders `<BrandMark />`, so nothing else needs to change.
+just renders `<BrandMark />` (optionally `<BrandMark compact />` inside
+a thin bar/pill, to drop the margin meant for a card-top context), so
+nothing else needs to change.
 
-## Scope, per the owner's own decision earlier this project
+## Scope, per the owner's own decisions
 
 - **Accent only** — the brand color (`--color-brand`/`--color-brand-hover`
   in `index.css`) is used for the wordmark text and a couple of small
   highlights (the share card's button hover border), never as a
   wholesale recolor of the app.
-- **The share card only, never the 3D viewer itself.** Project creation
-  moved from a standalone, brand-accented public upload form into
-  `components/ProjectCreateForm.tsx`, embedded in the internal-only
-  `/admin` dashboard (see [`full-admin-dashboard.md`](full-admin-dashboard.md))
-  — its submit button uses the dashboard's own plain styling rather than
-  the brand accent now, since nothing inside `/admin` is client-facing
-  and the dashboard itself doesn't carry a `BrandMark` anywhere else
-  either. `styles/form.module.css` (shared by `PasscodeGate.tsx`,
-  `LocalPreview.tsx`, and the admin dashboard) was never brand-accented
-  to begin with, for the same reason.
+- ~~The share card only, never the 3D viewer itself.~~ **Reversed
+  2026-08-15**: the owner asked directly for a permanent header on
+  *every* page, then — after first seeing that header render the
+  account-wide `company_name` as plain text (falling back to "Architect
+  AR" when unset) — specifically asked for it to look like `BrandMark`
+  instead: "I want header to look like the one in share card... Not
+  that Architect Ar." `components/BrandingHeader.tsx` now renders
+  `BrandMark` on every page, including `pages/ProjectView.tsx`'s 3D
+  viewer (a small corner-pill overlay there, since it has no header slot
+  to push content down from). Project creation's own submit button
+  (`components/ProjectCreateForm.tsx`, inside the internal-only
+  `/admin` dashboard) still uses the dashboard's own plain styling, not
+  the brand accent — nothing inside `/admin` is client-facing, and nor
+  does the dashboard carry a `BrandMark` anywhere else.
 
 ## A theming detail worth knowing
 
-`ProjectShareCard`'s panel is always dark-styled regardless of the
-visitor's system theme (matching `LevelsPanel`/`CategoryPanel`'s own
-fixed-dark anchored-panel style). `--color-brand` itself is
-theme-dependent (a light indigo for dark mode, a darker indigo for light
-mode, so it reads well against each theme's typical background) — left
-as the root value, `BrandMark`'s text would come out dark-on-dark for a
-visitor whose OS is in light mode, since the *root* theme doesn't know
-this one card is always dark. Fixed by overriding `--color-brand`/
-`--color-brand-hover` locally within `.card` to their dark-mode values,
-so `BrandMark` (a child of `.card`) always inherits the legible pair
-regardless of the visitor's system theme.
+`--color-brand` is theme-dependent (a light indigo for dark mode, a
+darker indigo for light mode, so it reads well against each theme's
+typical background) — anywhere `BrandMark` sits on a surface that's
+always dark regardless of the *visitor's* system theme, the root
+media-query-driven value has to be overridden locally, or a light-mode
+visitor would see dark-on-dark, illegible text. Three places currently
+do this, all the same pattern (pin `--color-brand`/`--color-brand-hover`
+to their dark-mode values on the always-dark container, so every
+`BrandMark` inside it inherits the legible pair):
+
+- `ProjectShareCard.module.css`'s `.card` (matches
+  `LevelsPanel`/`CategoryPanel`'s own fixed-dark anchored-panel style).
+- `BrandingHeader.module.css`'s `.overlay` (the 3D viewer's corner pill).
+- `pages/BoqView.module.css`'s `.brand` (that page's own shell is always
+  dark — see its own comment).
 
 ## Open questions
 

@@ -22,7 +22,7 @@
 | [Model lighting (environment/IBL foundation)](model-lighting.md) | 2 | Built, verified against real data in a real production build |
 | [IFC-only upload (auto-converted to a viewable/AR-ready model)](ifc-only-upload.md) | 2 | Built, verified against real data; not yet exercised through a real live Supabase upload |
 | [Project share card (QR + link + details, copy/share actions)](project-share-card.md) | 2 | Built, unit-tested; not yet checked against a real live project (no live Supabase credentials in this dev environment) |
-| [Text-only branding](text-branding.md) | 2 | Built, verified visually in light and dark mode; waiting on a real logo file to replace it |
+| [Text-only branding](text-branding.md) | 2 | Built, verified visually in light and dark mode; extended 2026-08-15 to every page's permanent header, including the 3D viewer; waiting on a real logo file to replace it |
 | [Lighting presets (daylight/evening/studio)](lighting-presets.md) | 2 | Built, verified against real data in a real production build |
 | [Search/filter elements, and schedule/quantity-takeoff view](search-and-schedule.md) | 2 | Search built, verified against real data. The schedule half was superseded 2026-08-11 by [Bill of Quantities](boq.md) |
 | [Bill of Quantities (BOQ)](boq.md) | 2/3 | Built (2026-08-11); unit-tested, not yet checked against a real live IFC file's own units/materials |

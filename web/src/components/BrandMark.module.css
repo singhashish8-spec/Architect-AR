@@ -5,6 +5,14 @@
   margin-bottom: 1rem;
 }
 
+/* Used inside components/BrandingHeader.tsx's thin bar/pill -- there's
+   nothing "below" it in the same container needing the default
+   margin's separation, unlike this mark's other context (the top of a
+   card, e.g. ProjectShareCard.tsx). */
+.compact {
+  margin-bottom: 0;
+}
+
 .initials {
   display: flex;
   align-items: center;
