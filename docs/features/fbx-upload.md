@@ -1,12 +1,9 @@
 # Feature: FBX upload with real textures/materials
 
 > Part of [`features/`](README.md). Phase 2/3. Status: **built** (2026-08-12),
-> **not yet verified against a real browser or a real textured FBX file**
-> — this environment cannot run headless browser automation at all (see
-> [`docs/history/findings.md`](../history/findings.md)'s matching entry),
-> so this was built and reasoned through against the installed
-> `three-stdlib`/`three` source directly, not confirmed end-to-end. See
-> Open questions.
+> **confirmed working end-to-end on a real device** (2026-08-15, project
+> "NSE" — see
+> [`../history/sessions/2026-08-15-session-10.md`](../history/sessions/2026-08-15-session-10.md)).
 
 ## Summary
 
@@ -18,17 +15,21 @@ Unlike IFC (which only ever produces flat-colored materials — an
 IFC/Revit limitation, not something either conversion path can work
 around), FBX can carry real materials and textures, matching
 [`../roadmap/decisions.md`](../roadmap/decisions.md)'s existing note on
-how to get real Revit textures into this app for free (Autodesk's
-Twinmotion-for-Revit add-in exports FBX with real materials included, no
-paid plugin required).
+how to get real Revit textures into this app for free: **Revit's own
+native FBX export** (File → Export → FBX) already carries real
+materials/textures, no third-party plugin required. (Corrected
+2026-08-15 — this was originally, incorrectly, attributed to the
+Twinmotion-for-Revit add-in; the owner clarified they export directly
+from Revit and don't have Twinmotion installed at all. See
+[`../history/findings.md`](../history/findings.md).)
 
 ## Why this exists
 
 The owner's own report, after trying to upload a large file: it turned
-out to be an `.fbx` (from that same Twinmotion export path), selected
-into the "IFC file" slot by mistake, which crashed the WASM IFC parser
-("memory access out of bounds" — feeding it a completely different
-binary format). Once that mismatch was found, the owner asked directly:
+out to be an `.fbx` (a native Revit export), selected into the "IFC
+file" slot by mistake, which crashed the WASM IFC parser ("memory
+access out of bounds" — feeding it a completely different binary
+format). Once that mismatch was found, the owner asked directly:
 *"then make it read fbx too"*, followed by *"add a texture option while
 uploading fbx... and if turned on... then in preview mode it should have
 a toggle to on/off texture."*
@@ -116,17 +117,21 @@ bundle, which returned to its pre-FBX size once this split was made.
 
 ## Open questions
 
-- **Not verified against a real browser at all.** This whole feature —
-  the conversion logic, the texture-loading wait/timeout behavior, the
-  viewer toggle's material swapping — was built and unit-tested with
-  mocked `FBXLoader`/`GLTFExporter`/`LoadingManager` (`fbxToGlb.test.ts`),
-  reasoning carefully through the installed `three`/`three-stdlib`
-  source rather than confirmed by actually running it, since this
-  session's sandbox cannot run headless browser automation at all (see
-  [`docs/history/findings.md`](../history/findings.md)). The orchestration
-  logic (when textures are waited for vs. skipped, the timeout path, the
-  "strip vs. keep" branch) is tested; **whether it actually renders a
-  real textured FBX correctly in a real browser is not.**
+- **The upload → conversion → project-creation pipeline is now confirmed
+  working end-to-end on a real device** (2026-08-15, project "NSE") —
+  a real FBX (native Revit export) was uploaded through the real app UI
+  on a phone and the project/model was created successfully. **Not yet
+  separately confirmed**: whether the textures specifically render
+  correctly in the 3D view, and whether the "Include textures" toggle
+  behaves as expected — the successful test only confirms the upload/
+  conversion/storage path, not a visual check of the rendered result
+  (this session still cannot run headless browser automation to check
+  that itself — see [`docs/history/findings.md`](../history/findings.md)).
+  The underlying orchestration logic (when textures are waited for vs.
+  skipped, the timeout path, the "strip vs. keep" branch) is unit-tested
+  against mocked `FBXLoader`/`GLTFExporter`/`LoadingManager`
+  (`fbxToGlb.test.ts`), reasoned through the installed `three`/
+  `three-stdlib` source.
 - **`FBXLoader.parse(buffer, '')`'s empty resource path** means external
   texture files referenced by relative path (a separate `.jpg` sitting
   next to the `.fbx` on the original export) won't resolve — only

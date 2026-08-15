@@ -286,3 +286,82 @@ right `Access-Control-Request-*` headers) what a real browser will do
 for any endpoint involved in a cross-origin request. Don't report a
 browser-facing upload flow as "confirmed working" from `curl` results
 alone.
+
+## Finding: tap-to-inspect doesn't correlate a separately-exported FBX with a separate IFC file (Session 10)
+
+**What was found:** while answering the owner's own architecture
+question about consolidating multiple Revit export files, checked
+directly (rather than assuming) whether tap-to-inspect — tapping a 3D
+element to see its Revit properties — actually works when someone
+uploads both an FBX (for real textures) and a separate IFC file (for
+property data) for the same model, which the app's own upload forms
+have always allowed. It doesn't. `viewer/fbxToGlb.ts` passes
+`FBXLoader`'s raw object names straight through to the exported GLB's
+node names, untouched — Revit's own FBX naming, not an IFC GlobalId in
+any form. `ifc/ifcPropertyLookup.ts`'s `resolveNodeNameToExpressId()`
+only recognizes two forms of IFC GlobalId (a direct match, or a UUID-
+shaped substring) and returns `undefined` for anything else, which
+`ifc/useIfcElementData.ts`'s `getElementDataByGlobalId()` then turns
+into a silent `null` — indistinguishable from a legitimately data-less
+element. Tapping any element on an FBX-derived model would just show
+"no data available" for every single element, with no error to signal
+that anything's actually wrong.
+
+**Why it wasn't caught earlier:** the FBX+IFC combination has always
+been technically allowed by the upload forms (both file slots have
+always coexisted), but nobody had specifically tested tapping an element
+on a model built from a separately-exported FBX with an attached IFC —
+previous tap-to-inspect verification
+([`sessions/2026-08-08-session-04.md`](sessions/2026-08-08-session-04.md))
+was against a GLB *generated from that same IFC file*, where the node
+names are IFC GlobalIds by construction, not a real-world FBX+IFC pair.
+
+**Impact:** Quantity Takeoff is unaffected (it reads the IFC file
+directly, independent of whatever visual model is attached), but
+tap-to-inspect specifically silently doesn't work for this combination
+today. Not yet reported as a real bug by the owner (found while
+reasoning through their own architecture question, not from a bug
+report) — documented as a known gap in
+[`features/fbx-upload.md`](../features/fbx-upload.md) and
+[`roadmap/decisions.md`](../roadmap/decisions.md) rather than fixed,
+since fixing it needs a real design decision (a geometry-matching
+heuristic, or richer export tooling) beyond a quick patch.
+
+**Standing lesson:** "the two features both work individually" isn't
+the same claim as "they work together" — when two upload-time options
+are allowed to coexist, explicitly check the combination, not just each
+one alone, especially when the correlation between them (here: node
+naming) was originally built and proven for a narrower case (IFC-derived
+GLB) than what the UI actually permits (any GLB/FBX plus any IFC).
+
+## Finding: the app's own docs misattributed real FBX textures to Twinmotion, when the owner exports directly from Revit (Session 10)
+
+**What was found:** every doc and code comment describing how real
+Revit textures get into this app (`roadmap/decisions.md`,
+`features/fbx-upload.md`, `viewer/fbxToGlb.ts`'s own comments) credited
+"Autodesk's Twinmotion-for-Revit add-in" as the free export path. Asked
+directly, the owner clarified: *"we do not have twin motion app"* —
+their actual FBX files come from **Revit's own native FBX export**
+(File → Export → FBX), no plugin at all.
+
+**Why it happened:** the Twinmotion attribution was written 2026-08-09
+based on general knowledge of common free ways to get textured exports
+out of Revit, not confirmed against the owner's own actual workflow at
+the time — a reasonable-sounding assumption that was never actually
+checked, and then got copied forward into every later doc/comment that
+referenced the same capability, compounding across three files and one
+code comment before being caught.
+
+**Impact:** none on the app's actual behavior — it accepts any valid
+FBX file regardless of which tool produced it, so nothing needed to
+change in code, only in the docs' explanation of where a real user's
+file actually comes from. All four references corrected 2026-08-15
+(historical session docs describing the original, incorrect belief were
+deliberately left as-is, per this folder's own history-is-append-only
+convention — see [`README.md`](README.md)).
+
+**Standing lesson:** don't let a plausible-sounding assumption about a
+user's own toolchain go unconfirmed and then get copied across multiple
+docs — a single direct question ("where does this file actually come
+from?") would have caught this on day one instead of after several
+docs/comments had already repeated it as fact.

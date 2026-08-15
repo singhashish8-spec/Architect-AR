@@ -55,6 +55,14 @@
 - If client-side IFC parsing is too slow on real devices, move to the
   server-side pre-processed JSON + glTF pipeline here (see
   [`features/element-data-inspection.md`](../features/element-data-inspection.md)).
+- **GLB compression** (proposed 2026-08-15, not built) — Draco geometry
+  compression and texture resizing/re-encoding added to the existing
+  client-side `viewer/fbxToGlb.ts`/`ifc/ifcToGlb.ts` conversion, to
+  shrink every upload/download and speed up viewer load and AR
+  performance on a client's phone. Independent of Phase 5's pyRevit
+  idea below — would help the current fully-manual upload flow too, not
+  just a future automated one. See
+  [`decisions.md`](decisions.md).
 
 ## Phase 3 — Interaction & review
 - Hotspots/annotations pinned to points on the model ("this wall moves",
@@ -139,6 +147,25 @@
   manual export step entirely.
 - Only worth it once Phase 1–3 usage proves the manual glTF export step is
   actually the friction point — not before.
+- **pyRevit extension for one-click export + upload** (proposed
+  2026-08-15, discussed, not built or formally scoped) — this is the
+  concrete version of "direct export plugin" above, specific to Revit:
+  a pyRevit ribbon button triggers native FBX + IFC export automatically,
+  then hands the files straight into an embedded browser panel (WebView2)
+  showing this app's own upload page, so the existing browser-based
+  upload flow just runs with no manual file-picking. A real, separate
+  software project (Python + C#/.NET, not part of this web app's own
+  codebase) — see [`decisions.md`](decisions.md) for the full discussion,
+  including why it doesn't need this app's code to change at all.
+- Autodesk Platform Services (APS, formerly "Forge") — feeding a
+  Navisworks NWC or Revit file directly to Autodesk's own cloud
+  translation service, instead of a manual FBX+IFC export — **researched
+  2026-08-15, decided not to pursue for now**: no glTF/GLB output for any
+  source format (only Autodesk's own proprietary SVF/SVF2, needing their
+  own Viewer SDK), unconfirmed pricing after Autodesk's December 2025
+  billing overhaul, and unconfirmed texture/property fidelity for NWC
+  specifically. See [`decisions.md`](decisions.md) for the full
+  research findings before revisiting this.
 
 ## Phase 6 — Collaboration
 - Measurement tools inside the viewer (distances, areas) exported back out.
@@ -146,3 +173,10 @@
   stakeholders commenting on the same model), ideally in **BCF** (BIM
   Collaboration Format — the open standard for exactly this) so issues can
   round-trip back into Revit/Navisworks, not just live in our app.
+- **Real-time multi-user collaboration in the viewer** (proposed
+  2026-08-15, not scoped) — an architect and a client, or several
+  architects, reviewing the same model live together (shared camera/
+  cursor/selection state), not just each opening the same static share
+  link independently. Distinct from the clash-flag/markup-thread idea
+  above, which is asynchronous (comments left for later), not live. See
+  [`decisions.md`](decisions.md).

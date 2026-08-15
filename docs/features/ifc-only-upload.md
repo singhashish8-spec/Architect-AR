@@ -32,14 +32,17 @@ Real Revit materials (wood grain, brick, real glass) never survive into
 an IFC file — confirmed directly: Autodesk's own IFC exporter doesn't
 support material texture mapping because no BIM standard body has
 defined how it should be represented, even though the underlying IFC4
-schema theoretically has a slot for it. Revit's other native export
-(FBX) has the identical gap. So an IFC-only upload is always flat-colored
-geometry, same ceiling as an untextured GLB — real material realism still
-needs the plugin/Twinmotion pipeline noted in
-[`../roadmap/decisions.md`](../roadmap/decisions.md). This feature
-removes a step (no exporter plugin needed) at that cost, and is meant as
+schema theoretically has a slot for it. So an IFC-only upload is always
+flat-colored geometry, same ceiling as an untextured GLB — real material
+realism needs an FBX export instead (**Revit's own native FBX export**
+already carries real textures/materials, no third-party plugin needed —
+see [`fbx-upload.md`](fbx-upload.md); an earlier version of this note
+incorrectly claimed FBX had the identical texture gap as IFC, corrected
+2026-08-15). This feature removes a step (upload the IFC alone, no
+separate model export needed) at the flat-color cost, and is meant as
 the "just get something real up quickly" path, not a replacement for a
-properly-textured export when that matters for a client presentation.
+properly-textured FBX export when that matters for a client
+presentation.
 
 ## Technical approach
 

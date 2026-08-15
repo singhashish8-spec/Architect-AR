@@ -13,8 +13,8 @@ export interface FbxConversionProgress {
 // for IFC. FBX exists as an upload option specifically because it CAN
 // carry real materials/textures, unlike IFC (which only ever gives flat
 // colors -- see docs/roadmap/decisions.md's "how does the owner get
-// real Revit textures" row: Autodesk's free Twinmotion-for-Revit add-in
-// exports FBX with real materials included).
+// real Revit textures" row: Revit's own native FBX export already
+// carries real materials, no third-party plugin needed).
 //
 // Deliberately runs on the MAIN THREAD, unlike IFC's own conversion
 // (ifc/ifcToGlb.worker.ts, moved off the main thread after a real freeze

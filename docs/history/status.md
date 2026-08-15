@@ -10,15 +10,21 @@ Last updated: **2026-08-15**, [Session 10](sessions/2026-08-15-session-10.md).
 The app runs against a live Supabase backend and has been used for real,
 by the owner, against their own real project files — not just sample
 data. Phase 2 is fully shipped. Phase 3's admin dashboard is fully
-built. Large-file (R2) upload plumbing is confirmed working end-to-end
-via a full round trip, after a long three-failures-deep live debugging
-arc; the upload path itself was then rebuilt around chunked/resumable
-multipart upload, and — after the owner's own live-testing feedback —
-the whole upload UI was redesigned: one shared progress bar with real
-byte counts, one merged drag-and-drop file picker, and the company-
-branding header now on every page in the app. Quality-gate-clean, but
-**not yet re-verified by the owner through the real app on a real
-device** — that's the active next step.
+built. Large-file (R2) upload plumbing, the resumable-multipart rebuild,
+and the redesigned upload UI (one shared progress bar with real byte
+counts, one merged drag-and-drop file picker) are now **confirmed
+working end-to-end on a real device** — a real FBX (native Revit export)
+uploaded through the real app UI, project "NSE." The company-branding
+header is now on every page in the app, styled to match the share
+card's "HSA" mark rather than plain text. The rest of this session was a
+long architecture discussion (not code): researched and ruled out
+Autodesk Platform Services/NWC and Lumion as export sources, corrected a
+real misattribution (real FBX textures come from Revit's own native
+export, not Twinmotion, which the owner doesn't have), found a real
+undocumented gap (tap-to-inspect doesn't work for a separately-exported
+FBX + IFC pair), and logged three new proposed-but-unbuilt directions —
+a pyRevit "one-click export + upload" extension, GLB compression, and
+real-time multi-user collaboration.
 
 ## Right now, in one paragraph
 
@@ -66,20 +72,45 @@ redesigned the whole upload UI per the owner's own live-testing
 feedback: one shared progress bar with real byte counts (replacing three
 separate bar components), one merged drag-and-drop file picker
 (replacing two separate file inputs), and the company-branding header
-added to every remaining page, including the full-screen 3D viewer.
+added to every remaining page, including the full-screen 3D viewer — a
+real FBX upload (project "NSE") then confirmed the whole rebuilt
+pipeline actually works. The header was corrected again the same
+session, to match the share card's styled "HSA" mark instead of plain
+text. The rest of the session was architecture discussion, not code:
+found a real undocumented tap-to-inspect gap (a separately-exported FBX
+doesn't correlate with a separate IFC file); researched and ruled out
+Autodesk Platform Services (NWC/Forge) and Lumion as export sources;
+corrected a real misattribution (real FBX textures come from Revit's own
+native export, not Twinmotion, which the owner doesn't have); and logged
+three new proposed-but-unbuilt directions into the roadmap — a pyRevit
+"one-click export + upload" extension, GLB compression, and real-time
+multi-user collaboration.
 
 ## What's still pending / open
 
-- **The rebuilt upload flow (multipart + the new UI from Session 10) has
-  not yet been tested by the owner through the real app on a real
-  device.** Quality-gate-clean (typecheck/lint/unit tests/production
-  build), and a real CORS gap was caught and fixed proactively before
-  this next test, but no confirmation of an actual successful upload
-  through the real app UI has landed yet — that's the active next step.
-  See
-  [`../features/large-file-storage.md`](../features/large-file-storage.md),
-  [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md),
-  and [`sessions/2026-08-15-session-10.md`](sessions/2026-08-15-session-10.md).
+- **The FBX+IFC tap-to-inspect correlation gap** — a separately-exported
+  FBX (visual model) and a separate IFC file (property data) for the
+  same building don't correlate at all today; tapping an element on the
+  textured model silently shows no data for everything. Quantity Takeoff
+  is unaffected (reads the IFC directly). Documented, not fixed — needs
+  a real design decision (geometry-matching heuristic, or richer export
+  tooling). See
+  [`findings.md`](findings.md) and
+  [`../features/fbx-upload.md`](../features/fbx-upload.md).
+- **Three new directions proposed 2026-08-15, none built or formally
+  scoped**: a pyRevit extension for one-click export + upload (a
+  separate software project, not part of this web app's own codebase),
+  GLB compression (Draco + texture resizing, buildable in this repo
+  independent of the pyRevit idea), and real-time multi-user
+  collaboration in the viewer. Autodesk Platform Services (NWC/Forge)
+  was researched and deliberately parked, not pursued, given unconfirmed
+  pricing/fidelity and no glTF/GLB output. See
+  [`../roadmap/decisions.md`](../roadmap/decisions.md) and
+  [`../roadmap/phases.md`](../roadmap/phases.md).
+- **No cross-session workflow exists** between this session (the web
+  app) and the owner's separate Claude Desktop session (connected to
+  Revit via MCP) — raised, not designed. This session has no visibility
+  into that other session and cannot reach the owner's PC directly.
 - **A background, server-side conversion service is proposed but not
   designed or built** — owner's idea: upload raw files to R2, convert
   in the background on a server (not the client) with live progress/ETA
@@ -96,10 +127,12 @@ added to every remaining page, including the full-screen 3D viewer.
   during diagnosis (`connectivity-test.txt` through
   `connectivity-test-6.txt`, `cors-test.txt`) — harmless, worth deleting
   from the `archar` bucket whenever convenient.
-- **FBX upload has never run in a real browser** — built and reasoned
-  through against the installed `three`/`three-stdlib` source, and
-  unit-tested against mocked loaders, but this environment cannot run
-  headless browser automation. See
+- **FBX upload is confirmed working end-to-end on a real device**
+  (2026-08-15, project "NSE") — the upload/conversion/storage pipeline
+  is proven; whether textures specifically render correctly, and
+  whether the textures on/off toggle behaves right, are still not
+  separately confirmed (this environment cannot run headless browser
+  automation to check that itself). See
   [`../features/fbx-upload.md`](../features/fbx-upload.md).
 - **Run `supabase/migrations/011_company_branding.sql`** on the live
   Supabase project — the new company-branding header and the Excel
@@ -169,11 +202,11 @@ added to every remaining page, including the full-screen 3D viewer.
 - **CI**: confirmed genuinely working, including live Vercel preview
   deployments on every push.
 - **Large file storage (Cloudflare R2)**: presign → PUT → GET round trip
-  confirmed working end-to-end (2026-08-14), including real R2
-  credentials and a correctly configured CORS policy. The upload path
-  itself was then rebuilt around chunked/resumable multipart upload with
-  a real progress bar, quality-gate-clean, not yet confirmed via a real
-  mobile browser upload — see "What's still pending" above.
+  confirmed working end-to-end (2026-08-14); the upload path was then
+  rebuilt around chunked/resumable multipart upload with a real progress
+  bar and a merged drag-and-drop file picker, and **confirmed working
+  end-to-end on a real device** (2026-08-15, project "NSE," a real FBX
+  upload through the real app UI).
 
 ## Every session's own record
 
