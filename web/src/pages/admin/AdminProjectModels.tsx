@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom'
 import { ScalePresetSelect } from '../../components/ScalePresetSelect'
 import { ConversionProgressBar } from '../../components/ConversionProgressBar'
 import { FbxConversionStatus } from '../../components/FbxConversionStatus'
+import { UploadProgressBar } from '../../components/UploadProgressBar'
 import {
   addAdminModel,
   deleteAdminModel,
@@ -224,13 +225,18 @@ function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMov
   const [replaceIfcFile, setReplaceIfcFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<{ label: string; fraction: number } | null>(null)
 
   async function handleSave() {
     setSaving(true)
     setError(null)
     try {
-      const modelUrl = replaceModelFile ? await uploadModelFile(replaceModelFile) : model.modelUrl
-      const ifcUrl = replaceIfcFile ? await uploadIfcFile(replaceIfcFile) : model.ifcUrl
+      const modelUrl = replaceModelFile
+        ? await uploadModelFile(replaceModelFile, (fraction) => setUploadProgress({ label: 'Uploading model…', fraction }))
+        : model.modelUrl
+      const ifcUrl = replaceIfcFile
+        ? await uploadIfcFile(replaceIfcFile, (fraction) => setUploadProgress({ label: 'Uploading IFC file…', fraction }))
+        : model.ifcUrl
       await updateAdminModel(passcode, {
         id: model.id,
         name,
@@ -245,6 +251,7 @@ function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMov
     } catch (err) {
       setError(getErrorMessage(err, 'Could not save this model.'))
     } finally {
+      setUploadProgress(null)
       setSaving(false)
     }
   }
@@ -289,6 +296,7 @@ function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMov
           />
         </label>
       </div>
+      {uploadProgress && <UploadProgressBar fraction={uploadProgress.fraction} label={uploadProgress.label} />}
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -328,6 +336,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
   const [submitting, setSubmitting] = useState(false)
   const [conversion, setConversion] = useState<ConversionProgress | null>(null)
   const [fbxConversion, setFbxConversion] = useState<FbxConversionProgress | null>(null)
+  const [uploadProgress, setUploadProgress] = useState<{ label: string; fraction: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const canSubmit = (modelFile || ifcFile) && scalePreset
@@ -344,8 +353,11 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
         // for every admin who opens this form, only one who actually
         // submits a model file).
         const { uploadModelFileWithConversion } = await import('../../viewer/fbxToGlb')
-        modelUrl = await uploadModelFileWithConversion(modelFile, { includeTextures }, setFbxConversion)
+        modelUrl = await uploadModelFileWithConversion(modelFile, { includeTextures }, setFbxConversion, (fraction) =>
+          setUploadProgress({ label: 'Uploading model…', fraction }),
+        )
         setFbxConversion(null)
+        setUploadProgress(null)
       } else {
         // No GLB given, only an IFC file -- build one from the IFC's own
         // geometry, same as ProjectCreateForm.tsx does for the same
@@ -361,9 +373,13 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
         const glbFile = new File([glbBlob], `${ifcFile!.name.replace(/\.ifc$/i, '')}.glb`, {
           type: 'model/gltf-binary',
         })
-        modelUrl = await uploadModelFile(glbFile)
+        modelUrl = await uploadModelFile(glbFile, (fraction) => setUploadProgress({ label: 'Uploading model…', fraction }))
+        setUploadProgress(null)
       }
-      const ifcUrl = ifcFile ? await uploadIfcFile(ifcFile) : null
+      const ifcUrl = ifcFile
+        ? await uploadIfcFile(ifcFile, (fraction) => setUploadProgress({ label: 'Uploading IFC file…', fraction }))
+        : null
+      setUploadProgress(null)
       await addAdminModel(passcode, projectId, {
         name: name.trim() || 'New model',
         modelUrl,
@@ -376,6 +392,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
     } finally {
       setConversion(null)
       setFbxConversion(null)
+      setUploadProgress(null)
       setSubmitting(false)
     }
   }
@@ -443,6 +460,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       </div>
       {conversion && <ConversionProgressBar progress={conversion} />}
       {fbxConversion && <FbxConversionStatus progress={fbxConversion} />}
+      {uploadProgress && <UploadProgressBar fraction={uploadProgress.fraction} label={uploadProgress.label} />}
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -450,7 +468,13 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       )}
       <div className={styles.modelRowActions}>
         <button type="button" className={styles.saveButton} onClick={() => void handleAdd()} disabled={submitting || !canSubmit}>
-          {submitting ? (conversion || fbxConversion ? 'Converting…' : 'Adding…') : 'Add model'}
+          {submitting
+            ? conversion || fbxConversion
+              ? 'Converting…'
+              : uploadProgress
+                ? 'Uploading…'
+                : 'Adding…'
+            : 'Add model'}
         </button>
         <button type="button" className={styles.smallButton} onClick={onCancel} disabled={submitting}>
           Cancel

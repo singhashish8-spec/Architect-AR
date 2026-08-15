@@ -137,7 +137,7 @@ describe('uploadModelFileWithConversion', () => {
     const url = await uploadModelFileWithConversion(file, { includeTextures: true })
 
     expect(url).toBe('https://pub.example/converted.glb')
-    expect(uploadModelFile).toHaveBeenCalledWith(file)
+    expect(uploadModelFile).toHaveBeenCalledWith(file, undefined)
     expect(parseMock).not.toHaveBeenCalled()
   })
 
@@ -149,6 +149,20 @@ describe('uploadModelFileWithConversion', () => {
 
     await uploadModelFileWithConversion(file, { includeTextures: false })
 
-    expect(uploadModelFile).toHaveBeenCalledWith(expect.objectContaining({ name: 'model.glb', type: 'model/gltf-binary' }))
+    expect(uploadModelFile).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'model.glb', type: 'model/gltf-binary' }),
+      undefined,
+    )
+  })
+
+  it('forwards an upload-progress callback through to uploadModelFile', async () => {
+    const { uploadModelFileWithConversion } = await import('./fbxToGlb')
+    const { uploadModelFile } = await import('../services/projectService')
+    const file = new File([new ArrayBuffer(4)], 'model.glb')
+    const onUploadProgress = vi.fn()
+
+    await uploadModelFileWithConversion(file, { includeTextures: true }, undefined, onUploadProgress)
+
+    expect(uploadModelFile).toHaveBeenCalledWith(file, onUploadProgress)
   })
 })

@@ -6,16 +6,16 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-14**, mid-[Session 9](sessions/2026-08-14-session-09.md)
-(paused for a docs update before the next piece of work starts).
+Last updated: **2026-08-14**, [Session 9](sessions/2026-08-14-session-09.md).
 The app runs against a live Supabase backend and has been used for real,
 by the owner, against their own real project files — not just sample
 data. Phase 2 is fully shipped. Phase 3's admin dashboard is fully
 built. Large-file (R2) upload plumbing is now confirmed working
 end-to-end via a full round trip, after a long three-failures-deep live
-debugging arc — but a real upload from an actual mobile browser still
-failed for a separate, unresolved reliability reason, and that's the
-active work right now.
+debugging arc; the mobile-upload reliability gap that arc's last failure
+surfaced has since been rebuilt around chunked/resumable multipart
+upload with a real progress bar, quality-gate-clean but not yet
+re-verified against a real phone — that's the active next step.
 
 ## Right now, in one paragraph
 
@@ -47,26 +47,25 @@ uploads to Cloudflare R2 after finding Supabase Free's fixed 50 MB
 upload cap, fixed a real Vercel deploy-time ESM bug along the way, and
 built full FBX upload support with real textures/materials after an FBX
 file crashed the IFC parser mid-testing.
-[Session 9](sessions/2026-08-14-session-09.md), so far, has been a long
-live-debugging arc getting that R2 upload actually working on the real
-deployed app — three unrelated failures deep (Vercel Deployment
-Protection blocking the app's own API route; a placeholder credential
-that survived four "fixed it" rounds because every redeploy targeted the
-wrong branch; a real mobile upload failing at the direct-PUT step for a
-still-unresolved reason after CORS was explicitly ruled out) — ending
-with the owner proposing a background server-side conversion service,
-agreeing to fix upload reliability (resumable multipart) first.
+[Session 9](sessions/2026-08-14-session-09.md) was a long live-debugging
+arc getting that R2 upload actually working on the real deployed app —
+three unrelated failures deep (Vercel Deployment Protection blocking the
+app's own API route; a placeholder credential that survived four "fixed
+it" rounds because every redeploy targeted the wrong branch; a real
+mobile upload failing at the direct-PUT step, with CORS explicitly ruled
+out) — then, after the owner proposed a background server-side
+conversion service as a bigger follow-up, rebuilt the upload path itself
+around chunked/resumable multipart upload (four new endpoints, per-part
+retry, a real progress bar) as the immediate fix for the mobile failure.
 
 ## What's still pending / open
 
-- **The R2 direct-to-storage upload is not yet reliable from a real
-  mobile browser** — the presign/PUT/GET flow itself is confirmed
-  correct (round-trip tested, CORS confirmed correctly configured), but
-  a real upload attempt on a phone still failed with a generic
-  "Failed to fetch" at the direct-PUT step, most likely a dropped
-  mobile connection on a large (~200 MB) transfer with no progress
-  indicator to show how far it got. **Planned, agreed, not yet built**:
-  switch to R2's native chunked/resumable multipart upload. This is the
+- **The R2 upload path was rebuilt around chunked/resumable multipart
+  upload** (large files split into independently-retried 8 MB parts,
+  plus a real progress bar) after a real mobile upload failed mid-
+  transfer on a single giant PUT with no way to tell how far it got.
+  Quality-gate-clean (typecheck/lint/unit tests/production build), but
+  **not yet re-tested against a real mobile browser** — that's the
   active next step. See
   [`../features/large-file-storage.md`](../features/large-file-storage.md)
   and [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md).
@@ -158,11 +157,12 @@ agreeing to fix upload reliability (resumable multipart) first.
   session. See [`boq.md`](../features/boq.md).
 - **CI**: confirmed genuinely working, including live Vercel preview
   deployments on every push.
-- **Large file storage (Cloudflare R2)**: presigned-URL upload flow
-  confirmed working end-to-end via a full presign → PUT → GET round
-  trip (2026-08-14), including real R2 credentials and a correctly
-  configured CORS policy. Not yet confirmed via a real browser upload —
-  see "What's still pending" above.
+- **Large file storage (Cloudflare R2)**: presign → PUT → GET round trip
+  confirmed working end-to-end (2026-08-14), including real R2
+  credentials and a correctly configured CORS policy. The upload path
+  itself was then rebuilt around chunked/resumable multipart upload with
+  a real progress bar, quality-gate-clean, not yet confirmed via a real
+  mobile browser upload — see "What's still pending" above.
 
 ## Every session's own record
 

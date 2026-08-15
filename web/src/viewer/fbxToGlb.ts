@@ -129,10 +129,11 @@ export async function uploadModelFileWithConversion(
   file: File,
   options: { includeTextures: boolean },
   onProgress?: (progress: FbxConversionProgress) => void,
+  onUploadProgress?: (fraction: number) => void,
 ): Promise<string> {
-  if (!isFbxFile(file)) return uploadModelFile(file)
+  if (!isFbxFile(file)) return uploadModelFile(file, onUploadProgress)
 
   const glb = await convertFbxToGlb(file, options, onProgress)
   const glbFile = new File([glb], `${file.name.replace(/\.fbx$/i, '')}.glb`, { type: 'model/gltf-binary' })
-  return uploadModelFile(glbFile)
+  return uploadModelFile(glbFile, onUploadProgress)
 }

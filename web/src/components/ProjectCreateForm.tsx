@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { ScalePresetSelect } from './ScalePresetSelect'
 import { ConversionProgressBar } from './ConversionProgressBar'
 import { FbxConversionStatus } from './FbxConversionStatus'
+import { UploadProgressBar } from './UploadProgressBar'
 import { createAdminProject } from '../services/adminService'
 import { uploadIfcFile, uploadModelFile } from '../services/projectService'
 import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
@@ -54,6 +55,9 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
   const [fbxConversion, setFbxConversion] = useState<{ modelIndex: number; progress: FbxConversionProgress } | null>(
     null,
   )
+  const [uploadProgress, setUploadProgress] = useState<{ modelIndex: number; label: string; fraction: number } | null>(
+    null,
+  )
 
   function updateModel(index: number, patch: Partial<ModelDraft>) {
     setModels((current) => current.map((model, i) => (i === index ? { ...model, ...patch } : model)))
@@ -99,8 +103,10 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
             draft.modelFile,
             { includeTextures: draft.includeTextures },
             (progress) => setFbxConversion({ modelIndex: index, progress }),
+            (fraction) => setUploadProgress({ modelIndex: index, label: 'Uploading model…', fraction }),
           )
           setFbxConversion(null)
+          setUploadProgress(null)
         } else {
           const glbBlob = await convertIfcToGlb(draft.ifcFile!, (progress) => {
             setConversion({ modelIndex: index, progress })
@@ -109,9 +115,17 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
           const glbFile = new File([glbBlob], `${draft.ifcFile!.name.replace(/\.ifc$/i, '')}.glb`, {
             type: 'model/gltf-binary',
           })
-          modelUrl = await uploadModelFile(glbFile)
+          modelUrl = await uploadModelFile(glbFile, (fraction) =>
+            setUploadProgress({ modelIndex: index, label: 'Uploading model…', fraction }),
+          )
+          setUploadProgress(null)
         }
-        const ifcUrl = draft.ifcFile ? await uploadIfcFile(draft.ifcFile) : null
+        const ifcUrl = draft.ifcFile
+          ? await uploadIfcFile(draft.ifcFile, (fraction) =>
+              setUploadProgress({ modelIndex: index, label: 'Uploading IFC file…', fraction }),
+            )
+          : null
+        setUploadProgress(null)
         uploadedModels.push({
           name: draft.name.trim() || `Model ${index + 1}`,
           modelUrl,
@@ -132,6 +146,7 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
     } finally {
       setConversion(null)
       setFbxConversion(null)
+      setUploadProgress(null)
       setSubmitting(false)
     }
   }
@@ -246,6 +261,9 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
 
           {conversion?.modelIndex === index && <ConversionProgressBar progress={conversion.progress} />}
           {fbxConversion?.modelIndex === index && <FbxConversionStatus progress={fbxConversion.progress} />}
+          {uploadProgress?.modelIndex === index && (
+            <UploadProgressBar fraction={uploadProgress.fraction} label={uploadProgress.label} />
+          )}
         </div>
       ))}
 
@@ -274,7 +292,13 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
       )}
 
       <button type="submit" className={styles.button} disabled={submitting || !canSubmit}>
-        {submitting ? (conversion || fbxConversion ? 'Converting…' : 'Creating…') : 'Create project'}
+        {submitting
+          ? conversion || fbxConversion
+            ? 'Converting…'
+            : uploadProgress
+              ? 'Uploading…'
+              : 'Creating…'
+          : 'Create project'}
       </button>
     </form>
   )

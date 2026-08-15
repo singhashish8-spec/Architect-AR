@@ -39,11 +39,39 @@ async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): 
   return (await response.json()) as T
 }
 
+// Files at or under this size go through a single PUT (uploadSingle) --
+// simpler, and a dropped connection on a small file is cheap to just
+// retry from scratch by re-submitting the form. Anything bigger uses
+// multipart (uploadMultipart): split into PART_SIZE_BYTES chunks, each
+// uploaded and retried independently, so a dropped mobile connection
+// only has to redo whichever chunk was in flight, not the whole file --
+// added 2026-08-14 after a real ~200 MB upload from a real phone failed
+// with a bare "Failed to fetch" partway through a single giant PUT, with
+// no way to tell how far it had gotten. See
+// docs/features/large-file-storage.md.
+const PART_SIZE_BYTES = 8 * 1024 * 1024 // 8 MB -- R2's own minimum part size is 5 MB for every part but the last
+const MULTIPART_THRESHOLD_BYTES = PART_SIZE_BYTES
+const MAX_PART_ATTEMPTS = 4
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 // Uploads a file straight from the browser to R2 -- the bytes go
-// directly to R2's own endpoint over the presigned URL, never through
-// any Vercel serverless function (which would reimpose a much smaller
+// directly to R2's own endpoint over a presigned URL, never through any
+// Vercel serverless function (which would reimpose a much smaller
 // body-size ceiling of its own). Returns the file's public read URL.
-export async function uploadToR2(file: File): Promise<string> {
+// `onProgress` (0..1) is optional and only ever called for the
+// multipart path -- a single small PUT has nothing meaningful to report
+// partway through.
+export async function uploadToR2(file: File, onProgress?: (fraction: number) => void): Promise<string> {
+  if (file.size <= MULTIPART_THRESHOLD_BYTES) {
+    return uploadSingle(file)
+  }
+  return uploadMultipart(file, onProgress)
+}
+
+async function uploadSingle(file: File): Promise<string> {
   const urlResponse = await fetchOrThrow('Could not reach this app\'s own upload-URL endpoint', '/api/r2-upload-url', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -64,6 +92,117 @@ export async function uploadToR2(file: File): Promise<string> {
   }
 
   return publicUrl
+}
+
+async function uploadMultipart(file: File, onProgress?: (fraction: number) => void): Promise<string> {
+  const startResponse = await fetchOrThrow('Could not start the multipart upload', '/api/r2-multipart-start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, contentType: file.type || 'application/octet-stream' }),
+  })
+  const { key, uploadId, publicUrl } = await readJsonOrThrow<{ key: string; uploadId: string; publicUrl: string }>(
+    startResponse,
+    'Could not start the multipart upload.',
+  )
+
+  const partCount = Math.ceil(file.size / PART_SIZE_BYTES)
+  const partNumbers = Array.from({ length: partCount }, (_, i) => i + 1)
+
+  try {
+    const signResponse = await fetchOrThrow(
+      "Could not get upload URLs for the file's parts",
+      '/api/r2-multipart-sign',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, uploadId, partNumbers }),
+      },
+    )
+    const { urls } = await readJsonOrThrow<{ urls: Record<string, string> }>(signResponse, 'Could not get upload URLs.')
+
+    // Uploaded one part at a time, not in parallel -- deliberately
+    // simple for a first cut: each part is already a multi-second
+    // transfer on its own, and sequential upload keeps progress
+    // reporting and per-part retry straightforward. See
+    // docs/features/large-file-storage.md.
+    const parts: { partNumber: number; eTag: string }[] = []
+    let bytesUploaded = 0
+    for (let i = 0; i < partCount; i++) {
+      const partNumber = i + 1
+      const start = i * PART_SIZE_BYTES
+      const end = Math.min(start + PART_SIZE_BYTES, file.size)
+      const chunk = file.slice(start, end)
+      const url = urls[String(partNumber)]
+      if (!url) {
+        throw new Error(`No upload URL returned for part ${partNumber}.`)
+      }
+      const eTag = await uploadPartWithRetry(url, chunk)
+      parts.push({ partNumber, eTag })
+      bytesUploaded += chunk.size
+      onProgress?.(bytesUploaded / file.size)
+    }
+
+    const completeResponse = await fetchOrThrow('Could not finish the multipart upload', '/api/r2-multipart-complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, uploadId, parts }),
+    })
+    await readJsonOrThrow(completeResponse, 'Could not finish the multipart upload.')
+    return publicUrl
+  } catch (err) {
+    await abortMultipartUpload(key, uploadId)
+    throw err
+  }
+}
+
+// Retries a single part's PUT a few times with backoff before giving up
+// -- the entire reason multipart exists over one giant PUT. Each
+// successful part PUT returns its own ETag (in the response's `ETag`
+// header), which R2 needs at complete time to verify every part arrived
+// intact and in order; getting it back to JavaScript across R2's own
+// origin requires 'ETag' to be listed in the bucket's CORS
+// Access-Control-Expose-Headers, not just Access-Control-Allow-Headers
+// (see docs/features/large-file-storage.md's CORS setup step).
+async function uploadPartWithRetry(url: string, chunk: Blob): Promise<string> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= MAX_PART_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(url, { method: 'PUT', body: chunk })
+      if (!response.ok) {
+        throw new Error(`Part upload failed (${response.status}).`)
+      }
+      const eTag = response.headers.get('ETag')
+      if (!eTag) {
+        throw new Error(
+          "R2 didn't return an ETag for this part -- the bucket's CORS policy likely needs 'ETag' added to " +
+            'Access-Control-Expose-Headers (see docs/features/large-file-storage.md).',
+        )
+      }
+      return eTag
+    } catch (err) {
+      lastError = err
+      if (attempt < MAX_PART_ATTEMPTS) {
+        await sleep(2 ** attempt * 500)
+      }
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError)
+  throw new Error(`Could not upload part of the file after ${MAX_PART_ATTEMPTS} attempts (${detail}).`, {
+    cause: lastError,
+  })
+}
+
+async function abortMultipartUpload(key: string, uploadId: string): Promise<void> {
+  try {
+    await fetch('/api/r2-multipart-abort', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, uploadId }),
+    })
+  } catch {
+    // Best-effort cleanup -- the upload's own real error is what the
+    // caller needs to see, not a failure to clean up after it.
+  }
 }
 
 export async function deleteFromR2(keys: string[]): Promise<void> {

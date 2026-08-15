@@ -2,9 +2,12 @@
 
 > Part of [`features/`](README.md). Phase 2/3. Status: **built** (2026-08-12),
 > **confirmed working end-to-end via a full presign → PUT → GET round trip**
-> (2026-08-14, see [`../history/sessions/2026-08-14-session-09.md`](../history/sessions/2026-08-14-session-09.md)),
-> but a real upload attempt from an actual mobile browser through the app UI
-> still failed — see Open questions.
+> (2026-08-14, see [`../history/sessions/2026-08-14-session-09.md`](../history/sessions/2026-08-14-session-09.md)).
+> A real upload attempt from an actual mobile browser then failed at the
+> direct-PUT step (CORS ruled out) — the upload path was rebuilt the same
+> session to use **chunked/resumable multipart upload** instead of one
+> giant PUT, quality-gate-clean, **not yet re-tested against a real mobile
+> browser** — see Open questions.
 
 ## Summary
 
@@ -31,27 +34,69 @@ uploads up to 5 GiB regardless of plan.
 
 ## Architecture
 
-**Uploads never touch a serverless function.** The browser talks
-directly to R2:
+**Uploads never touch a serverless function's request body.** The
+browser talks directly to R2 either way; which of the two upload paths
+below runs depends only on file size (`src/services/r2Service.ts`'s
+`MULTIPART_THRESHOLD_BYTES`, currently 8 MB):
 
-1. Client asks `api/r2-upload-url.ts` (a Vercel serverless function) for
-   a presigned PUT URL, passing just the filename and content type.
+**Small files (≤ 8 MB) — a single presigned PUT**, the original design:
+
+1. Client asks `api/r2-upload-url.ts` for a presigned PUT URL, passing
+   just the filename and content type.
 2. That function (Node runtime, R2 credentials read from Vercel's own
    server-side environment variables — never sent to the browser) mints
    a short-lived (10 minute) presigned URL via `@aws-sdk/client-s3` +
    `@aws-sdk/s3-request-presigner` and returns it, along with the file's
    eventual public read URL.
-3. The browser `PUT`s the file's bytes straight to that URL — R2's own
-   endpoint, not any part of this app's infrastructure. This is the
-   entire reason a serverless function couldn't do the upload itself:
-   Vercel's own request body size limit for serverless functions is
-   nowhere near large enough for a real IFC file, which is exactly the
-   kind of ceiling this whole feature exists to get away from.
+3. The browser `PUT`s the file's bytes straight to that URL in one shot.
+
+**Larger files — chunked/resumable multipart upload**, added
+2026-08-14 after a real ~200 MB upload from a real phone failed
+mid-transfer with a bare "Failed to fetch" and no way to tell how far it
+had gotten. A single giant PUT has to restart from zero on any dropped
+connection; multipart only has to retry whichever chunk was actually in
+flight:
+
+1. `api/r2-multipart-start.ts` opens a multipart upload
+   (`CreateMultipartUploadCommand`) and returns the object `key` and R2's
+   own `uploadId`.
+2. `api/r2-multipart-sign.ts` mints one presigned `UploadPartCommand`
+   URL per part number, in a single batched call (so a file with dozens
+   of parts still only costs one round trip to this function, even
+   though each part's actual bytes still go straight to R2).
+3. The browser uploads each 8 MB chunk (`file.slice()`) to its own part
+   URL, **one at a time**, retrying an individual part's PUT up to 4
+   times with backoff before giving up — deliberately sequential, not
+   parallel, for a first cut (each part is already a multi-second
+   transfer on its own; a concurrency-limited pool wasn't judged worth
+   the added complexity yet). Each successful part PUT returns an `ETag`
+   header, which R2 needs to verify the parts arrive intact and in
+   order.
+4. `api/r2-multipart-complete.ts` finishes the upload
+   (`CompleteMultipartUploadCommand`) with the full list of
+   `{ partNumber, eTag }`.
+5. If any part exhausts its retries, the client calls
+   `api/r2-multipart-abort.ts` (`AbortMultipartUploadCommand`) before
+   rethrowing the real error — otherwise every already-uploaded part of
+   a failed upload sits in R2 forever, still counting against storage,
+   with no way to ever complete or reach it.
+
+An optional `onProgress` callback (0..1) is threaded through both
+`uploadModelFile()`/`uploadIfcFile()` — updated once per completed part
+for the multipart path — and rendered as a real progress bar
+(`components/UploadProgressBar.tsx`) in every upload form
+(`ProjectCreateForm`, `AdminProjectModels`'s `AddModelForm` and
+`ModelEditForm`'s replace-file fields), matching the same "show real
+progress, not a spinner" precedent
+[`ifc-only-upload.md`](ifc-only-upload.md) and
+[`fbx-upload.md`](fbx-upload.md) already set — and closing the specific
+gap noted in Session 9: previously there was no way to tell how far a
+failed upload had gotten before it died.
 
 **Delete and copy go through small server-side functions** instead
 (`api/r2-delete.ts`, `api/r2-copy.ts`) — the browser has no safe way to
 hold R2's secret key itself, so these can't be done directly the way the
-upload's presigned-URL step avoids needing one.
+upload's presigned-URL steps avoid needing one.
 
 **Object keys** follow the same `"<uuid>/<original filename>"` shape
 Supabase Storage uploads already used, generated server-side (not
@@ -75,15 +120,22 @@ the Supabase Storage API instead of R2's.
   only the endpoint URL and `region: 'auto'` differ from plain S3).
   Underscore-prefixed folder so Vercel's file-based routing doesn't turn
   it into its own endpoint.
-- `api/r2-upload-url.ts` — mints a presigned PUT URL + returns the
-  eventual public URL.
+- `api/r2-upload-url.ts` — mints a single presigned PUT URL (small
+  files) + returns the eventual public URL.
+- `api/r2-multipart-start.ts` / `api/r2-multipart-sign.ts` /
+  `api/r2-multipart-complete.ts` / `api/r2-multipart-abort.ts` — the
+  four small endpoints behind chunked/resumable upload for larger files
+  (see Architecture above).
 - `api/r2-delete.ts` — deletes one or more objects by key.
 - `api/r2-copy.ts` — server-side copy (used by "Duplicate project") —
   genuinely more efficient than Supabase Storage's own copy ever was,
   since R2 copies the object directly without the bytes passing through
   any function or the browser at all.
 - `src/services/r2Service.ts` — the client-side counterpart calling
-  those three routes.
+  those routes; `uploadToR2(file, onProgress?)` picks single-PUT vs.
+  multipart automatically based on file size.
+- `src/components/UploadProgressBar.tsx` — the real upload progress bar
+  rendered wherever a model/IFC file is uploaded.
 - `src/services/projectService.ts` — `uploadModelFile()`/
   `uploadIfcFile()` now call `uploadToR2()` instead of Supabase Storage;
   `extractStorageRef()` replaces the old Supabase-only
@@ -127,7 +179,16 @@ do:
    `Content-Type` header) from this app's actual deployed origin(s) —
    the browser's direct upload PUT to R2 is a cross-origin request from
    R2's perspective, and R2 rejects it without an explicit CORS rule,
-   independent of anything this app's own code does.
+   independent of anything this app's own code does. **`ExposeHeaders`
+   must include `ETag`** — confirmed correctly configured as of
+   2026-08-14, but easy to miss when setting this up fresh: the
+   multipart upload path (see Architecture above) reads each part's
+   `ETag` response header directly in the browser, and a CORS policy
+   that allows the PUT itself but doesn't expose that header leaves
+   `response.headers.get('ETag')` returning `null` even though the
+   upload succeeded — `uploadPartWithRetry()` treats a missing `ETag` as
+   a failure and retries (uselessly, since retrying doesn't fix a CORS
+   config gap) before eventually giving up.
 
 ## What went wrong getting here, and how it was diagnosed (2026-08-14)
 
@@ -158,14 +219,19 @@ and [`../history/findings.md`](../history/findings.md):
 
 ## Open questions
 
-- **A real upload from an actual mobile browser has not yet succeeded**
-  — it failed with a generic "Failed to fetch" at the direct-PUT-to-R2
-  step, with CORS ruled out (see above). The app currently has no real
-  progress indicator during that PUT (just a spinner), so there's no way
-  to tell how far a failed upload got. **Planned fix, not yet built**:
-  switch to R2's native chunked/resumable multipart upload, so a dropped
-  connection only has to retry the failed chunk instead of the whole
-  file. See [`../roadmap/decisions.md`](../roadmap/decisions.md).
+- **The multipart upload rebuild has not yet been re-tested against a
+  real mobile browser** — it's quality-gate-clean (typecheck/lint/unit
+  tests covering the split-into-parts flow, per-part retry-then-succeed,
+  and abort-after-exhausted-retries cases/production build), and fixes
+  the specific gap that caused the original mobile failure (no way to
+  tell how far a failed upload got; a dropped connection had to restart
+  the whole file), but the actual real-world test — a real ~200 MB IFC
+  from a real phone, through the real app UI — hasn't happened yet since
+  this was built. That's the next concrete verification step.
+- **Parts upload sequentially, not in parallel** — a deliberate
+  simplicity choice for this first cut (see Architecture above), not a
+  performance tuning pass. Worth revisiting if a real large upload turns
+  out to be slower than expected once tested for real.
 - **A separate, bigger idea is being considered as a follow-up, not a
   substitute for the fix above**: move IFC/FBX conversion server-side
   entirely, with background processing and live progress/ETA on the

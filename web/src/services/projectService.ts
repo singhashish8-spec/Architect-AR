@@ -58,12 +58,12 @@ function fromRow(row: ProjectRow): Project {
 // Supabase Storage -- kept as one function (rather than inlining
 // uploadToR2() at each call site) so callers don't need to know or care
 // which storage backend is actually behind it.
-export async function uploadModelFile(file: File): Promise<string> {
-  return uploadToR2(file)
+export async function uploadModelFile(file: File, onProgress?: (fraction: number) => void): Promise<string> {
+  return uploadToR2(file, onProgress)
 }
 
-export async function uploadIfcFile(file: File): Promise<string> {
-  return uploadToR2(file)
+export async function uploadIfcFile(file: File, onProgress?: (fraction: number) => void): Promise<string> {
+  return uploadToR2(file, onProgress)
 }
 
 export type StorageProvider = 'supabase' | 'r2'
