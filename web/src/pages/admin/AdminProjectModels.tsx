@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { ScalePresetSelect } from '../../components/ScalePresetSelect'
-import { ConversionProgressBar } from '../../components/ConversionProgressBar'
-import { FbxConversionStatus } from '../../components/FbxConversionStatus'
-import { UploadProgressBar } from '../../components/UploadProgressBar'
+import { ModelFileDropzone } from '../../components/ModelFileDropzone'
+import { PipelineProgressBar, type PipelineProgressBarProps } from '../../components/PipelineProgressBar'
 import {
   addAdminModel,
   deleteAdminModel,
@@ -11,9 +10,8 @@ import {
   updateAdminModel,
 } from '../../services/adminService'
 import { uploadIfcFile, uploadModelFile } from '../../services/projectService'
-import { convertIfcToGlb, type ConversionProgress } from '../../ifc/ifcToGlb'
-import { isFbxFile } from '../../viewer/isFbxFile'
-import type { FbxConversionProgress } from '../../viewer/fbxToGlb'
+import { convertIfcToGlb } from '../../ifc/ifcToGlb'
+import { ifcProgressToBar, fbxProgressToBar, uploadProgressToBar } from '../../utils/pipelineProgress'
 import type { AdminProjectModel } from '../../types/ProjectModel'
 import type { ScalePreset } from '../../types/ScalePreset'
 import { getErrorMessage } from '../../utils/errorMessage'
@@ -223,19 +221,31 @@ function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMov
   const [scalePreset, setScalePreset] = useState<ScalePreset>(model.scalePreset)
   const [replaceModelFile, setReplaceModelFile] = useState<File | null>(null)
   const [replaceIfcFile, setReplaceIfcFile] = useState<File | null>(null)
+  const [replaceIncludeTextures, setReplaceIncludeTextures] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<{ label: string; fraction: number } | null>(null)
+  const [pipeline, setPipeline] = useState<PipelineProgressBarProps | null>(null)
 
   async function handleSave() {
     setSaving(true)
     setError(null)
     try {
-      const modelUrl = replaceModelFile
-        ? await uploadModelFile(replaceModelFile, (fraction) => setUploadProgress({ label: 'Uploading model…', fraction }))
-        : model.modelUrl
+      let modelUrl = model.modelUrl
+      if (replaceModelFile) {
+        // Dynamically imported -- see ProjectCreateForm.tsx's matching
+        // comment (three-stdlib's FBXLoader/GLTFExporter shouldn't load
+        // for every admin editing a model, only one who actually
+        // replaces it with an FBX file).
+        const { uploadModelFileWithConversion } = await import('../../viewer/fbxToGlb')
+        modelUrl = await uploadModelFileWithConversion(
+          replaceModelFile,
+          { includeTextures: replaceIncludeTextures },
+          (progress) => setPipeline(fbxProgressToBar(progress)),
+          (loaded, total) => setPipeline(uploadProgressToBar('Uploading model…', loaded, total)),
+        )
+      }
       const ifcUrl = replaceIfcFile
-        ? await uploadIfcFile(replaceIfcFile, (fraction) => setUploadProgress({ label: 'Uploading IFC file…', fraction }))
+        ? await uploadIfcFile(replaceIfcFile, (loaded, total) => setPipeline(uploadProgressToBar('Uploading IFC file…', loaded, total)))
         : model.ifcUrl
       await updateAdminModel(passcode, {
         id: model.id,
@@ -251,7 +261,7 @@ function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMov
     } catch (err) {
       setError(getErrorMessage(err, 'Could not save this model.'))
     } finally {
-      setUploadProgress(null)
+      setPipeline(null)
       setSaving(false)
     }
   }
@@ -277,26 +287,18 @@ function ModelEditForm({ model, passcode, busy, isFirst, isLast, onMoveUp, onMov
         />
       </div>
       <div className={styles.modelRowFiles}>
-        <label className={styles.replaceLabel}>
-          Replace model file
-          <input
-            type="file"
-            accept=".glb,.gltf"
-            className={formStyles.fileInput}
-            onChange={(event) => setReplaceModelFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
-        <label className={styles.replaceLabel}>
-          Replace IFC file
-          <input
-            type="file"
-            accept=".ifc"
-            className={formStyles.fileInput}
-            onChange={(event) => setReplaceIfcFile(event.target.files?.[0] ?? null)}
-          />
-        </label>
+        <ModelFileDropzone
+          id={`replace-model-dropzone-${model.id}`}
+          modelFile={replaceModelFile}
+          ifcFile={replaceIfcFile}
+          onModelFileChange={setReplaceModelFile}
+          onIfcFileChange={setReplaceIfcFile}
+          includeTextures={replaceIncludeTextures}
+          onIncludeTexturesChange={setReplaceIncludeTextures}
+          showBuildFromIfcHint={false}
+        />
       </div>
-      {uploadProgress && <UploadProgressBar fraction={uploadProgress.fraction} label={uploadProgress.label} />}
+      {pipeline && <PipelineProgressBar label={pipeline.label} percent={pipeline.percent} detail={pipeline.detail} />}
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -334,9 +336,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
   const [includeTextures, setIncludeTextures] = useState(true)
   const [scalePreset, setScalePreset] = useState<ScalePreset | ''>('')
   const [submitting, setSubmitting] = useState(false)
-  const [conversion, setConversion] = useState<ConversionProgress | null>(null)
-  const [fbxConversion, setFbxConversion] = useState<FbxConversionProgress | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<{ label: string; fraction: number } | null>(null)
+  const [pipeline, setPipeline] = useState<PipelineProgressBarProps | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const canSubmit = (modelFile || ifcFile) && scalePreset
@@ -353,11 +353,12 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
         // for every admin who opens this form, only one who actually
         // submits a model file).
         const { uploadModelFileWithConversion } = await import('../../viewer/fbxToGlb')
-        modelUrl = await uploadModelFileWithConversion(modelFile, { includeTextures }, setFbxConversion, (fraction) =>
-          setUploadProgress({ label: 'Uploading model…', fraction }),
+        modelUrl = await uploadModelFileWithConversion(
+          modelFile,
+          { includeTextures },
+          (progress) => setPipeline(fbxProgressToBar(progress)),
+          (loaded, total) => setPipeline(uploadProgressToBar('Uploading model…', loaded, total)),
         )
-        setFbxConversion(null)
-        setUploadProgress(null)
       } else {
         // No GLB given, only an IFC file -- build one from the IFC's own
         // geometry, same as ProjectCreateForm.tsx does for the same
@@ -368,18 +369,18 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
         // which never resolves. From the admin's side that looked
         // exactly like the page getting stuck on "Adding…" forever, not
         // like a clear error, since nothing ever actually threw.
-        const glbBlob = await convertIfcToGlb(ifcFile!, setConversion)
-        setConversion(null)
+        const glbBlob = await convertIfcToGlb(ifcFile!, (progress) => setPipeline(ifcProgressToBar(progress)))
         const glbFile = new File([glbBlob], `${ifcFile!.name.replace(/\.ifc$/i, '')}.glb`, {
           type: 'model/gltf-binary',
         })
-        modelUrl = await uploadModelFile(glbFile, (fraction) => setUploadProgress({ label: 'Uploading model…', fraction }))
-        setUploadProgress(null)
+        modelUrl = await uploadModelFile(glbFile, (loaded, total) =>
+          setPipeline(uploadProgressToBar('Uploading model…', loaded, total)),
+        )
       }
       const ifcUrl = ifcFile
-        ? await uploadIfcFile(ifcFile, (fraction) => setUploadProgress({ label: 'Uploading IFC file…', fraction }))
+        ? await uploadIfcFile(ifcFile, (loaded, total) => setPipeline(uploadProgressToBar('Uploading IFC file…', loaded, total)))
         : null
-      setUploadProgress(null)
+      setPipeline(null)
       await addAdminModel(passcode, projectId, {
         name: name.trim() || 'New model',
         modelUrl,
@@ -390,9 +391,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
     } catch (err) {
       setError(getErrorMessage(err, 'Could not add this model.'))
     } finally {
-      setConversion(null)
-      setFbxConversion(null)
-      setUploadProgress(null)
+      setPipeline(null)
       setSubmitting(false)
     }
   }
@@ -412,40 +411,16 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
         />
       </div>
       <div className={formStyles.field}>
-        <label className={formStyles.label} htmlFor={`add-model-file-${projectId}`}>
-          Model file (glTF / GLB / FBX) — optional
-        </label>
-        <input
-          id={`add-model-file-${projectId}`}
-          type="file"
-          accept=".glb,.gltf,.fbx"
-          className={formStyles.fileInput}
-          onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
+        <label className={formStyles.label}>Model / IFC files</label>
+        <ModelFileDropzone
+          id={`add-model-dropzone-${projectId}`}
+          modelFile={modelFile}
+          ifcFile={ifcFile}
+          onModelFileChange={setModelFile}
+          onIfcFileChange={setIfcFile}
+          includeTextures={includeTextures}
+          onIncludeTexturesChange={setIncludeTextures}
         />
-        {modelFile && isFbxFile(modelFile) && (
-          <label className={formStyles.checkboxLabel}>
-            <input type="checkbox" checked={includeTextures} onChange={(event) => setIncludeTextures(event.target.checked)} />
-            Include textures and materials from this FBX file
-          </label>
-        )}
-      </div>
-      <div className={formStyles.field}>
-        <label className={formStyles.label} htmlFor={`add-model-ifc-${projectId}`}>
-          IFC file — required if no model file is given above; also enables tap-to-inspect
-        </label>
-        <input
-          id={`add-model-ifc-${projectId}`}
-          type="file"
-          accept=".ifc"
-          className={formStyles.fileInput}
-          onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
-        />
-        {!modelFile && ifcFile && (
-          <p className={formStyles.subtitle}>
-            No model file given — we'll build the 3D view straight from this IFC file when you submit.
-            Materials will show as flat colors, not real textures, since IFC doesn't carry those.
-          </p>
-        )}
       </div>
       <div className={formStyles.field}>
         <label className={formStyles.label} htmlFor={`add-model-scale-${projectId}`}>
@@ -458,9 +433,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
           onChange={setScalePreset}
         />
       </div>
-      {conversion && <ConversionProgressBar progress={conversion} />}
-      {fbxConversion && <FbxConversionStatus progress={fbxConversion} />}
-      {uploadProgress && <UploadProgressBar fraction={uploadProgress.fraction} label={uploadProgress.label} />}
+      {pipeline && <PipelineProgressBar label={pipeline.label} percent={pipeline.percent} detail={pipeline.detail} />}
       {error && (
         <p role="alert" className={formStyles.error}>
           {error}
@@ -468,13 +441,7 @@ function AddModelForm({ passcode, projectId, onDone, onCancel }: AddModelFormPro
       )}
       <div className={styles.modelRowActions}>
         <button type="button" className={styles.saveButton} onClick={() => void handleAdd()} disabled={submitting || !canSubmit}>
-          {submitting
-            ? conversion || fbxConversion
-              ? 'Converting…'
-              : uploadProgress
-                ? 'Uploading…'
-                : 'Adding…'
-            : 'Add model'}
+          {submitting ? (pipeline ? 'Working…' : 'Adding…') : 'Add model'}
         </button>
         <button type="button" className={styles.smallButton} onClick={onCancel} disabled={submitting}>
           Cancel

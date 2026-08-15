@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { PasscodeGate } from '../components/PasscodeGate'
+import { BrandingHeader } from '../components/BrandingHeader'
 import { BoqContent } from '../components/BoqContent'
 import { useIfcElementData } from '../ifc/useIfcElementData'
 import { useProjectAccess } from '../hooks/useProjectAccess'
@@ -85,25 +86,43 @@ export function BoqView() {
 
   if (loadError)
     return (
-      <p role="alert" className={styles.status}>
-        {loadError}
-      </p>
+      <main className={styles.page}>
+        <BrandingHeader className={styles.brand} />
+        <p role="alert" className={styles.status}>
+          {loadError}
+        </p>
+      </main>
     )
-  if (passcodeRequired === null) return <p className={styles.status}>Loading…</p>
+  if (passcodeRequired === null)
+    return (
+      <main className={styles.page}>
+        <BrandingHeader className={styles.brand} />
+        <p className={styles.status}>Loading…</p>
+      </main>
+    )
   if (passcodeRequired && !project) {
     return (
-      <PasscodeGate
-        onSubmit={handlePasscodeSubmit}
-        description="This project is protected. Ask whoever shared this link for the passcode."
-        submitLabel="View Quantity Takeoff"
-      />
+      <main className={styles.page}>
+        <BrandingHeader className={styles.brand} />
+        <PasscodeGate
+          onSubmit={handlePasscodeSubmit}
+          description="This project is protected. Ask whoever shared this link for the passcode."
+          submitLabel="View Quantity Takeoff"
+        />
+      </main>
     )
   }
-  if (!project || !activeModel) return <p className={styles.status}>Loading…</p>
+  if (!project || !activeModel)
+    return (
+      <main className={styles.page}>
+        <BrandingHeader className={styles.brand} />
+        <p className={styles.status}>Loading…</p>
+      </main>
+    )
 
   return (
     <main className={styles.page}>
-      <p className={styles.brand}>{companyName || 'Architect AR'}</p>
+      <BrandingHeader className={styles.brand} />
       <div className={styles.card}>
         <div className={styles.header}>
           <div>

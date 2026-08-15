@@ -9,12 +9,13 @@ import { LightingPresetPanel } from '../components/LightingPresetPanel'
 import { TextureToggleButton } from '../components/TextureToggleButton'
 import { SearchPanel } from '../components/SearchPanel'
 import { BoqPanel } from '../components/BoqPanel'
-import { ConversionProgressBar } from '../components/ConversionProgressBar'
-import { FbxConversionStatus } from '../components/FbxConversionStatus'
+import { BrandingHeader } from '../components/BrandingHeader'
+import { ModelFileDropzone } from '../components/ModelFileDropzone'
+import { PipelineProgressBar, type PipelineProgressBarProps } from '../components/PipelineProgressBar'
 import { useIfcElementData } from '../ifc/useIfcElementData'
-import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
+import { convertIfcToGlb } from '../ifc/ifcToGlb'
 import { isFbxFile } from '../viewer/isFbxFile'
-import type { FbxConversionProgress } from '../viewer/fbxToGlb'
+import { ifcProgressToBar, fbxProgressToBar } from '../utils/pipelineProgress'
 import type { IfcElementData } from '../types/IfcElementData'
 import type { ScalePreset } from '../types/ScalePreset'
 import type { LightingPreset } from '../types/LightingPreset'
@@ -37,8 +38,7 @@ export function LocalPreview() {
   const [selectedElement, setSelectedElement] = useState<IfcElementData | null>(null)
   const [selecting, setSelecting] = useState(false)
   const [hiddenGlobalIds, setHiddenGlobalIds] = useState<Set<string>>(new Set())
-  const [conversionProgress, setConversionProgress] = useState<ConversionProgress | null>(null)
-  const [fbxConversionProgress, setFbxConversionProgress] = useState<FbxConversionProgress | null>(null)
+  const [pipeline, setPipeline] = useState<PipelineProgressBarProps | null>(null)
   const [conversionError, setConversionError] = useState<string | null>(null)
   const [includeTextures, setIncludeTextures] = useState(true)
   const [lightingPreset, setLightingPreset] = useState<LightingPreset>('daylight')
@@ -74,8 +74,7 @@ export function LocalPreview() {
     if (modelFile && !isFbxFile(modelFile)) {
       const url = URL.createObjectURL(modelFile)
       ;(() => {
-        setConversionProgress(null)
-        setFbxConversionProgress(null)
+        setPipeline(null)
         setConversionError(null)
         setModelUrl(url)
       })()
@@ -96,7 +95,7 @@ export function LocalPreview() {
           // comment.
           const { convertFbxToGlb } = await import('../viewer/fbxToGlb')
           const blob = await convertFbxToGlb(modelFile, { includeTextures }, (progress) => {
-            if (!cancelled) setFbxConversionProgress(progress)
+            if (!cancelled) setPipeline(fbxProgressToBar(progress))
           })
           if (cancelled) return
           generatedUrl = URL.createObjectURL(blob)
@@ -106,7 +105,7 @@ export function LocalPreview() {
             setConversionError(getErrorMessage(err, 'Could not build a 3D view from this FBX file.'))
           }
         } finally {
-          if (!cancelled) setFbxConversionProgress(null)
+          if (!cancelled) setPipeline(null)
         }
       })()
 
@@ -119,7 +118,7 @@ export function LocalPreview() {
     if (!ifcFile) {
       ;(() => {
         setModelUrl(null)
-        setConversionProgress(null)
+        setPipeline(null)
         setConversionError(null)
       })()
       return
@@ -131,10 +130,10 @@ export function LocalPreview() {
     void (async () => {
       setModelUrl(null)
       setConversionError(null)
-      setConversionProgress({ phase: 'parsing', current: 0, total: 1 })
+      setPipeline(ifcProgressToBar({ phase: 'parsing', current: 0, total: 1 }))
       try {
         const blob = await convertIfcToGlb(ifcFile, (progress) => {
-          if (!cancelled) setConversionProgress(progress)
+          if (!cancelled) setPipeline(ifcProgressToBar(progress))
         })
         if (cancelled) return
         generatedUrl = URL.createObjectURL(blob)
@@ -144,7 +143,7 @@ export function LocalPreview() {
           setConversionError(getErrorMessage(err, 'Could not build a 3D view from this IFC file.'))
         }
       } finally {
-        if (!cancelled) setConversionProgress(null)
+        if (!cancelled) setPipeline(null)
       }
     })()
 
@@ -176,6 +175,7 @@ export function LocalPreview() {
 
   return (
     <main className={styles.stack}>
+      <BrandingHeader />
       <div className={styles.card}>
         <p className={styles.subtitle}>
           <Link to="/" className={styles.link}>
@@ -191,45 +191,19 @@ export function LocalPreview() {
         </p>
 
         <div className={styles.field}>
-          <label htmlFor="local-model-file" className={styles.label}>
-            Model file (glTF / GLB / FBX) — optional
-          </label>
-          <input
-            id="local-model-file"
-            type="file"
-            accept=".glb,.gltf,.fbx"
-            className={styles.fileInput}
-            onChange={(event) => setModelFile(event.target.files?.[0] ?? null)}
+          <label className={styles.label}>Model / IFC files</label>
+          <ModelFileDropzone
+            id="local-model-dropzone"
+            modelFile={modelFile}
+            ifcFile={ifcFile}
+            onModelFileChange={setModelFile}
+            onIfcFileChange={setIfcFile}
+            includeTextures={includeTextures}
+            onIncludeTexturesChange={setIncludeTextures}
           />
-          {modelFile && isFbxFile(modelFile) && (
-            <label className={styles.checkboxLabel}>
-              <input type="checkbox" checked={includeTextures} onChange={(event) => setIncludeTextures(event.target.checked)} />
-              Include textures and materials from this FBX file
-            </label>
-          )}
         </div>
 
-        <div className={styles.field}>
-          <label htmlFor="local-ifc-file" className={styles.label}>
-            IFC file — required if no model file is given above; also enables tap-to-inspect
-          </label>
-          <input
-            id="local-ifc-file"
-            type="file"
-            accept=".ifc"
-            className={styles.fileInput}
-            onChange={(event) => setIfcFile(event.target.files?.[0] ?? null)}
-          />
-          {!modelFile && ifcFile && (
-            <p className={styles.subtitle}>
-              No model file given — building a 3D view straight from this IFC file's own shapes.
-              Materials will show as flat colors, not real textures, since IFC doesn't carry those.
-            </p>
-          )}
-        </div>
-
-        {conversionProgress && <ConversionProgressBar progress={conversionProgress} />}
-        {fbxConversionProgress && <FbxConversionStatus progress={fbxConversionProgress} />}
+        {pipeline && <PipelineProgressBar label={pipeline.label} percent={pipeline.percent} detail={pipeline.detail} />}
         {conversionError && (
           <p role="alert" className={styles.error}>
             {conversionError}

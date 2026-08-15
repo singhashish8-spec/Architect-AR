@@ -1,0 +1,40 @@
+.name {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Matches AdminLayout.module.css's .brandBar visually -- same product,
+   same header treatment, just read-only here. */
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.6rem 1.5rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.8rem;
+}
+
+/* Small pill in the corner of a full-screen immersive page -- same
+   dark/blurred-glass treatment ProjectView.module.css already uses for
+   its own .modelSwitcher, so this reads as part of the same UI family
+   rather than a bolted-on banner across the 3D view. */
+.overlay {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 2;
+  max-width: calc(100vw - 2rem);
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.7);
+  backdrop-filter: blur(6px);
+  font-size: 0.78rem;
+}
+
+.overlay .name {
+  color: rgba(255, 255, 255, 0.85);
+}

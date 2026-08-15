@@ -6,16 +6,19 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-14**, [Session 9](sessions/2026-08-14-session-09.md).
+Last updated: **2026-08-15**, [Session 10](sessions/2026-08-15-session-10.md).
 The app runs against a live Supabase backend and has been used for real,
 by the owner, against their own real project files — not just sample
 data. Phase 2 is fully shipped. Phase 3's admin dashboard is fully
-built. Large-file (R2) upload plumbing is now confirmed working
-end-to-end via a full round trip, after a long three-failures-deep live
-debugging arc; the mobile-upload reliability gap that arc's last failure
-surfaced has since been rebuilt around chunked/resumable multipart
-upload with a real progress bar, quality-gate-clean but not yet
-re-verified against a real phone — that's the active next step.
+built. Large-file (R2) upload plumbing is confirmed working end-to-end
+via a full round trip, after a long three-failures-deep live debugging
+arc; the upload path itself was then rebuilt around chunked/resumable
+multipart upload, and — after the owner's own live-testing feedback —
+the whole upload UI was redesigned: one shared progress bar with real
+byte counts, one merged drag-and-drop file picker, and the company-
+branding header now on every page in the app. Quality-gate-clean, but
+**not yet re-verified by the owner through the real app on a real
+device** — that's the active next step.
 
 ## Right now, in one paragraph
 
@@ -57,18 +60,26 @@ out) — then, after the owner proposed a background server-side
 conversion service as a bigger follow-up, rebuilt the upload path itself
 around chunked/resumable multipart upload (four new endpoints, per-part
 retry, a real progress bar) as the immediate fix for the mobile failure.
+[Session 10](sessions/2026-08-15-session-10.md) found and fixed a real
+CORS gap (`ETag` not exposed) before the owner's next real test, then
+redesigned the whole upload UI per the owner's own live-testing
+feedback: one shared progress bar with real byte counts (replacing three
+separate bar components), one merged drag-and-drop file picker
+(replacing two separate file inputs), and the company-branding header
+added to every remaining page, including the full-screen 3D viewer.
 
 ## What's still pending / open
 
-- **The R2 upload path was rebuilt around chunked/resumable multipart
-  upload** (large files split into independently-retried 8 MB parts,
-  plus a real progress bar) after a real mobile upload failed mid-
-  transfer on a single giant PUT with no way to tell how far it got.
-  Quality-gate-clean (typecheck/lint/unit tests/production build), but
-  **not yet re-tested against a real mobile browser** — that's the
-  active next step. See
-  [`../features/large-file-storage.md`](../features/large-file-storage.md)
-  and [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md).
+- **The rebuilt upload flow (multipart + the new UI from Session 10) has
+  not yet been tested by the owner through the real app on a real
+  device.** Quality-gate-clean (typecheck/lint/unit tests/production
+  build), and a real CORS gap was caught and fixed proactively before
+  this next test, but no confirmation of an actual successful upload
+  through the real app UI has landed yet — that's the active next step.
+  See
+  [`../features/large-file-storage.md`](../features/large-file-storage.md),
+  [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md),
+  and [`sessions/2026-08-15-session-10.md`](sessions/2026-08-15-session-10.md).
 - **A background, server-side conversion service is proposed but not
   designed or built** — owner's idea: upload raw files to R2, convert
   in the background on a server (not the client) with live progress/ETA
@@ -177,6 +188,7 @@ retry, a real progress bar) as the immediate fix for the mobile failure.
 | 7 | 2026-08-11 | [`sessions/2026-08-11-session-07.md`](sessions/2026-08-11-session-07.md) — Quantity Takeoff debugging arc, redesign, Excel export, company branding |
 | 8 | 2026-08-12 | [`sessions/2026-08-12-session-08.md`](sessions/2026-08-12-session-08.md) — Cloudflare R2 migration, FBX upload with real textures |
 | 9 | 2026-08-14 | [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md) — R2 live-debugging arc, mobile upload reliability, background-processing decision |
+| 10 | 2026-08-15 | [`sessions/2026-08-15-session-10.md`](sessions/2026-08-15-session-10.md) — CORS `ETag` fix, unified progress bar, merged drag-and-drop file picker, branding header on every page |
 
 See [`findings.md`](findings.md) for cross-session findings worth
 remembering beyond the session they happened in.

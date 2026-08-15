@@ -81,17 +81,48 @@ flight:
    a failed upload sits in R2 forever, still counting against storage,
    with no way to ever complete or reach it.
 
-An optional `onProgress` callback (0..1) is threaded through both
-`uploadModelFile()`/`uploadIfcFile()` — updated once per completed part
-for the multipart path — and rendered as a real progress bar
-(`components/UploadProgressBar.tsx`) in every upload form
-(`ProjectCreateForm`, `AdminProjectModels`'s `AddModelForm` and
-`ModelEditForm`'s replace-file fields), matching the same "show real
-progress, not a spinner" precedent
-[`ifc-only-upload.md`](ifc-only-upload.md) and
+An optional `onProgress(loaded, total)` callback — real byte counts, not
+a bare 0..1 fraction — is threaded through both `uploadModelFile()`/
+`uploadIfcFile()`, updated once per completed part for the multipart
+path, and rendered via `components/PipelineProgressBar.tsx`
+(2026-08-15) in every upload form (`ProjectCreateForm`,
+`AdminProjectModels`'s `AddModelForm` and `ModelEditForm`'s replace-file
+fields, `LocalPreview`), matching the same "show real progress, not a
+spinner" precedent [`ifc-only-upload.md`](ifc-only-upload.md) and
 [`fbx-upload.md`](fbx-upload.md) already set — and closing the specific
 gap noted in Session 9: previously there was no way to tell how far a
 failed upload had gotten before it died.
+
+**One shared progress bar for the whole pipeline, not three.** The
+owner's own follow-up ask after first trying the upload-progress bar:
+byte counts alongside the percentage ("the way we see for downloads"),
+and one bar instead of two/three showing at once with a label that
+could go stale ("finishing up" bleeding into the upload step).
+`PipelineProgressBar` replaced three separate components
+(`ConversionProgressBar`, `FbxConversionStatus`, `UploadProgressBar`),
+driven by one state variable per form (`utils/pipelineProgress.ts` maps
+each of the three real progress sources — IFC conversion's phase/mesh-
+count, FBX conversion's phase-only, and upload's byte counts — into the
+one shape the bar renders) so exactly one bar is ever mounted, and its
+label always matches whatever is actually happening. Deliberately
+**not** a single fabricated percentage spanning conversion *and* upload
+together — mesh counts and bytes are different units with no honest way
+to weight them into one true number, so the bar still resets to 0% when
+the stage changes; what changed is that it's always the same bar/style
+doing it, not a visually different component swapping in.
+
+**The two "Model file" / "IFC file" inputs are now one control.** The
+owner's other same-day ask: merge the two file pickers into one, and add
+desktop drag-and-drop. `components/ModelFileDropzone.tsx` is a single
+drop target (click-to-browse or drag-and-drop) that sorts whatever files
+land on it by extension — `.ifc` to the IFC slot, `.glb`/`.gltf`/`.fbx`
+to the model slot — so dropping a model file and its IFC data file
+together in one drag still fills both slots, the same dual-file
+capability the old two-input version had. Used by all four upload sites
+(`ProjectCreateForm`, `AddModelForm`, `ModelEditForm`, `LocalPreview`);
+as a side effect, `ModelEditForm`'s "Replace model file" now accepts FBX
+too, closing a gap [`fbx-upload.md`](fbx-upload.md) previously called
+out as deliberately unsupported.
 
 **Delete and copy go through small server-side functions** instead
 (`api/r2-delete.ts`, `api/r2-copy.ts`) — the browser has no safe way to
@@ -133,9 +164,13 @@ the Supabase Storage API instead of R2's.
   any function or the browser at all.
 - `src/services/r2Service.ts` — the client-side counterpart calling
   those routes; `uploadToR2(file, onProgress?)` picks single-PUT vs.
-  multipart automatically based on file size.
-- `src/components/UploadProgressBar.tsx` — the real upload progress bar
-  rendered wherever a model/IFC file is uploaded.
+  multipart automatically based on file size, reporting `(loaded, total)`
+  byte counts.
+- `src/components/PipelineProgressBar.tsx` + `src/utils/pipelineProgress.ts`
+  — the one shared progress bar for the whole convert-then-upload
+  pipeline (see above).
+- `src/components/ModelFileDropzone.tsx` — the one merged, drag-and-drop
+  capable file picker used by every upload form (see above).
 - `src/services/projectService.ts` — `uploadModelFile()`/
   `uploadIfcFile()` now call `uploadToR2()` instead of Supabase Storage;
   `extractStorageRef()` replaces the old Supabase-only

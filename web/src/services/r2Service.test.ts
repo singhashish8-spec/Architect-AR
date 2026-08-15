@@ -144,8 +144,9 @@ describe('uploadToR2 (multipart, files above the 8 MB threshold)', () => {
         { partNumber: 2, eTag: '"etag-2"' },
       ],
     })
-    // Called once per completed part, ending at 1 (100%).
-    expect(onProgress).toHaveBeenLastCalledWith(1)
+    // Called once per completed part, with real byte counts (not just a
+    // bare fraction), ending at loaded === total.
+    expect(onProgress).toHaveBeenLastCalledWith(file.size, file.size)
   })
 
   it('retries a failed part upload before giving up, and succeeds once a retry works', async () => {

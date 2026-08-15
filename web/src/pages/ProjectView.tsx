@@ -4,6 +4,7 @@ import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
 import { ARHandoff } from '../viewer/ARHandoff'
 import { ElementDataPanel } from '../components/ElementDataPanel'
 import { PasscodeGate } from '../components/PasscodeGate'
+import { BrandingHeader } from '../components/BrandingHeader'
 import { LevelsPanel } from '../components/LevelsPanel'
 import { CategoryPanel } from '../components/CategoryPanel'
 import { LightingPresetPanel } from '../components/LightingPresetPanel'
@@ -124,16 +125,38 @@ export function ProjectView() {
 
   if (loadError)
     return (
-      <p role="alert" className={styles.status}>
-        {loadError}
-      </p>
+      <>
+        <BrandingHeader variant="overlay" />
+        <p role="alert" className={styles.status}>
+          {loadError}
+        </p>
+      </>
     )
-  if (passcodeRequired === null) return <p className={styles.status}>Loading…</p>
-  if (passcodeRequired && !project) return <PasscodeGate onSubmit={handlePasscodeSubmit} />
-  if (!project || !activeModel) return <p className={styles.status}>Loading…</p>
+  if (passcodeRequired === null)
+    return (
+      <>
+        <BrandingHeader variant="overlay" />
+        <p className={styles.status}>Loading…</p>
+      </>
+    )
+  if (passcodeRequired && !project)
+    return (
+      <>
+        <BrandingHeader variant="overlay" />
+        <PasscodeGate onSubmit={handlePasscodeSubmit} />
+      </>
+    )
+  if (!project || !activeModel)
+    return (
+      <>
+        <BrandingHeader variant="overlay" />
+        <p className={styles.status}>Loading…</p>
+      </>
+    )
 
   return (
     <div className={styles.root} ref={setRootEl}>
+      <BrandingHeader variant="overlay" />
       <ModelViewer
         ref={viewerRef}
         modelUrl={activeModel.modelUrl}

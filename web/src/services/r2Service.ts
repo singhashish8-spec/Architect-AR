@@ -61,10 +61,12 @@ function sleep(ms: number): Promise<void> {
 // directly to R2's own endpoint over a presigned URL, never through any
 // Vercel serverless function (which would reimpose a much smaller
 // body-size ceiling of its own). Returns the file's public read URL.
-// `onProgress` (0..1) is optional and only ever called for the
+// `onProgress(loaded, total)` is optional and only ever called for the
 // multipart path -- a single small PUT has nothing meaningful to report
-// partway through.
-export async function uploadToR2(file: File, onProgress?: (fraction: number) => void): Promise<string> {
+// partway through. Reports actual byte counts (not just a 0..1 fraction)
+// so the UI can show real numbers the way a browser's own download
+// manager does ("45.2 MB of 198.3 MB"), not just a bare percentage.
+export async function uploadToR2(file: File, onProgress?: (loaded: number, total: number) => void): Promise<string> {
   if (file.size <= MULTIPART_THRESHOLD_BYTES) {
     return uploadSingle(file)
   }
@@ -94,7 +96,7 @@ async function uploadSingle(file: File): Promise<string> {
   return publicUrl
 }
 
-async function uploadMultipart(file: File, onProgress?: (fraction: number) => void): Promise<string> {
+async function uploadMultipart(file: File, onProgress?: (loaded: number, total: number) => void): Promise<string> {
   const startResponse = await fetchOrThrow('Could not start the multipart upload', '/api/r2-multipart-start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -139,7 +141,7 @@ async function uploadMultipart(file: File, onProgress?: (fraction: number) => vo
       const eTag = await uploadPartWithRetry(url, chunk)
       parts.push({ partNumber, eTag })
       bytesUploaded += chunk.size
-      onProgress?.(bytesUploaded / file.size)
+      onProgress?.(bytesUploaded, file.size)
     }
 
     const completeResponse = await fetchOrThrow('Could not finish the multipart upload', '/api/r2-multipart-complete', {

@@ -1,0 +1,113 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dropArea,
+.dropAreaActive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.5rem 1rem;
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.dropArea:hover {
+  border-color: var(--color-primary);
+}
+
+.dropAreaActive {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface-2));
+}
+
+.hiddenInput {
+  /* Visually hidden but still focusable/keyboard-operable via the
+     wrapping <label> -- not display:none, which would drop it from the
+     accessibility tree and tab order entirely. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.dropIcon {
+  font-size: 1.4rem;
+  color: var(--color-primary);
+}
+
+.dropText {
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.dropHint {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.3rem 0.3rem 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 0.8rem;
+}
+
+.chipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
+}
+
+.chipSize {
+  flex: none;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chipRemove {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.chipRemove:hover {
+  background: rgba(127, 127, 127, 0.15);
+  color: var(--color-text);
+}

@@ -129,7 +129,7 @@ export async function uploadModelFileWithConversion(
   file: File,
   options: { includeTextures: boolean },
   onProgress?: (progress: FbxConversionProgress) => void,
-  onUploadProgress?: (fraction: number) => void,
+  onUploadProgress?: (loaded: number, total: number) => void,
 ): Promise<string> {
   if (!isFbxFile(file)) return uploadModelFile(file, onUploadProgress)
 

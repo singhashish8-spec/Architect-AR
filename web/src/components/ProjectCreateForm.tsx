@@ -1,13 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { ScalePresetSelect } from './ScalePresetSelect'
-import { ConversionProgressBar } from './ConversionProgressBar'
-import { FbxConversionStatus } from './FbxConversionStatus'
-import { UploadProgressBar } from './UploadProgressBar'
+import { ModelFileDropzone } from './ModelFileDropzone'
+import { PipelineProgressBar, type PipelineProgressBarProps } from './PipelineProgressBar'
 import { createAdminProject } from '../services/adminService'
 import { uploadIfcFile, uploadModelFile } from '../services/projectService'
-import { convertIfcToGlb, type ConversionProgress } from '../ifc/ifcToGlb'
-import { isFbxFile } from '../viewer/isFbxFile'
-import type { FbxConversionProgress } from '../viewer/fbxToGlb'
+import { convertIfcToGlb } from '../ifc/ifcToGlb'
+import { ifcProgressToBar, fbxProgressToBar, uploadProgressToBar } from '../utils/pipelineProgress'
 import type { NewProjectModel } from '../types/ProjectModel'
 import type { ScalePreset } from '../types/ScalePreset'
 import { getErrorMessage } from '../utils/errorMessage'
@@ -49,15 +47,10 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
   const [passcode, setPasscode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [conversion, setConversion] = useState<{ modelIndex: number; progress: ConversionProgress } | null>(
-    null,
-  )
-  const [fbxConversion, setFbxConversion] = useState<{ modelIndex: number; progress: FbxConversionProgress } | null>(
-    null,
-  )
-  const [uploadProgress, setUploadProgress] = useState<{ modelIndex: number; label: string; fraction: number } | null>(
-    null,
-  )
+  // One progress bar for the whole convert-then-upload pipeline, per
+  // model being submitted -- see components/PipelineProgressBar.tsx for
+  // why this replaced three separate progress states/components.
+  const [pipeline, setPipeline] = useState<{ modelIndex: number; bar: PipelineProgressBarProps } | null>(null)
 
   function updateModel(index: number, patch: Partial<ModelDraft>) {
     setModels((current) => current.map((model, i) => (i === index ? { ...model, ...patch } : model)))
@@ -102,30 +95,27 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
           modelUrl = await uploadModelFileWithConversion(
             draft.modelFile,
             { includeTextures: draft.includeTextures },
-            (progress) => setFbxConversion({ modelIndex: index, progress }),
-            (fraction) => setUploadProgress({ modelIndex: index, label: 'Uploading model…', fraction }),
+            (progress) => setPipeline({ modelIndex: index, bar: fbxProgressToBar(progress) }),
+            (loaded, total) =>
+              setPipeline({ modelIndex: index, bar: uploadProgressToBar('Uploading model…', loaded, total) }),
           )
-          setFbxConversion(null)
-          setUploadProgress(null)
         } else {
           const glbBlob = await convertIfcToGlb(draft.ifcFile!, (progress) => {
-            setConversion({ modelIndex: index, progress })
+            setPipeline({ modelIndex: index, bar: ifcProgressToBar(progress) })
           })
-          setConversion(null)
           const glbFile = new File([glbBlob], `${draft.ifcFile!.name.replace(/\.ifc$/i, '')}.glb`, {
             type: 'model/gltf-binary',
           })
-          modelUrl = await uploadModelFile(glbFile, (fraction) =>
-            setUploadProgress({ modelIndex: index, label: 'Uploading model…', fraction }),
+          modelUrl = await uploadModelFile(glbFile, (loaded, total) =>
+            setPipeline({ modelIndex: index, bar: uploadProgressToBar('Uploading model…', loaded, total) }),
           )
-          setUploadProgress(null)
         }
         const ifcUrl = draft.ifcFile
-          ? await uploadIfcFile(draft.ifcFile, (fraction) =>
-              setUploadProgress({ modelIndex: index, label: 'Uploading IFC file…', fraction }),
+          ? await uploadIfcFile(draft.ifcFile, (loaded, total) =>
+              setPipeline({ modelIndex: index, bar: uploadProgressToBar('Uploading IFC file…', loaded, total) }),
             )
           : null
-        setUploadProgress(null)
+        setPipeline(null)
         uploadedModels.push({
           name: draft.name.trim() || `Model ${index + 1}`,
           modelUrl,
@@ -144,9 +134,7 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
     } catch (err) {
       setError(getErrorMessage(err, 'Could not create this project. Please try again.'))
     } finally {
-      setConversion(null)
-      setFbxConversion(null)
-      setUploadProgress(null)
+      setPipeline(null)
       setSubmitting(false)
     }
   }
@@ -206,45 +194,16 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
           </div>
 
           <div className={styles.field}>
-            <label htmlFor={`new-model-file-${index}`} className={styles.label}>
-              Model file (glTF / GLB / FBX) — optional
-            </label>
-            <input
-              id={`new-model-file-${index}`}
-              type="file"
-              accept=".glb,.gltf,.fbx"
-              className={styles.fileInput}
-              onChange={(event) => updateModel(index, { modelFile: event.target.files?.[0] ?? null })}
+            <label className={styles.label}>Model / IFC files</label>
+            <ModelFileDropzone
+              id={`new-model-dropzone-${index}`}
+              modelFile={model.modelFile}
+              ifcFile={model.ifcFile}
+              onModelFileChange={(file) => updateModel(index, { modelFile: file })}
+              onIfcFileChange={(file) => updateModel(index, { ifcFile: file })}
+              includeTextures={model.includeTextures}
+              onIncludeTexturesChange={(value) => updateModel(index, { includeTextures: value })}
             />
-            {model.modelFile && isFbxFile(model.modelFile) && (
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={model.includeTextures}
-                  onChange={(event) => updateModel(index, { includeTextures: event.target.checked })}
-                />
-                Include textures and materials from this FBX file
-              </label>
-            )}
-          </div>
-
-          <div className={styles.field}>
-            <label htmlFor={`new-ifc-file-${index}`} className={styles.label}>
-              IFC file — required if no model file is given above; also enables tap-to-inspect
-            </label>
-            <input
-              id={`new-ifc-file-${index}`}
-              type="file"
-              accept=".ifc"
-              className={styles.fileInput}
-              onChange={(event) => updateModel(index, { ifcFile: event.target.files?.[0] ?? null })}
-            />
-            {!model.modelFile && model.ifcFile && (
-              <p className={styles.subtitle}>
-                No model file given — we'll build the 3D view straight from this IFC file when you submit.
-                Materials will show as flat colors, not real textures, since IFC doesn't carry those.
-              </p>
-            )}
           </div>
 
           <div className={styles.field}>
@@ -259,10 +218,8 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
             />
           </div>
 
-          {conversion?.modelIndex === index && <ConversionProgressBar progress={conversion.progress} />}
-          {fbxConversion?.modelIndex === index && <FbxConversionStatus progress={fbxConversion.progress} />}
-          {uploadProgress?.modelIndex === index && (
-            <UploadProgressBar fraction={uploadProgress.fraction} label={uploadProgress.label} />
+          {pipeline?.modelIndex === index && (
+            <PipelineProgressBar label={pipeline.bar.label} percent={pipeline.bar.percent} detail={pipeline.bar.detail} />
           )}
         </div>
       ))}
@@ -292,13 +249,7 @@ export function ProjectCreateForm({ adminPasscode, onCreated }: ProjectCreateFor
       )}
 
       <button type="submit" className={styles.button} disabled={submitting || !canSubmit}>
-        {submitting
-          ? conversion || fbxConversion
-            ? 'Converting…'
-            : uploadProgress
-              ? 'Uploading…'
-              : 'Creating…'
-          : 'Create project'}
+        {submitting ? (pipeline ? 'Working…' : 'Creating…') : 'Create project'}
       </button>
     </form>
   )

@@ -28,7 +28,7 @@
 | [Bill of Quantities (BOQ)](boq.md) | 2/3 | Built (2026-08-11); unit-tested, not yet checked against a real live IFC file's own units/materials |
 | [View analytics + admin dashboard](analytics-and-admin-dashboard.md) | 2 | Built, unit-tested, gate UI checked in a real production build; stats not yet checked against a real live Supabase project |
 | [Full admin dashboard (project/model management, upgraded analytics, storage tracker)](full-admin-dashboard.md) | 3 | Built and shipped — project/model management (2026-08-09), then richer analytics + storage tracker (2026-08-11) |
-| [Large file storage (Cloudflare R2)](large-file-storage.md) | 2/3 | Built (2026-08-12); confirmed working end-to-end via a full presign/PUT/GET round trip (2026-08-14), but a real mobile-browser upload still failed on a dropped connection — resumable multipart upload planned as the fix |
+| [Large file storage (Cloudflare R2)](large-file-storage.md) | 2/3 | Built (2026-08-12); confirmed working end-to-end via a full presign/PUT/GET round trip (2026-08-14); upload rebuilt around resumable multipart + a unified progress bar with real byte counts and one merged drag-and-drop file picker (2026-08-15), not yet re-verified against a real mobile browser |
 | [FBX upload with real textures/materials](fbx-upload.md) | 2/3 | Built (2026-08-12); unit-tested against mocked loaders, not yet verified against a real browser or a real textured FBX file (no browser automation available in this session's sandbox) |
 | [AR walkthrough (motion-sensor)](ar-walkthrough.md) | 4 | Scoped, not started |
 

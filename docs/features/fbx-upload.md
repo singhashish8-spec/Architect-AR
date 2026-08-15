@@ -141,8 +141,10 @@ bundle, which returned to its pre-FBX size once this split was made.
   genuinely huge textured FBX (many high-resolution textures) could
   produce a very large GLB, slow to convert and slow to view. Not yet a
   reported problem, nothing built for it pre-emptively.
-- **`ModelEditForm`'s "Replace model file" doesn't accept FBX** —
-  deliberately out of scope for this pass (only the two "new upload"
-  flows — `ProjectCreateForm`, `AddModelForm` — and `/local` got FBX
-  support). Replacing an existing model with an FBX still requires
-  manually converting it first. Worth adding later if it comes up.
+- ~~`ModelEditForm`'s "Replace model file" doesn't accept FBX~~ —
+  **closed 2026-08-15**, as a side effect of merging the two file
+  inputs into one `components/ModelFileDropzone.tsx` control (see
+  [`large-file-storage.md`](large-file-storage.md) and
+  [`../roadmap/decisions.md`](../roadmap/decisions.md)): every upload
+  form, including the replace-file flow, now shares the same
+  dropzone/textures-checkbox/conversion path.
