@@ -22,9 +22,16 @@ Autodesk Platform Services/NWC and Lumion as export sources, corrected a
 real misattribution (real FBX textures come from Revit's own native
 export, not Twinmotion, which the owner doesn't have), found a real
 undocumented gap (tap-to-inspect doesn't work for a separately-exported
-FBX + IFC pair), and logged three new proposed-but-unbuilt directions —
-a pyRevit "one-click export + upload" extension, GLB compression, and
-real-time multi-user collaboration.
+FBX + IFC pair), and logged seven new proposed-but-unbuilt directions —
+a pyRevit "one-click export + upload" extension, GLB compression,
+real-time multi-user collaboration, Quest/Vision Pro AR support via
+WebXR, richer location/OS/browser analytics, a 360°-photo walkthrough
+mode, and Gaussian Splatting for site capture — the last four found
+while reviewing a competitor product on the owner's own request. Also
+compared cloud/hosting providers in real depth (AWS, Azure, GCP,
+Cloudflare, Oracle, Hetzner, DigitalOcean) and found Oracle's free
+compute tier was just cut, relevant to the still-unbuilt background-
+conversion-service idea from Session 9.
 
 ## Right now, in one paragraph
 
@@ -81,10 +88,14 @@ found a real undocumented tap-to-inspect gap (a separately-exported FBX
 doesn't correlate with a separate IFC file); researched and ruled out
 Autodesk Platform Services (NWC/Forge) and Lumion as export sources;
 corrected a real misattribution (real FBX textures come from Revit's own
-native export, not Twinmotion, which the owner doesn't have); and logged
-three new proposed-but-unbuilt directions into the roadmap — a pyRevit
-"one-click export + upload" extension, GLB compression, and real-time
-multi-user collaboration.
+native export, not Twinmotion, which the owner doesn't have); reviewed a
+competitor product (AR Code) end to end and logged four ideas worth
+keeping (Quest/Vision Pro AR, richer analytics, a 360°-photo walkthrough,
+Gaussian Splatting); compared cloud/hosting providers in depth and found
+Oracle's free compute tier was just cut; and logged seven new
+proposed-but-unbuilt directions into the roadmap in total — a pyRevit
+"one-click export + upload" extension, GLB compression, real-time
+multi-user collaboration, and the four from the competitor review.
 
 ## What's still pending / open
 
@@ -97,16 +108,28 @@ multi-user collaboration.
   tooling). See
   [`findings.md`](findings.md) and
   [`../features/fbx-upload.md`](../features/fbx-upload.md).
-- **Three new directions proposed 2026-08-15, none built or formally
+- **Seven new directions proposed 2026-08-15, none built or formally
   scoped**: a pyRevit extension for one-click export + upload (a
   separate software project, not part of this web app's own codebase),
-  GLB compression (Draco + texture resizing, buildable in this repo
-  independent of the pyRevit idea), and real-time multi-user
-  collaboration in the viewer. Autodesk Platform Services (NWC/Forge)
-  was researched and deliberately parked, not pursued, given unconfirmed
-  pricing/fidelity and no glTF/GLB output. See
+  GLB compression, real-time multi-user collaboration in the viewer,
+  AR viewing on Meta Quest/Apple Vision Pro via WebXR, richer
+  location/OS/browser analytics, a lightweight 360°-photo walkthrough
+  mode, and Gaussian Splatting for real-site capture (the last four
+  found while reviewing a competitor product, AR Code, at the owner's
+  request). Of these, Quest/Vision Pro AR support and the analytics
+  enhancement are the cheapest and most realistic to build soon.
+  Autodesk Platform Services (NWC/Forge) was researched and deliberately
+  parked, not pursued, given unconfirmed pricing/fidelity and no
+  glTF/GLB output. See
   [`../roadmap/decisions.md`](../roadmap/decisions.md) and
   [`../roadmap/phases.md`](../roadmap/phases.md).
+- **Cloud/hosting provider comparison done in depth 2026-08-15** (AWS,
+  Azure, GCP, Cloudflare, Oracle, Hetzner, DigitalOcean) — found Oracle's
+  Always Free compute tier was just cut (halved in June 2026, oversized
+  instances being terminated starting 2026-08-18); if the still-unbuilt
+  background-conversion-service idea (Session 9) ever moves forward, size
+  it to Oracle's new smaller limit, or budget for Hetzner (~$4.50/month)
+  as the cheapest paid alternative.
 - **No cross-session workflow exists** between this session (the web
   app) and the owner's separate Claude Desktop session (connected to
   Revit via MCP) — raised, not designed. This session has no visibility

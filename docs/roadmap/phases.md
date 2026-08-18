@@ -119,9 +119,26 @@
   **Richer analytics and the storage-usage tracker shipped (2026-08-11)**:
   a per-project Analytics tab (visit history table, views-per-day chart,
   CSV export) and an account-wide storage usage panel (progress bar,
-  owner-editable limit) on the project list. Nothing from this feature's
-  original scope remains open. Full detail in
+  owner-editable limit) on the project list. Full detail in
   [`features/full-admin-dashboard.md`](../features/full-admin-dashboard.md).
+  **Location/OS/browser breakdown proposed 2026-08-15** (found while
+  reviewing a competitor's analytics feature set, see
+  [`decisions.md`](decisions.md)) — not built yet, but cheap: Vercel
+  already attaches the visitor's country/city to every request at the
+  edge for free, and OS/browser just needs the standard `User-Agent`
+  header parsed, both already arriving with every request today, unused.
+- **AR viewing on Meta Quest and Apple Vision Pro, not just phones**
+  (proposed 2026-08-15, not built) — today's AR handoff only reaches
+  Android (Scene Viewer) and iPhone/iPad (Quick Look, via a USDZ file).
+  Vision Pro shares the same Quick Look mechanism as iPhone/iPad, so a
+  USDZ already being generated for iOS may partly work there with little
+  extra code — worth testing before assuming new work. Quest has no such
+  shortcut and would need **WebXR** — a browser API for requesting an
+  immersive AR/VR session directly from JavaScript, which `three.js`
+  (already this app's own viewer library) has built-in support for.
+  Real use case: design review with a room full of stakeholders on
+  headsets, not just one client on their phone. See
+  [`decisions.md`](decisions.md).
 
 ## Phase 4 — Native shell for on-site AR
 - Wrap the same web codebase with **Capacitor**, matching the Budget
@@ -141,12 +158,38 @@
   [`features/ar-walkthrough.md`](../features/ar-walkthrough.md).
 - This finally gives the existing bare Android project a real purpose.
 
-## Phase 5 — Deeper CAD integration
+## Phase 5 — Deeper CAD integration, and real-world site capture
 - Evaluate direct export plugins per tool (Revit, SketchUp, Rhino) or cloud
   sync (Autodesk Construction Cloud/BIM 360, Trimble Connect) to remove the
   manual export step entirely.
 - Only worth it once Phase 1–3 usage proves the manual glTF export step is
   actually the friction point — not before.
+- **A lightweight 360°-photo walkthrough mode** (proposed 2026-08-15, not
+  built — found while reviewing a competitor's product suite, see
+  [`decisions.md`](decisions.md)) — a *companion* to the full 3D model
+  pipeline, not a replacement: a single 360° (equirectangular) photo
+  mapped onto the inside of a sphere in three.js, camera at the center,
+  so looking around reads as "standing in the space." Genuinely simple
+  to build (simpler than the existing BIM viewer) and needs no special
+  capture equipment — any 360° camera, or some phone panorama apps,
+  produce a usable file. Real use case: fast, cheap documentation of an
+  **existing site's current condition** before a renovation project,
+  something the precise-geometry pipeline isn't suited for.
+- **Gaussian Splatting for existing-site capture** (proposed 2026-08-15,
+  not built — a real, current (2023+) technique, not a competitor's
+  invention) — turns a short walk-around phone video of a real space
+  into a photorealistic 3D scene (millions of small colored translucent
+  "blobs" instead of triangles), handling reflective/transparent/fine
+  detail better than ordinary photogrammetry. Capture itself is easy
+  (just a phone video); the real cost is **reconstruction**, which needs
+  genuine GPU compute — not something a browser or a small server does,
+  the same category of "needs new infrastructure" as the background-
+  conversion-service idea above, either via a paid hosted splatting
+  service or a self-hosted GPU pipeline. Once a splat file exists,
+  open-source three.js-compatible splat viewers exist and would slot
+  into the existing viewer reasonably cleanly — it's the reconstruction
+  step, not the viewing step, that's the real undertaking. See
+  [`decisions.md`](decisions.md).
 - **pyRevit extension for one-click export + upload** (proposed
   2026-08-15, discussed, not built or formally scoped) — this is the
   concrete version of "direct export plugin" above, specific to Revit:
