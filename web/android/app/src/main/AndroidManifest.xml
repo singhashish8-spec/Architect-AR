@@ -33,9 +33,36 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Native AR walkthrough (Phase 4): a separate full-screen
+             Activity, not embedded in the WebView, the same shape
+             Scene Viewer/Quick Look already use on the web side (see
+             docs/features/ar-walkthrough.md). android:exported="false":
+             only this app itself ever launches it, via the plugin
+             below, never another app via an external Intent. -->
+        <activity
+            android:name=".ar.ArWalkthroughActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <!-- "optional", not "required": ARCore not being available on a
+             device must not block the rest of this app (project
+             browsing, quantity takeoff, the existing web-based AR
+             handoff) from installing or working; see
+             docs/features/ar-walkthrough.md's error-handling section. -->
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
     </application>
+
+    <!-- Declares the AR camera feature as used-but-not-required, for the
+         same "don't block install on unsupported devices" reason as the
+         com.google.ar.core meta-data above. -->
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
 
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Requested at runtime, not just declared here; see
+         ArWalkthroughActivity's explicit permission-request flow. -->
+    <uses-permission android:name="android.permission.CAMERA" />
 </manifest>

@@ -1,4 +1,6 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace = "com.singhashish.architectar"
@@ -22,6 +24,18 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    // ARCore/SceneView (Filament) and the native AR plugin are Kotlin --
+    // Capacitor's own generated MainActivity.java stays Java, both
+    // languages coexist fine in one module.
+    kotlinOptions {
+        jvmTarget = "21"
+    }
+    // Only the new AR Activity uses Compose (SceneView 4.x's ARScene is
+    // a Composable) -- Capacitor's own MainActivity/WebView UI is
+    // untouched, still plain Android views.
+    buildFeatures {
+        compose true
+    }
 }
 
 repositories {
@@ -40,6 +54,34 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // Native AR walkthrough (Phase 4, docs/features/ar-walkthrough.md).
+    // SceneView wraps ARCore + Filament (Google's real-time PBR renderer,
+    // the same rendering technology <model-viewer> uses on the web side)
+    // with a much smaller API surface than driving ARCore's session and a
+    // raw OpenGL renderer by hand -- and it loads GLB/glTF directly, the
+    // exact format every model in this app is already converted to
+    // client-side (ifc/ifcToGlb.ts, viewer/fbxToGlb.ts), so no new
+    // conversion step is needed for the native side either.
+    // Pinned to 2.2.1, not the current 4.x line -- 4.x rewrote ARScene
+    // around a fully declarative Compose scene-graph (no childNodes list,
+    // AnchorNode moved packages, no rememberNodes()) that would need a
+    // rewrite of this screen to match; 2.2.1 is the last release with the
+    // imperative childNodes/onSessionUpdated API this code is written
+    // against, confirmed against its real source on GitHub (tag v2.2.1).
+    implementation "io.github.sceneview:arsceneview:2.2.1"
+    implementation "com.google.ar:core:1.54.0"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1"
+
+    // Compose, for the AR Activity's UI only (status overlay, permission
+    // prompts) -- ARScene itself is a Composable in SceneView 4.x.
+    implementation platform('androidx.compose:compose-bom:2026.02.01')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose:1.11.0'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
 }
 
 apply from: 'capacitor.build.gradle'

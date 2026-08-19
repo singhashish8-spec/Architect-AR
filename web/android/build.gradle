@@ -9,6 +9,16 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.4'
+        // Added for the native AR walkthrough plugin (Phase 4, see
+        // docs/features/ar-walkthrough.md) -- the rest of this project
+        // stays Java/JS as Capacitor generated it; only the AR-specific
+        // code is Kotlin, since ARCore/SceneView's own APIs and the
+        // wider Android AR ecosystem are Kotlin-first.
+        // Pinned to match the Kotlin version SceneView 4.31.0 itself was
+        // compiled with (2.4.x metadata) -- an older Kotlin compiler here
+        // can't read newer .kotlin_module metadata from that dependency.
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.10'
+        classpath 'org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.4.10'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files

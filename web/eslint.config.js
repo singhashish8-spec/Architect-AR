@@ -5,7 +5,11 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // android/ is the generated Capacitor native project (Kotlin/Java/
+  // Gradle, plus its own build output) -- not JS/TS this config's
+  // parserOptions.projectService has any tsconfig for, and not code this
+  // project's own conventions apply to.
+  { ignores: ['dist', 'android'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
     files: ['**/*.{ts,tsx}'],

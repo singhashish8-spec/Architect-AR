@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { ModelViewer, type ModelViewerHandle } from '../viewer/ModelViewer'
-import { ARHandoff } from '../viewer/ARHandoff'
+import { ArHandoffButton } from '../viewer/ArHandoffButton'
 import { ElementDataPanel } from '../components/ElementDataPanel'
 import { PasscodeGate } from '../components/PasscodeGate'
 import { BrandingHeader } from '../components/BrandingHeader'
@@ -182,7 +182,12 @@ export function ProjectView() {
         </div>
       )}
       <div className={styles.arButton}>
-        <ARHandoff modelUrl={activeModel.modelUrl} scalePreset={activeModel.scalePreset} alt={activeModel.name} />
+        <ArHandoffButton
+          modelUrl={activeModel.modelUrl}
+          scalePreset={activeModel.scalePreset}
+          projectName={project.name}
+          alt={activeModel.name}
+        />
       </div>
       <button
         type="button"
