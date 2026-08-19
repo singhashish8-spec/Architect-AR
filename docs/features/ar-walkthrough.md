@@ -1,7 +1,13 @@
 # Feature: AR walkthrough (motion-sensor)
 
-> Part of [`features/`](README.md). Phase 4. Status: **scoped, not
-> started.** Deliberately deferred past Phase 1 — see Technical approach.
+> Part of [`features/`](README.md). Phase 4. Status: **free walkthrough
+> implemented and build-verified** (native ARCore/SceneView Activity,
+> Capacitor plugin bridge, wired into `ProjectView`). **Print-anchored AR
+> is still not started** — deliberately deferred, see Open questions.
+> Real-device AR tracking/placement behavior has not been verified by
+> Claude — this sandbox has no camera or display; see
+> [`../history/sessions/`](../history/README.md) for the session that
+> built this and exactly what was and wasn't verified.
 
 ## Summary
 
@@ -90,19 +96,83 @@ same reasoning that already put the free walkthrough in Phase 4; the
 print-anchored version doesn't change the calculus, it's the same
 constraint applying to a second capability.
 
-Until Phase 4 ships, Phase 1's `<model-viewer>` AR handoff still lets a
-client place and view the model in AR at its correct fixed scale from the
-shareable link (including one reached by scanning the Phase-1 QR code) —
-it's just the OS's own gestures (place, look around from a fixed position,
-pinch disabled by `ar-scale="fixed"`), not image-anchored or free-walking.
+Until print-anchored AR ships, Phase 1's `<model-viewer>` AR handoff still
+covers image-less AR from the shareable link (including one reached by
+scanning the Phase-1 QR code) — it's just the OS's own gestures (place,
+look around from a fixed position, pinch disabled by `ar-scale="fixed"`),
+not image-anchored. `ArHandoffButton.tsx` now picks between that and the
+native walkthrough below automatically; see Implementation.
+
+## Implementation (free walkthrough)
+
+**Shell**: `web/` is wrapped by Capacitor (`web/capacitor.config.ts`,
+generated project at `web/android/`) rather than rewritten natively — the
+whole existing React/R3F app ships unchanged inside a `WebView`, and only
+the AR walkthrough itself is real native code. `npx cap sync android`
+copies a fresh `web/dist` build into the shell; that has to be re-run
+(and the APK rebuilt) after any web-side change for the shell to pick it
+up — it is not automatic.
+
+**Native AR** (`web/android/app/src/main/java/.../ar/`):
+- `ArWalkthroughActivity.kt` — a separate full-screen `ComponentActivity`
+  (Compose), not embedded in the WebView. Sequenced explicitly: camera
+  permission → `ArCoreApk.checkAvailability()`/`requestInstall()` → model
+  download to cache (dedup'd by URL hash) → `ARScene` (SceneView) owns the
+  session from there. Tap-to-place hit-tests against detected planes,
+  creates an `AnchorNode`, and parents a `ModelNode` scaled by
+  `ArScalePreset.visualScale()` — a Kotlin port of
+  `types/ScalePreset.ts`'s `visualScale()`, kept as a small standalone
+  object rather than shared cross-language, so it has to be watched if the
+  web-side presets ever change (see Open questions).
+- `ArWalkthroughState.kt` — every user-facing state the screen can be in
+  (`CheckingAvailability`, `CameraPermissionDenied`, `InstallingArCore`,
+  `SearchingForSurfaces`, `TrackingLimited(reason)`, `Error`, …), so raw
+  ARCore/Android signals (`TrackingFailureReason`, install results,
+  permission results, session exceptions) are translated to plain
+  language in exactly one place rather than leaking into the UI.
+- `ArWalkthroughPlugin.kt` — the thin Capacitor bridge
+  (`ArWalkthrough.isSupported()` / `.startWalkthrough({modelUrl,
+  scalePreset, projectName})`), registered in `MainActivity.java`.
+
+**Web side** (`web/src/native/arWalkthrough.ts`,
+`web/src/viewer/ArHandoffButton.tsx`): `isNativeShell()` gates everything
+on `Capacitor.isNativePlatform()`, so the plugin is never even queried in
+a regular browser tab. `ArHandoffButton` checks `isSupported()` once and
+renders either the native AR button or the existing `ARHandoff`
+(`<model-viewer>`) — never both, and never a flash of one before the
+other.
+
+**Dependency note**: `io.github.sceneview:arsceneview` is pinned to
+`2.2.1`, not the current `4.x` line — `4.x` rewrote `ARScene` around a
+fully declarative Compose scene-graph (no `childNodes` list, `AnchorNode`
+moved packages, no `rememberNodes()`) that doesn't match this screen's
+imperative structure. `2.2.1` is the last release with the
+`childNodes`/`onSessionUpdated` API this code targets; confirmed against
+its real source on GitHub (tag `v2.2.1`), not assumed from memory.
+
+**What's build-verified vs. not**: the Android project compiles
+(`:app:assembleDebug`), a Kotlin JVM unit test suite passes
+(`ArScalePresetTest`, mirroring `ScalePreset.test.ts`), and the web-side
+bridge has its own Vitest suite (`arWalkthrough.test.ts`) with `@capacitor/core`
+mocked. None of that exercises a real ARCore session, a real camera feed,
+or real device motion — this sandbox has no camera or display, so plane
+detection, tracking quality, and placement accuracy have not been
+verified hands-on. See `releases/README.md` at the repo root for the
+debug APK built for that hands-on test.
 
 ## Open questions
 
 - Exact UX for the print-anchored → 1:1 transition (instant cut vs.
   animated scale-up, whether the camera also repositions or just the
-  model scales around a fixed point) — not decided, revisit when Phase 4
-  starts.
+  model scales around a fixed point) — not decided, revisit when
+  print-anchored AR starts.
 - Whether paper size needs to be an explicit field at import time, or can
   be inferred/left to the architect to select at print time — not decided.
-- Otherwise not detailed further — revisit and flesh out requirements when
-  Phase 4 actually starts, rather than over-specifying now.
+- `ArScalePreset.kt`'s scale math is a manual Kotlin port of
+  `ScalePreset.ts`, not shared code — if the web-side presets
+  (`SCALE_PRESETS` in `types/ScalePreset.ts`) ever change, this file needs
+  a matching edit or the native and web views will silently disagree on
+  how big a model renders.
+- Print-anchored AR itself is otherwise not detailed further — revisit
+  and flesh out requirements when it actually starts, rather than
+  over-specifying now.

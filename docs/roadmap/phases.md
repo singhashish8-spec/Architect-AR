@@ -141,22 +141,31 @@
   [`decisions.md`](decisions.md).
 
 ## Phase 4 — Native shell for on-site AR
-- Wrap the same web codebase with **Capacitor**, matching the Budget
-  Tracker pattern, to produce an actual Android (and optionally iOS) app.
-- This is where camera-overlay, on-site AR belongs: standing at the actual
-  building site with the phone camera showing the proposed design overlaid
-  at real scale — meaningfully different from the Phase 1 "view a link"
-  experience, and the reason a native app becomes worth the extra
-  maintenance.
-- **Custom AR camera view** (our own ARCore/ARKit integration, not the
-  Scene Viewer/Quick Look handoff) to support true physical walk-through:
-  the phone's motion sensors fused with the camera track your real
-  movement and translate it into movement through the anchored model, at
-  whatever scale preset that model was imported with — walk around a
-  1:1000 master plan placed on the floor like a tabletop model, or walk
-  through a 1:1 room-scale interior as if it were built. See
-  [`features/ar-walkthrough.md`](../features/ar-walkthrough.md).
-- This finally gives the existing bare Android project a real purpose.
+Status: **free walkthrough implemented, build-verified, not yet
+hands-on-tested on a real device.** Print-anchored AR not started
+(Android only so far; iOS not started).
+
+- Wraps the same web codebase with **Capacitor** (`web/capacitor.config.ts`,
+  `web/android/`) rather than a native rewrite — the existing React/R3F
+  app ships unchanged inside the shell; only the AR walkthrough itself is
+  real native (Kotlin) code.
+- **Custom AR camera view**: a real ARCore + SceneView Activity
+  (`web/android/app/src/main/java/.../ar/ArWalkthroughActivity.kt`), not
+  the Scene Viewer/Quick Look handoff — plane detection, tap-to-place, and
+  free physical walk-through via ARCore's own motion tracking, at
+  whatever scale preset the model was imported with. Bridged to the web
+  app through a Capacitor plugin; `ProjectView`'s AR button now picks
+  between this and the Phase 1 web handoff automatically. See
+  [`features/ar-walkthrough.md`](../features/ar-walkthrough.md) for the
+  full implementation writeup, dependency-version note, and what's
+  verified vs. not.
+- This finally gives the Android project (previously an unmodified
+  placeholder) a real purpose — the old placeholder module was deleted
+  and replaced by the Capacitor-generated project.
+- **Not done**: print-anchored AR (image tracking against a printed
+  sheet), iOS, Play Store publishing (needs the account owner's own
+  Google Play Console access), and any hands-on verification of AR
+  tracking/placement quality on a physical device.
 
 ## Phase 5 — Deeper CAD integration, and real-world site capture
 - Evaluate direct export plugins per tool (Revit, SketchUp, Rhino) or cloud

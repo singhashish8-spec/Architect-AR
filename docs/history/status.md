@@ -6,32 +6,48 @@
 > [`../roadmap/decisions.md`](../roadmap/decisions.md) for the authoritative
 > live list of open questions.
 
-Last updated: **2026-08-15**, [Session 10](sessions/2026-08-15-session-10.md).
-The app runs against a live Supabase backend and has been used for real,
-by the owner, against their own real project files — not just sample
-data. Phase 2 is fully shipped. Phase 3's admin dashboard is fully
-built. Large-file (R2) upload plumbing, the resumable-multipart rebuild,
-and the redesigned upload UI (one shared progress bar with real byte
-counts, one merged drag-and-drop file picker) are now **confirmed
+Last updated: **2026-08-19**, [Session 11](sessions/2026-08-19-session-11.md).
+**Phase 4's native AR walkthrough is now implemented and build-verified**
+(free walkthrough only — print-anchored AR still not started): a real
+Capacitor Android shell wrapping the existing web app, with a genuine
+ARCore + SceneView Activity for plane detection, tap-to-place, and free
+physical walk-through, bridged to `ProjectView`'s existing AR button so it
+picks the native experience when available and falls back to the Phase 1
+`<model-viewer>` handoff otherwise. This was built, tested, and shipped
+autonomously per the owner's own explicit instruction to decide and
+execute without check-ins. **Not verified**: real device AR
+tracking/placement behavior (this sandbox has no camera/display) or
+Play Store publishing (needs the owner's own developer account). A
+debug-signed APK is committed at `releases/architect-ar-debug.apk` for
+the owner's own hands-on test. See
+[Session 11](sessions/2026-08-19-session-11.md) and
+[`../features/ar-walkthrough.md`](../features/ar-walkthrough.md).
+
+Before that: the app runs against a live Supabase backend and has been
+used for real, by the owner, against their own real project files — not
+just sample data. Phase 2 is fully shipped. Phase 3's admin dashboard is
+fully built. Large-file (R2) upload plumbing, the resumable-multipart
+rebuild, and the redesigned upload UI (one shared progress bar with real
+byte counts, one merged drag-and-drop file picker) are **confirmed
 working end-to-end on a real device** — a real FBX (native Revit export)
 uploaded through the real app UI, project "NSE." The company-branding
-header is now on every page in the app, styled to match the share
-card's "HSA" mark rather than plain text. The rest of this session was a
-long architecture discussion (not code): researched and ruled out
-Autodesk Platform Services/NWC and Lumion as export sources, corrected a
-real misattribution (real FBX textures come from Revit's own native
-export, not Twinmotion, which the owner doesn't have), found a real
-undocumented gap (tap-to-inspect doesn't work for a separately-exported
-FBX + IFC pair), and logged seven new proposed-but-unbuilt directions —
-a pyRevit "one-click export + upload" extension, GLB compression,
-real-time multi-user collaboration, Quest/Vision Pro AR support via
-WebXR, richer location/OS/browser analytics, a 360°-photo walkthrough
-mode, and Gaussian Splatting for site capture — the last four found
-while reviewing a competitor product on the owner's own request. Also
-compared cloud/hosting providers in real depth (AWS, Azure, GCP,
-Cloudflare, Oracle, Hetzner, DigitalOcean) and found Oracle's free
-compute tier was just cut, relevant to the still-unbuilt background-
-conversion-service idea from Session 9.
+header is on every page in the app, styled to match the share card's
+"HSA" mark rather than plain text. [Session 10](sessions/2026-08-15-session-10.md)
+also included a long architecture discussion (not code): researched and
+ruled out Autodesk Platform Services/NWC and Lumion as export sources,
+corrected a real misattribution (real FBX textures come from Revit's own
+native export, not Twinmotion, which the owner doesn't have), found a
+real undocumented gap (tap-to-inspect doesn't work for a
+separately-exported FBX + IFC pair), and logged seven new
+proposed-but-unbuilt directions — a pyRevit "one-click export + upload"
+extension, GLB compression, real-time multi-user collaboration,
+Quest/Vision Pro AR support via WebXR, richer location/OS/browser
+analytics, a 360°-photo walkthrough mode, and Gaussian Splatting for site
+capture — the last four found while reviewing a competitor product on the
+owner's own request. Also compared cloud/hosting providers in real depth
+(AWS, Azure, GCP, Cloudflare, Oracle, Hetzner, DigitalOcean) and found
+Oracle's free compute tier was just cut, relevant to the still-unbuilt
+background-conversion-service idea from Session 9.
 
 ## Right now, in one paragraph
 
@@ -99,6 +115,19 @@ multi-user collaboration, and the four from the competitor review.
 
 ## What's still pending / open
 
+- **Real-device AR verification** — the native AR walkthrough (Session
+  11) is build-verified only. Plane detection quality, tracking
+  robustness, and placement accuracy on a real device all need the
+  owner's own hands-on test with `releases/architect-ar-debug.apk`.
+- **Print-anchored AR, iOS, and Play Store publishing** are all still
+  not started — see [`../roadmap/phases.md`](../roadmap/phases.md)'s
+  Phase 4 entry and [`../features/ar-walkthrough.md`](../features/ar-walkthrough.md).
+  Publishing specifically needs the owner's own Google Play Console
+  account (this session has no access to it).
+- **`ArScalePreset.kt` is a manual Kotlin port** of `ScalePreset.ts`'s
+  scale math, not shared code — if the web-side presets ever change,
+  this file needs a matching edit or the native and web AR views will
+  silently disagree on model size.
 - **The FBX+IFC tap-to-inspect correlation gap** — a separately-exported
   FBX (visual model) and a separate IFC file (property data) for the
   same building don't correlate at all today; tapping an element on the
@@ -201,6 +230,12 @@ multi-user collaboration, and the four from the competitor review.
 
 ## What's built and confirmed working
 
+- **Phase 4 native AR walkthrough** (free walkthrough only): a Capacitor
+  Android shell with a real ARCore + SceneView Activity for plane
+  detection, tap-to-place, and free physical walk-through, bridged to the
+  existing web app. Build-verified (compiles, unit tests pass) — not yet
+  hands-on verified on a real device. See
+  [`../features/ar-walkthrough.md`](../features/ar-walkthrough.md).
 - **Phase 1 (MVP)**: upload, shareable link, AR placement, tap-to-inspect
   — confirmed end-to-end on a real Revit export. See
   [`sessions/2026-08-08-session-04.md`](sessions/2026-08-08-session-04.md).
@@ -245,6 +280,7 @@ multi-user collaboration, and the four from the competitor review.
 | 8 | 2026-08-12 | [`sessions/2026-08-12-session-08.md`](sessions/2026-08-12-session-08.md) — Cloudflare R2 migration, FBX upload with real textures |
 | 9 | 2026-08-14 | [`sessions/2026-08-14-session-09.md`](sessions/2026-08-14-session-09.md) — R2 live-debugging arc, mobile upload reliability, background-processing decision |
 | 10 | 2026-08-15 | [`sessions/2026-08-15-session-10.md`](sessions/2026-08-15-session-10.md) — CORS `ETag` fix, unified progress bar, merged drag-and-drop file picker, branding header on every page |
+| 11 | 2026-08-19 | [`sessions/2026-08-19-session-11.md`](sessions/2026-08-19-session-11.md) — Phase 4 native AR walkthrough built and shipped autonomously (Capacitor shell, ARCore/SceneView, debug APK) |
 
 See [`findings.md`](findings.md) for cross-session findings worth
 remembering beyond the session they happened in.

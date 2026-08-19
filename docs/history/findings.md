@@ -365,3 +365,43 @@ user's own toolchain go unconfirmed and then get copied across multiple
 docs — a single direct question ("where does this file actually come
 from?") would have caught this on day one instead of after several
 docs/comments had already repeated it as fact.
+
+## Finding: `io.github.sceneview:arsceneview` silently changed its whole API shape between the 2.x and 4.x lines (Session 11)
+
+**What was found:** Kotlin code written against the imperative SceneView
+API remembered from training (`ARScene(childNodes = ..., onSessionUpdated
+= { session, frame -> ... })`, `AnchorNode` under
+`io.github.sceneview.node`) failed to compile against
+`io.github.sceneview:arsceneview:4.31.0` — the version Gradle resolved by
+default. Decompiling the actual `4.31.0` `.jar` (`javap` on the
+transformed API jar in the Gradle cache) showed the real cause: SceneView
+`4.x` rewrote `ARScene` around a fully declarative Compose scene-graph (a
+trailing `content: @Composable ARSceneScope.() -> Unit` lambda with
+composable node-builder functions inside it) with no `childNodes` list,
+`rememberNodes()`, or `AnchorNode` in its old package — a genuine
+upstream breaking rewrite somewhere in the `4.x` line, not a mistake in
+the code as first written.
+
+**How it was actually resolved:** rather than reverse-engineer the new
+declarative API from bytecode signatures alone (error-prone, and this
+session's model has no training knowledge of anything that changed after
+its cutoff), fetched the real Kotlin source for `arsceneview` from its
+GitHub repo at a specific historical tag (`v2.2.1` — note the `v` prefix;
+`2.2.1` without it 404s) to confirm that version still has the
+`childNodes`/`onSessionUpdated`/`AnchorNode`-at-`ar.node` API the code
+already targeted, then pinned the dependency to `2.2.1` instead of
+rewriting the screen. Confirmed against real source, not assumed from
+memory — the same standing rule as everywhere else in this project.
+
+**Standing lesson:** a version placeholder like "the current release" or
+"whatever Gradle resolves by default" is not safe to write Kotlin/Java
+code against sight-unseen for a library outside this session's training
+knowledge — the API surface itself can change between major versions,
+not just add/deprecate symbols. When a dependency's API doesn't match
+what the code expects, check whether it's a genuine upstream rewrite
+(compare real source at a specific tag) before assuming the code is
+wrong. This sandbox does have real, working network access to
+`raw.githubusercontent.com` for exactly this kind of check, confirmed
+working in this session — it isn't gated by this session's repo-access
+scope, since that only governs the GitHub API/MCP tools, not plain HTTPS
+fetches.
