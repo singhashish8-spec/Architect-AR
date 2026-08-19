@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Matches web/src/index.css's color-brand light-theme value
+         (Hiten Sethi & Associates' navy/indigo), so the app icon
+         matches the "HSA" mark used everywhere else in the app. -->
+    <color name="ic_launcher_background">#3730A3</color>
 </resources>
